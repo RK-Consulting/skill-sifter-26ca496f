@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import Container from './Container';
 import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase } from 'lucide-react';
@@ -14,6 +14,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
   ({ className, transparent = false, ...props }, ref) => {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const location = useLocation();
     
     // Detect scroll position
     useEffect(() => {
@@ -38,6 +39,10 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
     const linkClass = "relative px-3 py-2 text-ats-gray-600 hover:text-ats-gray-900 font-medium rounded-lg transition-colors hover:bg-ats-gray-100/50";
     const activeLinkClass = "text-ats-blue font-semibold";
     
+    const isActive = (path: string) => {
+      return location.pathname === path;
+    };
+    
     return (
       <nav ref={ref} className={navbarClass} {...props}>
         <Container>
@@ -52,10 +57,10 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
-              <Link to="/dashboard" className={cn(linkClass, activeLinkClass)}>Dashboard</Link>
-              <Link to="/candidates" className={linkClass}>Candidates</Link>
-              <Link to="/jobs" className={linkClass}>Jobs</Link>
-              <Link to="/reports" className={linkClass}>Reports</Link>
+              <Link to="/" className={cn(linkClass, isActive('/') && activeLinkClass)}>Dashboard</Link>
+              <Link to="/candidates" className={cn(linkClass, isActive('/candidates') && activeLinkClass)}>Candidates</Link>
+              <Link to="/jobs" className={cn(linkClass, isActive('/jobs') && activeLinkClass)}>Jobs</Link>
+              <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>Reports</Link>
             </div>
             
             {/* Right actions */}
@@ -90,25 +95,25 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
           {isMobileMenuOpen && (
             <div className="md:hidden pt-4 pb-2 animate-fade-in">
               <div className="flex flex-col space-y-2">
-                <Link to="/dashboard" className={cn(linkClass, activeLinkClass)}>
+                <Link to="/" className={cn(linkClass, isActive('/') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="w-5 h-5" />
                     <span>Dashboard</span>
                   </div>
                 </Link>
-                <Link to="/candidates" className={linkClass}>
+                <Link to="/candidates" className={cn(linkClass, isActive('/candidates') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <Users className="w-5 h-5" />
                     <span>Candidates</span>
                   </div>
                 </Link>
-                <Link to="/jobs" className={linkClass}>
+                <Link to="/jobs" className={cn(linkClass, isActive('/jobs') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <Briefcase className="w-5 h-5" />
                     <span>Jobs</span>
                   </div>
                 </Link>
-                <Link to="/reports" className={linkClass}>
+                <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <FileText className="w-5 h-5" />
                     <span>Reports</span>
