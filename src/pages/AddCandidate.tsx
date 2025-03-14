@@ -19,7 +19,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Button from '@/components/ui-custom/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
+import { Card, CardContent } from '@/components/ui-custom/Card';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -31,16 +31,21 @@ const formSchema = z.object({
   phone: z.string().min(10, {
     message: "Please enter a valid phone number",
   }),
-  role: z.string().min(2, {
-    message: "Role must be at least 2 characters",
-  }),
   location: z.string().min(2, {
     message: "Location must be at least 2 characters",
+  }),
+  role: z.string().min(2, {
+    message: "Role must be at least 2 characters",
   }),
   experience: z.string().optional(),
   skills: z.string().min(2, {
     message: "Please enter at least one skill",
   }),
+  currentCTC: z.string().optional(),
+  expectedCTC: z.string().optional(),
+  noticePeriod: z.string().optional(),
+  clientName: z.string().optional(),
+  newJD: z.string().optional(),
 });
 
 const AddCandidate = () => {
@@ -55,6 +60,11 @@ const AddCandidate = () => {
       location: "",
       experience: "",
       skills: "",
+      currentCTC: "",
+      expectedCTC: "",
+      noticePeriod: "",
+      clientName: "",
+      newJD: "",
     },
   });
 
@@ -70,7 +80,8 @@ const AddCandidate = () => {
       id: existingCandidates.length + 1,
       ...values,
       status: 'Screening',
-      date: new Date().toLocaleDateString()
+      date: new Date().toLocaleDateString(),
+      resumePath: "" // Added for the resumePath field from the struct
     };
     
     // Save updated candidates list
@@ -173,6 +184,59 @@ const AddCandidate = () => {
                         </FormItem>
                       )}
                     />
+                    {/* New fields based on Candidate struct */}
+                    <FormField
+                      control={form.control}
+                      name="currentCTC"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current CTC</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter current CTC" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="expectedCTC"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Expected CTC</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter expected CTC" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="noticePeriod"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notice Period</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter notice period (in days)" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="clientName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter client name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <FormField
                     control={form.control}
@@ -183,6 +247,23 @@ const AddCandidate = () => {
                         <FormControl>
                           <Textarea 
                             placeholder="Enter candidate's skills (separated by commas)" 
+                            className="min-h-[100px]"
+                            {...field} 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="newJD"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Enter job description" 
                             className="min-h-[100px]"
                             {...field} 
                           />

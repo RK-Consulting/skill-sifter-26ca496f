@@ -20,28 +20,52 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import Button from '@/components/ui-custom/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
+import { Card, CardContent } from '@/components/ui-custom/Card';
 
 const formSchema = z.object({
+  // General job fields
   title: z.string().min(3, {
     message: "Job title must be at least 3 characters",
   }),
   department: z.string().min(2, {
     message: "Department must be at least 2 characters",
   }),
-  location: z.string().min(2, {
-    message: "Location must be at least 2 characters",
-  }),
   type: z.string().min(2, {
     message: "Job type must be at least 2 characters",
   }),
+  isRemote: z.boolean().default(false),
+  
+  // From JobDescription struct
+  jdNo: z.string().min(1, {
+    message: "JD Number is required",
+  }),
+  clientName: z.string().min(2, {
+    message: "Client name must be at least 2 characters",
+  }),
+  location: z.string().min(2, {
+    message: "Location must be at least 2 characters",
+  }),
+  experience: z.string().min(1, {
+    message: "Experience is required",
+  }),
+  salary: z.string().min(1, {
+    message: "Salary is required",
+  }),
+  
+  // From JobRequirement struct
   description: z.string().min(10, {
     message: "Job description must be at least 10 characters",
   }),
+  budget: z.string().optional(),
+  position: z.string().min(2, {
+    message: "Position must be at least 2 characters",
+  }),
+  language: z.string().optional(),
+  certification: z.string().optional(),
+  noticePeriod: z.string().optional(),
   requirements: z.string().min(10, {
     message: "Job requirements must be at least 10 characters",
   }),
-  isRemote: z.boolean().default(false),
 });
 
 const AddJob = () => {
@@ -56,6 +80,15 @@ const AddJob = () => {
       description: "",
       requirements: "",
       isRemote: false,
+      jdNo: "",
+      clientName: "",
+      experience: "",
+      salary: "",
+      budget: "",
+      position: "",
+      language: "",
+      certification: "",
+      noticePeriod: "",
     },
   });
 
@@ -103,6 +136,19 @@ const AddJob = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
+                      name="jdNo"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>JD Number</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter JD Number" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="title"
                       render={({ field }) => (
                         <FormItem>
@@ -129,6 +175,32 @@ const AddJob = () => {
                     />
                     <FormField
                       control={form.control}
+                      name="clientName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Client Name</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter client name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="position"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Position</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter position" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
                       name="location"
                       render={({ field }) => (
                         <FormItem>
@@ -148,6 +220,84 @@ const AddJob = () => {
                           <FormLabel>Job Type</FormLabel>
                           <FormControl>
                             <Input placeholder="e.g., Full-time, Part-time, Contract" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="experience"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Experience Required</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 3-5 years" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="salary"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Salary Range</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., $80,000-$100,000" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="budget"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Budget</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter budget" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="language"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Language Requirements</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., English, Spanish" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="certification"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Certifications Required</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., PMP, AWS" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="noticePeriod"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Notice Period</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., 30 days" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
