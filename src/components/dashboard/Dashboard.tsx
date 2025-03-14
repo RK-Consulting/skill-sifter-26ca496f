@@ -15,6 +15,7 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui-custom/Card';
 import Container from '../layout/Container';
 import Button from '../ui-custom/Button';
+import { cn } from '@/lib/utils'; // Import the cn utility function
 
 const Dashboard = () => {
   return (
