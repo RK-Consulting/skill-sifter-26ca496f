@@ -1,10 +1,10 @@
+
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import {
-  Calendar,
   CalendarIcon,
   Check,
   Clock,
@@ -38,6 +38,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -242,7 +243,7 @@ const ScheduleInterview = () => {
                                   )}
                                 >
                                   <div className="flex items-center">
-                                    <Calendar className="mr-2 h-4 w-4" />
+                                    <CalendarIcon className="mr-2 h-4 w-4" />
                                     <Clock className="mr-2 h-4 w-4" />
                                     {field.value ? (
                                       format(field.value, "PPP p")
