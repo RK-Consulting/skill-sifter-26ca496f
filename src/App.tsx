@@ -13,6 +13,10 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import AddCandidate from "./pages/AddCandidate";
 import AddJob from "./pages/AddJob";
+import DailyJobs from "./pages/DailyJobs";
+import AddDailyJob from "./pages/AddDailyJob";
+import BusinessDev from "./pages/BusinessDev";
+import AddBusinessDev from "./pages/AddBusinessDev";
 
 const queryClient = new QueryClient();
 
@@ -28,6 +32,10 @@ const App = () => (
           <Route path="/candidates/add" element={<AddCandidate />} />
           <Route path="/jobs" element={<Jobs />} />
           <Route path="/jobs/add" element={<AddJob />} />
+          <Route path="/daily-jobs" element={<DailyJobs />} />
+          <Route path="/daily-jobs/add" element={<AddDailyJob />} />
+          <Route path="/business-dev" element={<BusinessDev />} />
+          <Route path="/business-dev/add" element={<AddBusinessDev />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />

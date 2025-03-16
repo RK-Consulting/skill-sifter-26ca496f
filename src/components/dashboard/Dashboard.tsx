@@ -10,12 +10,15 @@ import {
   Clock3, 
   XCircle,
   ChevronRight,
-  Upload
+  Upload,
+  Calendar,
+  BuildingStore
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui-custom/Card';
 import Container from '../layout/Container';
 import Button from '../ui-custom/Button';
-import { cn } from '@/lib/utils'; // Import the cn utility function
+import { cn } from '@/lib/utils';
+import { Link } from 'react-router-dom';
 
 const Dashboard = () => {
   return (
@@ -33,35 +36,42 @@ const Dashboard = () => {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <StatsCard 
-            title="Active Jobs"
-            value="12"
-            trend="+2"
-            icon={<Briefcase />}
-            trendType="up"
-          />
-          <StatsCard 
-            title="Total Candidates"
-            value="148"
-            trend="+12"
-            icon={<Users />}
-            trendType="up"
-          />
-          <StatsCard 
-            title="Time to Hire"
-            value="18 days"
-            trend="-2"
-            icon={<Clock />}
-            trendType="down"
-            positive
-          />
-          <StatsCard 
-            title="Conversion Rate"
-            value="24%"
-            trend="+4%"
-            icon={<TrendingUp />}
-            trendType="up"
-          />
+          <Link to="/candidates">
+            <StatsCard 
+              title="Total Candidates"
+              value="148"
+              trend="+12"
+              icon={<Users />}
+              trendType="up"
+            />
+          </Link>
+          <Link to="/jobs">
+            <StatsCard 
+              title="Active Jobs"
+              value="12"
+              trend="+2"
+              icon={<Briefcase />}
+              trendType="up"
+            />
+          </Link>
+          <Link to="/daily-jobs">
+            <StatsCard 
+              title="Daily Tasks"
+              value="8"
+              trend="+3"
+              icon={<Calendar />}
+              trendType="up"
+            />
+          </Link>
+          <Link to="/business-dev">
+            <StatsCard 
+              title="Business Contacts"
+              value="24"
+              trend="+4"
+              icon={<BuildingStore />}
+              trendType="up"
+            />
+          </Link>
         </div>
 
         {/* Actions Row */}
@@ -126,13 +136,13 @@ const Dashboard = () => {
                 time="2 minutes ago"
               />
               <ActivityItem
-                title="Interview scheduled"
-                description="Technical interview for John Doe - Software Engineer"
+                title="New business contact added"
+                description="TechSolutions Inc added as a new client"
                 time="1 hour ago"
               />
               <ActivityItem
-                title="Candidate hired"
-                description="Mike Johnson accepted the offer for Product Manager"
+                title="Daily task assigned"
+                description="Follow up with ClientX for feedback assigned to Alex"
                 time="2 hours ago"
               />
             </div>

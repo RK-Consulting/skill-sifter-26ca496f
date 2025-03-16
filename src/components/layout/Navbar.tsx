@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import Container from './Container';
-import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase } from 'lucide-react';
+import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, BuildingStore } from 'lucide-react';
 import Button from '../ui-custom/Button';
 
 interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
@@ -40,7 +40,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
     const activeLinkClass = "text-ats-blue font-semibold";
     
     const isActive = (path: string) => {
-      return location.pathname === path;
+      return location.pathname.startsWith(path);
     };
     
     return (
@@ -57,9 +57,11 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
             
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-1">
-              <Link to="/" className={cn(linkClass, isActive('/') && activeLinkClass)}>Dashboard</Link>
+              <Link to="/" className={cn(linkClass, isActive('/') && location.pathname === '/' && activeLinkClass)}>Dashboard</Link>
               <Link to="/candidates" className={cn(linkClass, isActive('/candidates') && activeLinkClass)}>Candidates</Link>
               <Link to="/jobs" className={cn(linkClass, isActive('/jobs') && activeLinkClass)}>Jobs</Link>
+              <Link to="/daily-jobs" className={cn(linkClass, isActive('/daily-jobs') && activeLinkClass)}>Daily Tasks</Link>
+              <Link to="/business-dev" className={cn(linkClass, isActive('/business-dev') && activeLinkClass)}>Business Dev</Link>
               <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>Reports</Link>
             </div>
             
@@ -69,13 +71,15 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                 <Search className="w-5 h-5" />
               </button>
               
-              <Button 
-                variant="primary" 
-                size="sm" 
-                className="animate-fade-in"
-              >
-                Add Candidate
-              </Button>
+              <Link to="/candidates/add">
+                <Button 
+                  variant="primary" 
+                  size="sm" 
+                  className="animate-fade-in"
+                >
+                  Add Candidate
+                </Button>
+              </Link>
               
               <button className="p-1.5 text-ats-gray-600 hover:text-ats-gray-900 rounded-full hover:bg-ats-gray-100/50 border border-ats-gray-200">
                 <User className="w-5 h-5" />
@@ -95,7 +99,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
           {isMobileMenuOpen && (
             <div className="md:hidden pt-4 pb-2 animate-fade-in">
               <div className="flex flex-col space-y-2">
-                <Link to="/" className={cn(linkClass, isActive('/') && activeLinkClass)}>
+                <Link to="/" className={cn(linkClass, isActive('/') && location.pathname === '/' && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <BarChart3 className="w-5 h-5" />
                     <span>Dashboard</span>
@@ -113,6 +117,18 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                     <span>Jobs</span>
                   </div>
                 </Link>
+                <Link to="/daily-jobs" className={cn(linkClass, isActive('/daily-jobs') && activeLinkClass)}>
+                  <div className="flex items-center space-x-2">
+                    <Calendar className="w-5 h-5" />
+                    <span>Daily Tasks</span>
+                  </div>
+                </Link>
+                <Link to="/business-dev" className={cn(linkClass, isActive('/business-dev') && activeLinkClass)}>
+                  <div className="flex items-center space-x-2">
+                    <BuildingStore className="w-5 h-5" />
+                    <span>Business Dev</span>
+                  </div>
+                </Link>
                 <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
                     <FileText className="w-5 h-5" />
@@ -121,12 +137,14 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                 </Link>
               </div>
               <div className="mt-4 pt-4 border-t border-ats-gray-200">
-                <Button 
-                  variant="primary" 
-                  className="w-full justify-center"
-                >
-                  Add Candidate
-                </Button>
+                <Link to="/candidates/add">
+                  <Button 
+                    variant="primary" 
+                    className="w-full justify-center"
+                  >
+                    Add Candidate
+                  </Button>
+                </Link>
               </div>
             </div>
           )}
