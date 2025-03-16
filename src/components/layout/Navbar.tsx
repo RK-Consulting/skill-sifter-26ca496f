@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import Container from './Container';
-import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, Store } from 'lucide-react';
+import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, Store, Video } from 'lucide-react';
 import Button from '../ui-custom/Button';
 
 interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
@@ -62,6 +62,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
               <Link to="/jobs" className={cn(linkClass, isActive('/jobs') && activeLinkClass)}>Jobs</Link>
               <Link to="/daily-jobs" className={cn(linkClass, isActive('/daily-jobs') && activeLinkClass)}>Daily Tasks</Link>
               <Link to="/business-dev" className={cn(linkClass, isActive('/business-dev') && activeLinkClass)}>Business Dev</Link>
+              <Link to="/interviews" className={cn(linkClass, isActive('/interviews') && activeLinkClass)}>Interviews</Link>
               <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>Reports</Link>
             </div>
             
@@ -127,6 +128,12 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                   <div className="flex items-center space-x-2">
                     <Store className="w-5 h-5" />
                     <span>Business Dev</span>
+                  </div>
+                </Link>
+                <Link to="/interviews" className={cn(linkClass, isActive('/interviews') && activeLinkClass)}>
+                  <div className="flex items-center space-x-2">
+                    <Video className="w-5 h-5" />
+                    <span>Interviews</span>
                   </div>
                 </Link>
                 <Link to="/reports" className={cn(linkClass, isActive('/reports') && activeLinkClass)}>
