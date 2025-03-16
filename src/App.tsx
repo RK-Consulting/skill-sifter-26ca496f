@@ -17,6 +17,7 @@ import DailyJobs from "./pages/DailyJobs";
 import AddDailyJob from "./pages/AddDailyJob";
 import BusinessDev from "./pages/BusinessDev";
 import AddBusinessDev from "./pages/AddBusinessDev";
+import ScheduleInterview from "./pages/ScheduleInterview";
 
 const queryClient = new QueryClient();
 
@@ -37,6 +38,7 @@ const App = () => (
           <Route path="/business-dev" element={<BusinessDev />} />
           <Route path="/business-dev/add" element={<AddBusinessDev />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/interviews" element={<ScheduleInterview />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
