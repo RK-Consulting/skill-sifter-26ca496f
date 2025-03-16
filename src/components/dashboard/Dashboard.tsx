@@ -12,7 +12,7 @@ import {
   ChevronRight,
   Upload,
   Calendar,
-  BuildingStore
+  Store
 } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui-custom/Card';
 import Container from '../layout/Container';
@@ -68,7 +68,7 @@ const Dashboard = () => {
               title="Business Contacts"
               value="24"
               trend="+4"
-              icon={<BuildingStore />}
+              icon={<Store />}
               trendType="up"
             />
           </Link>

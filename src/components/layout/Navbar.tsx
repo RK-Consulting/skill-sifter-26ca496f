@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import Container from './Container';
-import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, BuildingStore } from 'lucide-react';
+import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, Store } from 'lucide-react';
 import Button from '../ui-custom/Button';
 
 interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
@@ -125,7 +125,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                 </Link>
                 <Link to="/business-dev" className={cn(linkClass, isActive('/business-dev') && activeLinkClass)}>
                   <div className="flex items-center space-x-2">
-                    <BuildingStore className="w-5 h-5" />
+                    <Store className="w-5 h-5" />
                     <span>Business Dev</span>
                   </div>
                 </Link>
