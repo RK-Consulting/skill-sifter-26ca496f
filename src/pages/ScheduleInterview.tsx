@@ -1,18 +1,22 @@
 
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import {
-  CalendarIcon,
+  Calendar as CalendarIcon,
   Check,
   Clock,
   Mail,
   Phone,
   User,
+  ArrowLeft
 } from 'lucide-react';
 
+import Navbar from '@/components/layout/Navbar';
+import Container from '@/components/layout/Container';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -64,6 +68,8 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 const ScheduleInterview = () => {
+  const navigate = useNavigate();
+  
   // Initialize form with zod resolver
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -84,35 +90,32 @@ const ScheduleInterview = () => {
     toast.success('Interview successfully scheduled!');
     // In a real application, you would save the data to a database here
     form.reset();
+    navigate('/interviews');
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        {/* Left Panel */}
-        <div className="md:col-span-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Interview Management</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button className="w-full" variant="outline" onClick={() => console.log('Workspace 1')}>
-                Go to Workspace 1
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="pt-24 pb-10">
+        <Container>
+          <div className="mb-8">
+            <div className="flex items-center gap-4 mb-6">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="flex items-center gap-2"
+                onClick={() => navigate('/interviews')}
+              >
+                <ArrowLeft size={16} />
+                Back to Interviews
               </Button>
-              <Button className="w-full" variant="outline" onClick={() => console.log('Workspace 2')}>
-                Go to Workspace 2
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+            <h1 className="text-3xl font-semibold tracking-tight mb-3">Schedule Interview</h1>
+            <p className="text-ats-gray-500">Create a new interview for a candidate.</p>
+          </div>
 
-        {/* Right Panel - Interview Form */}
-        <div className="md:col-span-9">
-          <Card>
-            <CardHeader>
-              <CardTitle>Interview Schedules</CardTitle>
-            </CardHeader>
-            <CardContent>
+          <Card className="mb-8">
+            <CardContent className="p-6">
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -427,15 +430,24 @@ const ScheduleInterview = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full md:w-auto">
-                    Schedule Interview
-                  </Button>
+                  <div className="flex justify-end gap-3">
+                    <Button 
+                      type="button" 
+                      variant="outline"
+                      onClick={() => navigate('/interviews')}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      Schedule Interview
+                    </Button>
+                  </div>
                 </form>
               </Form>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </Container>
+      </main>
     </div>
   );
 };
