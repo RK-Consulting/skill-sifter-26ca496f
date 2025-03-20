@@ -18,6 +18,7 @@ import AddDailyJob from "./pages/AddDailyJob";
 import BusinessDev from "./pages/BusinessDev";
 import AddBusinessDev from "./pages/AddBusinessDev";
 import Interviews from "./pages/Interviews";
+import InterviewDetails from "./pages/InterviewDetails";
 import ScheduleInterview from "./pages/ScheduleInterview";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
           <Route path="/business-dev" element={<BusinessDev />} />
           <Route path="/business-dev/add" element={<AddBusinessDev />} />
           <Route path="/interviews" element={<Interviews />} />
+          <Route path="/interviews/:id" element={<InterviewDetails />} />
           <Route path="/interviews/schedule" element={<ScheduleInterview />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/login" element={<Login />} />

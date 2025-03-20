@@ -7,7 +7,9 @@ import {
   Store,
   CheckCircle2, 
   Clock3, 
-  XCircle
+  XCircle,
+  TrendingUp,
+  Activity
 } from 'lucide-react';
 import Container from '../layout/Container';
 import DashboardHeader from './DashboardHeader';
@@ -15,6 +17,8 @@ import StatsCards from './StatsCards';
 import UploadSection from './UploadSection';
 import PipelineStatus from './PipelineStatus';
 import ActivitySection from './ActivitySection';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui-custom/Card';
 
 const Dashboard = () => {
   // Stats data
@@ -91,6 +95,25 @@ const Dashboard = () => {
     }
   ];
 
+  // Chart data
+  const hiringData = [
+    { name: 'Jan', candidates: 4 },
+    { name: 'Feb', candidates: 7 },
+    { name: 'Mar', candidates: 5 },
+    { name: 'Apr', candidates: 10 },
+    { name: 'May', candidates: 8 },
+    { name: 'Jun', candidates: 12 },
+  ];
+
+  const sourceData = [
+    { name: 'LinkedIn', value: 40 },
+    { name: 'Referrals', value: 25 },
+    { name: 'Job Boards', value: 20 },
+    { name: 'Direct', value: 15 },
+  ];
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
+
   return (
     <section className="py-8 animate-fade-up">
       <Container>
@@ -99,6 +122,81 @@ const Dashboard = () => {
 
         {/* Stats Grid */}
         <StatsCards stats={statsData} />
+
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+          <Card>
+            <CardHeader className="p-6">
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-ats-blue" />
+                Hiring Trend
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-0">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={hiringData}
+                    margin={{ top: 10, right: 10, left: 10, bottom: 20 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        border: 'none'
+                      }}
+                    />
+                    <Bar dataKey="candidates" fill="#0A84FF" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="p-6">
+              <CardTitle className="flex items-center gap-2">
+                <Activity className="w-5 h-5 text-ats-blue" />
+                Candidate Sources
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 pt-0">
+              <div className="h-64 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={sourceData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={90}
+                      fill="#8884d8"
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    >
+                      {sourceData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
+                        borderRadius: '8px',
+                        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
+                        border: 'none'
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">

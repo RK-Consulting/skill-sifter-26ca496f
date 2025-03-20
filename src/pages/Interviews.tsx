@@ -8,6 +8,7 @@ import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, Filter, Calendar, ChevronRight, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
+import { toast } from "sonner";
 
 interface Interview {
   id: number;
@@ -59,10 +60,11 @@ const Interviews = () => {
 
   const scheduleNewInterview = () => {
     navigate('/interviews/schedule');
+    toast.success("Navigating to schedule interview form");
   };
 
   const viewInterviewDetails = (id: number) => {
-    console.log(`View interview ${id}`);
+    navigate(`/interviews/${id}`);
   };
 
   return (
@@ -75,14 +77,14 @@ const Interviews = () => {
             <p className="text-ats-gray-500">Manage and track all candidate interviews.</p>
           </div>
 
-          <Card className="mb-8">
+          <Card className="mb-8 animate-fade-up">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
                 <div className="relative w-full md:w-80">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-ats-gray-400" size={18} />
                   <Input 
                     placeholder="Search interviews..." 
-                    className="pl-10"
+                    className="pl-10 transition-all focus:ring-2 focus:ring-ats-blue/20"
                   />
                 </div>
                 
@@ -117,10 +119,15 @@ const Interviews = () => {
                 <TableBody>
                   {interviews.length > 0 ? (
                     interviews.map((interview) => (
-                      <TableRow key={interview.id}>
+                      <TableRow key={interview.id} className="hover:bg-ats-gray-50 transition-colors cursor-pointer" onClick={() => viewInterviewDetails(interview.id)}>
                         <TableCell className="font-medium">{interview.candidateName}</TableCell>
                         <TableCell>{interview.position}</TableCell>
-                        <TableCell>{interview.interviewDate}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Calendar className="w-4 h-4 mr-2 text-ats-gray-400" />
+                            {interview.interviewDate}
+                          </div>
+                        </TableCell>
                         <TableCell>
                           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
                             ${interview.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
@@ -143,7 +150,10 @@ const Interviews = () => {
                           <Button 
                             variant="ghost" 
                             size="sm"
-                            onClick={() => viewInterviewDetails(interview.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              viewInterviewDetails(interview.id);
+                            }}
                           >
                             <ChevronRight size={16} />
                           </Button>
