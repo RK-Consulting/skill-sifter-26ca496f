@@ -58,6 +58,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
               </div>
               <div className="flex flex-col">
                 <span className="text-xl font-bold tracking-tight">R K Consulting</span>
+                <span className="text-xs text-ats-blue-500">SkillSifter ATS</span>
                 <span className="text-xs text-ats-gray-500">Bangalore, India</span>
               </div>
             </Link>
@@ -160,7 +161,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                   </Button>
                 </Link>
                 <div className="text-xs text-ats-gray-500 text-center">
-                  <p>R K Consulting</p>
+                  <p>R K Consulting - SkillSifter</p>
                   <p>Bangalore</p>
                   <a href="http://www.rkconsulting.co.in" className="text-ats-blue hover:underline" target="_blank" rel="noopener noreferrer">www.rkconsulting.co.in</a>
                   <p>

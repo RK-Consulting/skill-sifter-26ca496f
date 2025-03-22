@@ -16,6 +16,7 @@ const Footer: React.FC = () => {
             <div>
               <h3 className="font-bold text-lg">R K Consulting</h3>
               <p className="text-sm text-ats-gray-500">Talent Acquisition Experts</p>
+              <p className="text-xs text-ats-blue-500">SkillSifter ATS</p>
             </div>
           </div>
           
