@@ -49,10 +49,17 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
           <div className="flex items-center justify-between">
             {/* Logo */}
             <Link to="/" className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-lg bg-ats-blue text-white flex items-center justify-center">
-                <BarChart3 className="w-5 h-5" />
+              <div className="h-10 w-10 rounded-full overflow-hidden">
+                <img 
+                  src="/lovable-uploads/35d9a32a-9b4d-4be7-a93d-03a036a4ab8a.png" 
+                  alt="R K Consulting Logo" 
+                  className="h-full w-full object-cover"
+                />
               </div>
-              <span className="text-xl font-bold tracking-tight">SkillSifter</span>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold tracking-tight">R K Consulting</span>
+                <span className="text-xs text-ats-gray-500">Bangalore, India</span>
+              </div>
             </Link>
             
             {/* Desktop Navigation */}
@@ -143,7 +150,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                   </div>
                 </Link>
               </div>
-              <div className="mt-4 pt-4 border-t border-ats-gray-200">
+              <div className="mt-4 pt-4 border-t border-ats-gray-200 space-y-4">
                 <Link to="/candidates/add">
                   <Button 
                     variant="primary" 
@@ -152,6 +159,14 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                     Add Candidate
                   </Button>
                 </Link>
+                <div className="text-xs text-ats-gray-500 text-center">
+                  <p>R K Consulting</p>
+                  <p>Bangalore</p>
+                  <a href="http://www.rkconsulting.co.in" className="text-ats-blue hover:underline" target="_blank" rel="noopener noreferrer">www.rkconsulting.co.in</a>
+                  <p>
+                    <a href="mailto:harishnagaraju@rkconsulting.co.in" className="text-ats-blue hover:underline">harishnagaraju@rkconsulting.co.in</a>
+                  </p>
+                </div>
               </div>
             </div>
           )}
