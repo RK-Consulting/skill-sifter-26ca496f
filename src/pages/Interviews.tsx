@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -9,6 +10,7 @@ import { Search, Filter, Calendar, ChevronRight, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { toast } from "sonner";
+import { interviewService } from '@/services/api';
 
 interface Interview {
   id: number;
@@ -21,42 +23,31 @@ interface Interview {
 
 const Interviews = () => {
   const navigate = useNavigate();
+  const [searchTerm, setSearchTerm] = React.useState('');
   
-  // Sample interview data
-  const interviews: Interview[] = [
-    { 
-      id: 1, 
-      candidateName: 'Sarah Wilson', 
-      position: 'Senior UI Designer', 
-      interviewDate: '2023-05-15 10:00 AM', 
-      status: 'Completed', 
-      feedback: 'Selected' 
-    },
-    { 
-      id: 2, 
-      candidateName: 'John Doe', 
-      position: 'Software Engineer', 
-      interviewDate: '2023-05-16 11:30 AM', 
-      status: 'Scheduled', 
-      feedback: 'Pending' 
-    },
-    { 
-      id: 3, 
-      candidateName: 'Emma Thompson', 
-      position: 'Product Manager', 
-      interviewDate: '2023-05-17 2:00 PM', 
-      status: 'Completed', 
-      feedback: 'Rejected' 
-    },
-    { 
-      id: 4, 
-      candidateName: 'Michael Brown', 
-      position: 'Data Scientist', 
-      interviewDate: '2023-05-18 3:30 PM', 
-      status: 'Scheduled', 
-      feedback: 'Pending' 
-    },
-  ];
+  // Fetch interviews using React Query
+  const { data: interviewsData, isLoading, isError } = useQuery({
+    queryKey: ['interviews'],
+    queryFn: async () => {
+      const response = await interviewService.getAllInterviews();
+      return response.data.data;
+    }
+  });
+
+  // Filter interviews based on search term
+  const filteredInterviews = React.useMemo(() => {
+    if (!interviewsData) return [];
+    
+    return interviewsData.filter((interview: Interview) => 
+      interview.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interview.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interview.status.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [searchTerm, interviewsData]);
+
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
 
   const scheduleNewInterview = () => {
     navigate('/interviews/schedule');
@@ -66,6 +57,40 @@ const Interviews = () => {
   const viewInterviewDetails = (id: number) => {
     navigate(`/interviews/${id}`);
   };
+
+  // Handle loading and error states
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-10">
+          <Container>
+            <div className="flex justify-center items-center h-64">
+              <p className="text-lg text-ats-gray-500">Loading interviews...</p>
+            </div>
+          </Container>
+        </main>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-10">
+          <Container>
+            <div className="flex flex-col justify-center items-center h-64">
+              <p className="text-lg text-red-500 mb-4">Failed to load interviews</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </Container>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -85,6 +110,8 @@ const Interviews = () => {
                   <Input 
                     placeholder="Search interviews..." 
                     className="pl-10 transition-all focus:ring-2 focus:ring-ats-blue/20"
+                    value={searchTerm}
+                    onChange={handleSearch}
                   />
                 </div>
                 
@@ -117,53 +144,58 @@ const Interviews = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {interviews.length > 0 ? (
-                    interviews.map((interview) => (
-                      <TableRow key={interview.id} className="hover:bg-ats-gray-50 transition-colors cursor-pointer" onClick={() => viewInterviewDetails(interview.id)}>
-                        <TableCell className="font-medium">{interview.candidateName}</TableCell>
-                        <TableCell>{interview.position}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center">
-                            <Calendar className="w-4 h-4 mr-2 text-ats-gray-400" />
-                            {interview.interviewDate}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                            ${interview.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
-                            ${interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' : ''}
-                            ${interview.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
-                          `}>
-                            {interview.status}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                            ${interview.feedback === 'Selected' ? 'bg-green-100 text-green-800' : ''}
-                            ${interview.feedback === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
-                            ${interview.feedback === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-                          `}>
-                            {interview.feedback}
-                          </span>
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              viewInterviewDetails(interview.id);
-                            }}
-                          >
-                            <ChevronRight size={16} />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))
+                  {filteredInterviews.length > 0 ? (
+                    filteredInterviews.map((interview: Interview) => {
+                      // Format the date string
+                      const formattedDate = new Date(interview.interviewDate).toLocaleString();
+                      
+                      return (
+                        <TableRow key={interview.id} className="hover:bg-ats-gray-50 transition-colors cursor-pointer" onClick={() => viewInterviewDetails(interview.id)}>
+                          <TableCell className="font-medium">{interview.candidateName}</TableCell>
+                          <TableCell>{interview.position}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center">
+                              <Calendar className="w-4 h-4 mr-2 text-ats-gray-400" />
+                              {formattedDate}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${interview.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
+                              ${interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' : ''}
+                              ${interview.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
+                            `}>
+                              {interview.status}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                              ${interview.feedback === 'Selected' ? 'bg-green-100 text-green-800' : ''}
+                              ${interview.feedback === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
+                              ${interview.feedback === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
+                            `}>
+                              {interview.feedback}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                viewInterviewDetails(interview.id);
+                              }}
+                            >
+                              <ChevronRight size={16} />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
                   ) : (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        No interviews found.
+                        {searchTerm ? 'No interviews found matching your search.' : 'No interviews found.'}
                       </TableCell>
                     </TableRow>
                   )}

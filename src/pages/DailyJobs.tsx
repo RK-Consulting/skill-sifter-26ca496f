@@ -1,6 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -8,51 +9,51 @@ import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, Filter, PlusCircle, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
+import { toast } from 'sonner';
+import { dailyJobService } from '@/services/api';
 
 interface DailyJob {
   id: number;
   jdNo: number;
   instructions: string;
   assignedUser: number;
-  assignedDate: string; // Added for display purposes
+  assignedDate: string; // We'll format this from the timestamp
 }
+
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diff = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+  
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) !== 1 ? 's' : ''} ago`;
+};
 
 const DailyJobs = () => {
   const navigate = useNavigate();
-  const [dailyJobs, setDailyJobs] = useState<DailyJob[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<DailyJob[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    // Load daily jobs from localStorage or use defaults if none exist
-    const storedJobs = localStorage.getItem('dailyJobs');
-    const defaultJobs = [
-      { id: 1, jdNo: 1001, instructions: "Contact all candidates and schedule interviews", assignedUser: 3, assignedDate: "Today" },
-      { id: 2, jdNo: 1002, instructions: "Follow up with ClientX for feedback", assignedUser: 2, assignedDate: "Yesterday" },
-      { id: 3, jdNo: 1003, instructions: "Prepare job descriptions for new positions", assignedUser: 1, assignedDate: "2 days ago" },
-      { id: 4, jdNo: 1005, instructions: "Send offer letters to selected candidates", assignedUser: 3, assignedDate: "3 days ago" },
-      { id: 5, jdNo: 1008, instructions: "Update candidate profiles in the database", assignedUser: 1, assignedDate: "1 week ago" },
-    ];
-    
-    if (storedJobs) {
-      setDailyJobs(JSON.parse(storedJobs));
-    } else {
-      setDailyJobs(defaultJobs);
-      localStorage.setItem('dailyJobs', JSON.stringify(defaultJobs));
+  // Fetch daily jobs using React Query
+  const { data: dailyJobsData, isLoading, isError } = useQuery({
+    queryKey: ['dailyJobs'],
+    queryFn: async () => {
+      const response = await dailyJobService.getAllDailyJobs();
+      return response.data.data;
     }
-  }, []);
+  });
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = dailyJobs.filter(job => 
-        job.instructions.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        job.jdNo.toString().includes(searchTerm)
-      );
-      setFilteredJobs(filtered);
-    } else {
-      setFilteredJobs(dailyJobs);
-    }
-  }, [searchTerm, dailyJobs]);
+  // Filter jobs based on search term
+  const filteredJobs = React.useMemo(() => {
+    if (!dailyJobsData) return [];
+    
+    return dailyJobsData.filter((job: DailyJob) => 
+      job.instructions.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      job.jdNo.toString().includes(searchTerm)
+    );
+  }, [searchTerm, dailyJobsData]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -65,7 +66,42 @@ const DailyJobs = () => {
   const viewJobDetails = (id: number) => {
     // In a real application, this would navigate to a job details page
     console.log(`View daily job ${id}`);
+    toast.info(`Viewing details for job #${id}`);
   };
+
+  // Handle loading and error states
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-10">
+          <Container>
+            <div className="flex justify-center items-center h-64">
+              <p className="text-lg text-ats-gray-500">Loading daily job assignments...</p>
+            </div>
+          </Container>
+        </main>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <main className="pt-24 pb-10">
+          <Container>
+            <div className="flex flex-col justify-center items-center h-64">
+              <p className="text-lg text-red-500 mb-4">Failed to load daily job assignments</p>
+              <Button variant="outline" onClick={() => window.location.reload()}>
+                Try Again
+              </Button>
+            </div>
+          </Container>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -119,12 +155,12 @@ const DailyJobs = () => {
                 </TableHeader>
                 <TableBody>
                   {filteredJobs.length > 0 ? (
-                    filteredJobs.map((job) => (
+                    filteredJobs.map((job: DailyJob) => (
                       <TableRow key={job.id}>
                         <TableCell className="font-medium">{job.jdNo}</TableCell>
                         <TableCell>{job.instructions}</TableCell>
                         <TableCell>User #{job.assignedUser}</TableCell>
-                        <TableCell>{job.assignedDate}</TableCell>
+                        <TableCell>{formatDate(job.assignedDate)}</TableCell>
                         <TableCell className="text-right">
                           <Button 
                             variant="ghost" 

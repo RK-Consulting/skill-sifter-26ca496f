@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Container from '@/components/layout/Container';
+import { authService } from '@/services/api';
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -39,6 +40,8 @@ const formSchema = z.object({
 
 const Register = () => {
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -49,12 +52,29 @@ const Register = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // In a real application, you would send this to your backend
-    console.log(values);
-    localStorage.setItem('user', JSON.stringify({ username: values.username, isLoggedIn: true }));
-    toast.success("Registration successful");
-    navigate('/');
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsSubmitting(true);
+      
+      // Send registration data to the backend
+      const { data } = await authService.register({
+        username: values.username,
+        email: values.email,
+        password: values.password
+      });
+      
+      if (data.success) {
+        toast.success(data.message || "Registration successful");
+        navigate('/login');
+      } else {
+        toast.error(data.message || "Registration failed");
+      }
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      toast.error(error.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -120,8 +140,13 @@ const Register = () => {
                   )}
                 />
                 <div className="flex flex-col space-y-2 pt-2">
-                  <Button type="submit" variant="primary" className="w-full">
-                    Register
+                  <Button 
+                    type="submit" 
+                    variant="primary" 
+                    className="w-full"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Registering...' : 'Register'}
                   </Button>
                   <div className="text-center text-sm mt-4">
                     Already have an account?{" "}

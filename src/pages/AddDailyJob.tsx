@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import { dailyJobService } from '@/services/api';
 
 const formSchema = z.object({
   jdNo: z.coerce.number().positive('JD Number must be positive'),
@@ -35,37 +36,30 @@ const AddDailyJob = () => {
     },
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      try {
-        // Get existing data from localStorage
-        const existingDailyJobs = JSON.parse(localStorage.getItem('dailyJobs') || '[]');
-        
-        // Create new daily job object
-        const newDailyJob = {
-          id: Date.now(), // Use timestamp as ID for simplicity
-          jdNo: data.jdNo,
-          instructions: data.instructions,
-          assignedUser: data.assignedUser,
-          assignedDate: 'Today', // For display purposes
-        };
-        
-        // Add to array and save back to localStorage
-        existingDailyJobs.push(newDailyJob);
-        localStorage.setItem('dailyJobs', JSON.stringify(existingDailyJobs));
-        
+    try {
+      // Create daily job using API
+      const response = await dailyJobService.createDailyJob({
+        jdNo: data.jdNo,
+        instructions: data.instructions,
+        assignedUser: data.assignedUser,
+        assignedDate: new Date().toISOString()
+      });
+      
+      if (response.data.success) {
         toast.success('Daily job assignment added successfully');
         navigate('/daily-jobs');
-      } catch (error) {
-        console.error('Error saving daily job:', error);
-        toast.error('Failed to add daily job assignment');
-      } finally {
-        setIsSubmitting(false);
+      } else {
+        toast.error(response.data.message || 'Failed to add daily job assignment');
       }
-    }, 1000);
+    } catch (error: any) {
+      console.error('Error saving daily job:', error);
+      toast.error(error.response?.data?.message || 'Failed to add daily job assignment');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
