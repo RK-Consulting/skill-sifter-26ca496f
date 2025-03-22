@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
+import Footer from '@/components/layout/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
@@ -102,9 +103,9 @@ const BusinessDev = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="pt-24 pb-10">
+      <main className="pt-24 pb-10 flex-grow">
         <Container>
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Business Development</h1>
@@ -190,6 +191,7 @@ const BusinessDev = () => {
           </Card>
         </Container>
       </main>
+      <Footer />
     </div>
   );
 };

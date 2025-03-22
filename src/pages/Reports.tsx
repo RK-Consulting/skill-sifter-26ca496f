@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
+import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import { BarChart, Calendar, Download, TrendingUp, TrendingDown, Users, Clock, CheckCircle, XCircle, Search } from 'lucide-react';
 import Button from '@/components/ui-custom/Button';
@@ -138,9 +139,9 @@ const Reports = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="pt-24 pb-10">
+      <main className="pt-24 pb-10 flex-grow">
         <Container>
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Reports</h1>
@@ -369,6 +370,7 @@ const Reports = () => {
 
         </Container>
       </main>
+      <Footer />
     </div>
   );
 };

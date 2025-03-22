@@ -3,6 +3,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
+import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import { Calendar, Clock, User, Briefcase, MessageSquare, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import Button from '@/components/ui-custom/Button';
@@ -63,9 +64,9 @@ const InterviewDetails = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="pt-24 pb-10">
+      <main className="pt-24 pb-10 flex-grow">
         <Container>
           <div className="mb-6 flex items-center">
             <Button 
@@ -191,6 +192,7 @@ const InterviewDetails = () => {
           </div>
         </Container>
       </main>
+      <Footer />
     </div>
   );
 };

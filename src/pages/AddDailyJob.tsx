@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
+import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
@@ -63,9 +64,9 @@ const AddDailyJob = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
-      <main className="pt-24 pb-10">
+      <main className="pt-24 pb-10 flex-grow">
         <Container>
           <div className="mb-6">
             <button 
@@ -149,6 +150,7 @@ const AddDailyJob = () => {
           </Card>
         </Container>
       </main>
+      <Footer />
     </div>
   );
 };
