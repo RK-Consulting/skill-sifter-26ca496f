@@ -19,6 +19,7 @@ import Button from '@/components/ui-custom/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
+import { authService } from '@/services/api';
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -56,16 +57,21 @@ const Register = () => {
     try {
       setIsSubmitting(true);
       
-      // For demo purposes, simulate a successful registration
-      setTimeout(() => {
-        toast.success("Registration successful");
-        navigate('/login');
-        setIsSubmitting(false);
-      }, 1000);
+      // Remove confirmPassword as it's not needed for the API
+      const { confirmPassword, ...userData } = values;
       
+      const response = await authService.register(userData);
+      
+      if (response.data.success) {
+        toast.success("Registration successful. Please login.");
+        navigate('/login');
+      } else {
+        toast.error(response.data.message || "Registration failed");
+      }
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
+    } finally {
       setIsSubmitting(false);
     }
   };

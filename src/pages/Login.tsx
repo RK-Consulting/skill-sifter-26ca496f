@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,10 +19,11 @@ import Button from '@/components/ui-custom/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
+import { authService } from '@/services/api';
 
 const formSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters",
+  email: z.string().email({
+    message: "Please enter a valid email address",
   }),
   password: z.string().min(6, {
     message: "Password must be at least 6 characters",
@@ -31,28 +32,41 @@ const formSchema = z.object({
 
 const Login = () => {
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      username: "",
+      email: "",
       password: "",
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // In a real application, you would validate credentials against your backend
-    // For demo purposes, we'll just accept any input and redirect
-    console.log(values);
-    
-    // Mock successful login
-    localStorage.setItem('token', 'mock-jwt-token');
-    localStorage.setItem('user', JSON.stringify({ 
-      username: values.username, 
-      isLoggedIn: true 
-    }));
-    
-    toast.success("Login successful");
-    navigate('/');
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      setIsLoading(true);
+      const response = await authService.login(values);
+      
+      if (response.data.success) {
+        // Store user data from API response
+        localStorage.setItem('token', response.data.data.token || 'mock-jwt-token');
+        localStorage.setItem('user', JSON.stringify({ 
+          username: response.data.data.username, 
+          email: response.data.data.email,
+          id: response.data.data.id,
+          isLoggedIn: true 
+        }));
+        
+        toast.success("Login successful");
+        navigate('/');
+      } else {
+        toast.error(response.data.message || "Login failed");
+      }
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error(error.response?.data?.message || "Invalid credentials. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -78,12 +92,12 @@ const Login = () => {
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
-                    name="username"
+                    name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Username</FormLabel>
+                        <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter your username" {...field} />
+                          <Input type="email" placeholder="Enter your email" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -103,8 +117,13 @@ const Login = () => {
                     )}
                   />
                   <div className="flex flex-col space-y-2">
-                    <Button type="submit" variant="primary" className="w-full">
-                      Login
+                    <Button 
+                      type="submit" 
+                      variant="primary" 
+                      className="w-full"
+                      disabled={isLoading}
+                    >
+                      {isLoading ? 'Logging in...' : 'Login'}
                     </Button>
                     <div className="text-center text-sm mt-4">
                       Don't have an account?{" "}
