@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Container from '@/components/layout/Container';
-import { authService } from '@/services/api';
+import Footer from '@/components/layout/Footer';
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -56,113 +56,119 @@ const Register = () => {
     try {
       setIsSubmitting(true);
       
-      // Send registration data to the backend
-      const { data } = await authService.register({
-        username: values.username,
-        email: values.email,
-        password: values.password
-      });
-      
-      if (data.success) {
-        toast.success(data.message || "Registration successful");
+      // For demo purposes, simulate a successful registration
+      setTimeout(() => {
+        toast.success("Registration successful");
         navigate('/login');
-      } else {
-        toast.error(data.message || "Registration failed");
-      }
+        setIsSubmitting(false);
+      }, 1000);
+      
     } catch (error: any) {
       console.error("Registration error:", error);
       toast.error(error.response?.data?.message || "Registration failed. Please try again.");
-    } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <Container className="max-w-md">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="username"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Username</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Enter a username" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="Enter your email" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Create a password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="confirmPassword"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Confirm Password</FormLabel>
-                      <FormControl>
-                        <Input type="password" placeholder="Confirm your password" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex flex-col space-y-2 pt-2">
-                  <Button 
-                    type="submit" 
-                    variant="primary" 
-                    className="w-full"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting ? 'Registering...' : 'Register'}
-                  </Button>
-                  <div className="text-center text-sm mt-4">
-                    Already have an account?{" "}
-                    <span 
-                      className="text-ats-blue cursor-pointer hover:underline"
-                      onClick={() => navigate('/login')}
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex-grow flex items-center justify-center">
+        <Container className="max-w-md">
+          <div className="text-center mb-8">
+            <img 
+              src="/lovable-uploads/35d9a32a-9b4d-4be7-a93d-03a036a4ab8a.png" 
+              alt="R K Consulting Logo" 
+              className="h-16 w-16 rounded-full mx-auto mb-2"
+            />
+            <h1 className="text-2xl font-bold">R K Consulting</h1>
+            <p className="text-ats-blue-500 font-medium">SkillSifter ATS</p>
+          </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="username"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Username</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter a username" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Email</FormLabel>
+                        <FormControl>
+                          <Input type="email" placeholder="Enter your email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Create a password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Confirm your password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex flex-col space-y-2 pt-2">
+                    <Button 
+                      type="submit" 
+                      variant="primary" 
+                      className="w-full"
+                      disabled={isSubmitting}
                     >
-                      Login
-                    </span>
+                      {isSubmitting ? 'Registering...' : 'Register'}
+                    </Button>
+                    <div className="text-center text-sm mt-4">
+                      Already have an account?{" "}
+                      <span 
+                        className="text-ats-blue cursor-pointer hover:underline"
+                        onClick={() => navigate('/login')}
+                      >
+                        Login
+                      </span>
+                    </div>
                   </div>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      </Container>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </Container>
+      </div>
+      <Footer />
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
@@ -27,6 +26,45 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+
+// Stat Card Component
+const StatCard = ({ title, value, change, trend, positive = false, icon }) => (
+  <Card>
+    <CardContent className="p-6">
+      <div className="flex justify-between mb-3">
+        <div className="p-2 bg-ats-gray-100/50 rounded-lg">
+          {icon}
+        </div>
+        <div className={cn(
+          "flex items-center px-2 py-1 rounded-full text-xs font-medium",
+          trend === "up" && !positive ? "bg-ats-blue/10 text-ats-blue" : "",
+          trend === "down" && !positive ? "bg-red-100 text-red-700" : "",
+          trend === "up" && positive ? "bg-green-100 text-green-700" : "",
+          trend === "down" && positive ? "bg-green-100 text-green-700" : ""
+        )}>
+          {trend === "up" ? <TrendingUp size={12} className="mr-1" /> : <TrendingDown size={12} className="mr-1" />}
+          {change}
+        </div>
+      </div>
+      <h3 className="text-2xl font-semibold mb-1">{value}</h3>
+      <p className="text-ats-gray-500 text-sm">{title}</p>
+    </CardContent>
+  </Card>
+);
+
+// Summary Item Component
+const SummaryItem = ({ title, value, description, icon }) => (
+  <div className="flex items-start">
+    <div className="p-3 rounded-lg bg-ats-gray-100/50 mr-4">
+      {icon}
+    </div>
+    <div>
+      <h3 className="font-medium mb-1">{title}</h3>
+      <p className="text-2xl font-semibold mb-1">{value}</p>
+      <p className="text-ats-gray-500 text-sm">{description}</p>
+    </div>
+  </div>
+);
 
 const Reports = () => {
   // Example data for the charts
@@ -374,44 +412,5 @@ const Reports = () => {
     </div>
   );
 };
-
-// Stat Card Component
-const StatCard = ({ title, value, change, trend, positive = false, icon }) => (
-  <Card>
-    <CardContent className="p-6">
-      <div className="flex justify-between mb-3">
-        <div className="p-2 bg-ats-gray-100/50 rounded-lg">
-          {icon}
-        </div>
-        <div className={cn(
-          "flex items-center px-2 py-1 rounded-full text-xs font-medium",
-          trend === "up" && !positive ? "bg-ats-blue/10 text-ats-blue" : "",
-          trend === "down" && !positive ? "bg-red-100 text-red-700" : "",
-          trend === "up" && positive ? "bg-green-100 text-green-700" : "",
-          trend === "down" && positive ? "bg-green-100 text-green-700" : ""
-        )}>
-          {trend === "up" ? <TrendingUp size={12} className="mr-1" /> : <TrendingDown size={12} className="mr-1" />}
-          {change}
-        </div>
-      </div>
-      <h3 className="text-2xl font-semibold mb-1">{value}</h3>
-      <p className="text-ats-gray-500 text-sm">{title}</p>
-    </CardContent>
-  </Card>
-);
-
-// Summary Item Component
-const SummaryItem = ({ title, value, description, icon }) => (
-  <div className="flex items-start">
-    <div className="p-3 rounded-lg bg-ats-gray-100/50 mr-4">
-      {icon}
-    </div>
-    <div>
-      <h3 className="font-medium mb-1">{title}</h3>
-      <p className="text-2xl font-semibold mb-1">{value}</p>
-      <p className="text-ats-gray-500 text-sm">{description}</p>
-    </div>
-  </div>
-);
 
 export default Reports;
