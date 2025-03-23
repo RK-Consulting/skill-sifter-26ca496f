@@ -30,6 +30,12 @@ const formSchema = z.object({
   }),
 });
 
+// Dummy credentials
+const DUMMY_USER = {
+  email: "admin@example.com",
+  password: "password123"
+};
+
 const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +50,24 @@ const Login = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      
+      // Check if using dummy credentials
+      if (values.email === DUMMY_USER.email && values.password === DUMMY_USER.password) {
+        // Store dummy user data
+        localStorage.setItem('token', 'dummy-token-123456');
+        localStorage.setItem('user', JSON.stringify({ 
+          username: 'Admin User', 
+          email: DUMMY_USER.email,
+          id: 1,
+          isLoggedIn: true 
+        }));
+        
+        toast.success("Login successful");
+        navigate('/');
+        return;
+      }
+      
+      // If not using dummy credentials, try regular login via API
       const response = await authService.login(values);
       
       if (response.data.success) {
@@ -137,6 +161,13 @@ const Login = () => {
                   </div>
                 </form>
               </Form>
+              
+              {/* Dummy credentials info */}
+              <div className="mt-8 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <p className="text-sm text-gray-700 mb-1"><strong>Demo Credentials:</strong></p>
+                <p className="text-sm text-gray-700">Email: {DUMMY_USER.email}</p>
+                <p className="text-sm text-gray-700">Password: {DUMMY_USER.password}</p>
+              </div>
             </CardContent>
           </Card>
         </Container>
