@@ -9,6 +9,13 @@ import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
+import { toast } from 'sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface Candidate {
   id: number;
@@ -63,6 +70,15 @@ const Candidates = () => {
 
   const addCandidate = () => {
     navigate('/candidates/add');
+  };
+
+  const updateCandidateStatus = (id: number, status: string) => {
+    const updatedCandidates = candidates.map(candidate => 
+      candidate.id === id ? { ...candidate, status } : candidate
+    );
+    setCandidates(updatedCandidates);
+    localStorage.setItem('candidates', JSON.stringify(updatedCandidates));
+    toast.success(`Candidate marked as ${status}`);
   };
 
   const viewCandidateDetails = (id: number) => {
@@ -134,19 +150,32 @@ const Candidates = () => {
                             ${candidate.status === 'Interview' ? 'bg-yellow-100 text-yellow-800' : ''}
                             ${candidate.status === 'Offer' ? 'bg-green-100 text-green-800' : ''}
                             ${candidate.status === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
+                            ${candidate.status === 'Actively Looking' ? 'bg-purple-100 text-purple-800' : ''}
+                            ${candidate.status === 'Not Interested' ? 'bg-gray-100 text-gray-800' : ''}
                           `}>
                             {candidate.status}
                           </span>
                         </TableCell>
                         <TableCell>{candidate.date}</TableCell>
                         <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => viewCandidateDetails(candidate.id)}
-                          >
-                            <ChevronRight size={16} />
-                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="sm">
+                                <ChevronRight size={16} />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-[160px]">
+                              <DropdownMenuItem onClick={() => viewCandidateDetails(candidate.id)}>
+                                View Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Actively Looking')}>
+                                Mark Actively Looking
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Not Interested')}>
+                                Mark Not Interested
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))

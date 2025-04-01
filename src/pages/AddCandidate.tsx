@@ -46,6 +46,7 @@ const formSchema = z.object({
   noticePeriod: z.string().optional(),
   clientName: z.string().optional(),
   newJD: z.string().optional(),
+  jlptLanguage: z.string().optional(),
 });
 
 const AddCandidate = () => {
@@ -65,6 +66,7 @@ const AddCandidate = () => {
       noticePeriod: "",
       clientName: "",
       newJD: "",
+      jlptLanguage: "",
     },
   });
 
@@ -232,6 +234,19 @@ const AddCandidate = () => {
                           <FormLabel>Client Name</FormLabel>
                           <FormControl>
                             <Input placeholder="Enter client name" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name="jlptLanguage"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>JLPT Language</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Enter JLPT language level" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
