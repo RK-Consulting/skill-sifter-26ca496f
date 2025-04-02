@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
@@ -85,9 +84,11 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                 />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-bold tracking-tight">R K Consulting</span>
-                <span className="text-xs text-ats-blue-500">SkillSifter ATS</span>
-                <span className="text-xs text-ats-gray-500">Bangalore, India</span>
+                <span className="text-xl font-bold tracking-tight whitespace-nowrap">R K Consulting</span>
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs text-ats-blue-500">SkillSifter ATS</span>
+                  <span className="text-xs text-ats-gray-500">Bangalore, India</span>
+                </div>
               </div>
             </Link>
             
