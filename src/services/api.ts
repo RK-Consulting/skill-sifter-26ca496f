@@ -21,10 +21,40 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+// Add response interceptor to handle token expiration
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Token has expired or is invalid
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Redirect to login page if not already there
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Authentication services
 export const authService = {
   register: (userData: any) => api.post('/auth/register', userData),
   login: (credentials: any) => api.post('/auth/login', credentials),
+};
+
+// User management services (admin only)
+export const userService = {
+  getAllUsers: () => api.get('/admin/users'),
+  createUser: (userData: any) => api.post('/admin/users', userData),
+  updateUser: (id: number, userData: any) => api.put(`/admin/users/${id}`, userData),
+  deleteUser: (id: number) => api.delete(`/admin/users/${id}`),
+};
+
+// Role services (admin only)
+export const roleService = {
+  getAllRoles: () => api.get('/admin/roles'),
 };
 
 // Candidates services
