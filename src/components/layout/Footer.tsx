@@ -14,9 +14,9 @@ const Footer: React.FC = () => {
               className="h-10 w-10 rounded-full"
             />
             <div>
-              <h3 className="font-bold text-lg whitespace-nowrap">R K Consulting</h3>
-              <p className="text-sm text-ats-gray-500">Smart Solutions, Scalable Success</p>
-              <p className="text-xs text-ats-blue-500">SkillSifter ATS</p>
+              <h3 className="font-bold text-lg whitespace-nowrap text-ats-blue-500">SkillSifter ATS</h3>
+              <p className="text-sm text-ats-gray-700">R K Consulting</p>
+              <p className="text-xs text-ats-gray-500">Smart Solutions, Scalable Success</p>
             </div>
           </div>
           
