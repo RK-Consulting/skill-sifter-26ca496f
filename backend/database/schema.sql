@@ -22,8 +22,7 @@ INSERT INTO roles (name, permissions, created_at) VALUES
 ('team_leader', '["view_candidates", "add_candidates", "view_jobs", "manage_team"]', NOW())
 ON CONFLICT (name) DO NOTHING;
 
--- Modify users table to include role and company
-DROP TABLE IF EXISTS users CASCADE;
+-- Create users table with role and company
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
@@ -34,42 +33,60 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Modify existing tables to add company_id
+-- Create candidates table
+CREATE TABLE IF NOT EXISTS candidates (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL,
+    phone VARCHAR(20),
+    position VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'applied',
+    date_applied TIMESTAMP DEFAULT NOW(),
+    resume_url TEXT,
+    cover_letter TEXT,
+    last_modified TIMESTAMP DEFAULT NOW(),
+    company_id INTEGER NOT NULL REFERENCES companies(id)
+);
 
--- Modify candidates table
-ALTER TABLE candidates 
-ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+-- Create jobs table
+CREATE TABLE IF NOT EXISTS jobs (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    department VARCHAR(100),
+    location VARCHAR(100),
+    status VARCHAR(50) DEFAULT 'open',
+    date_posted TIMESTAMP DEFAULT NOW(),
+    description TEXT,
+    requirements TEXT,
+    last_modified TIMESTAMP DEFAULT NOW(),
+    company_id INTEGER NOT NULL REFERENCES companies(id)
+);
 
--- Modify jobs table
-ALTER TABLE jobs 
-ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+-- Create daily_jobs table
+CREATE TABLE IF NOT EXISTS daily_jobs (
+    id SERIAL PRIMARY KEY,
+    jd_no INTEGER NOT NULL,
+    instructions TEXT,
+    assigned_user INTEGER REFERENCES users(id),
+    assigned_date TIMESTAMP DEFAULT NOW(),
+    last_modified TIMESTAMP DEFAULT NOW(),
+    company_id INTEGER NOT NULL REFERENCES companies(id)
+);
 
--- Modify daily_jobs table
-ALTER TABLE daily_jobs 
-ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
+-- Create interviews table
+CREATE TABLE IF NOT EXISTS interviews (
+    id SERIAL PRIMARY KEY,
+    candidate_id INTEGER REFERENCES candidates(id),
+    candidate_name VARCHAR(255) NOT NULL,
+    position VARCHAR(100),
+    interview_date TIMESTAMP NOT NULL,
+    status VARCHAR(50) DEFAULT 'scheduled',
+    feedback TEXT,
+    last_modified TIMESTAMP DEFAULT NOW(),
+    company_id INTEGER NOT NULL REFERENCES companies(id)
+);
 
--- Modify interviews table
-ALTER TABLE interviews 
-ADD COLUMN IF NOT EXISTS company_id INTEGER REFERENCES companies(id);
-
--- First-time setup company
-INSERT INTO companies (name, created_at) 
-VALUES ('Default Company', NOW())
-ON CONFLICT DO NOTHING;
-
--- Update existing records to belong to the default company
-UPDATE candidates SET company_id = 1 WHERE company_id IS NULL;
-UPDATE jobs SET company_id = 1 WHERE company_id IS NULL;
-UPDATE daily_jobs SET company_id = 1 WHERE company_id IS NULL;
-UPDATE interviews SET company_id = 1 WHERE company_id IS NULL;
-
--- Make company_id required for all tables
-ALTER TABLE candidates ALTER COLUMN company_id SET NOT NULL;
-ALTER TABLE jobs ALTER COLUMN company_id SET NOT NULL;
-ALTER TABLE daily_jobs ALTER COLUMN company_id SET NOT NULL;
-ALTER TABLE interviews ALTER COLUMN company_id SET NOT NULL;
-
--- Add any missing indexes
+-- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_id);

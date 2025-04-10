@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -927,4 +928,700 @@ func updateCandidate(w http.ResponseWriter, r *http.Request) {
 	// Update the candidate
 	_, err = db.Exec(`
 		UPDATE candidates 
-		SET name = $1, email = $
+		SET name = $1, email = $2, phone = $3, position = $4, status = $5, 
+		    resume_url = $6, cover_letter = $7, last_modified = $8
+		WHERE id = $9 AND company_id = $10`,
+		c.Name, c.Email, c.Phone, c.Position, c.Status,
+		c.ResumeURL, c.CoverLetter, time.Now(), id, companyID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating candidate")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Candidate updated successfully",
+		Data:    c,
+	})
+}
+
+func deleteCandidate(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	// Check if candidate exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM candidates WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Candidate not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot delete candidate from another company")
+		return
+	}
+
+	// Delete the candidate
+	result, err := db.Exec("DELETE FROM candidates WHERE id = $1 AND company_id = $2", id, companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete candidate")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusInternalServerError, "Candidate deletion failed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Candidate deleted successfully",
+	})
+}
+
+// Jobs handlers
+func getJobs(w http.ResponseWriter, r *http.Request) {
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	jobs := []Job{}
+	
+	rows, err := db.Query("SELECT id, title, department, location, status, date_posted FROM jobs WHERE company_id = $1", companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching jobs")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var j Job
+		if err := rows.Scan(&j.ID, &j.Title, &j.Department, &j.Location, &j.Status, &j.DatePosted); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning job row")
+			return
+		}
+		j.CompanyID = companyID
+		jobs = append(jobs, j)
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Jobs retrieved successfully",
+		Data:    jobs,
+	})
+}
+
+func getJobByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+
+	var j Job
+	err := db.QueryRow(`
+		SELECT id, title, department, location, status, date_posted, description, requirements
+		FROM jobs 
+		WHERE id = $1 AND company_id = $2`, id, companyID).
+		Scan(&j.ID, &j.Title, &j.Department, &j.Location, &j.Status, &j.DatePosted, &j.Description, &j.Requirements)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error fetching job")
+		return
+	}
+
+	j.CompanyID = companyID
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Job retrieved successfully",
+		Data:    j,
+	})
+}
+
+func addJob(w http.ResponseWriter, r *http.Request) {
+	var j Job
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&j); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Set company ID from context
+	j.CompanyID = r.Context().Value("companyID").(int)
+
+	stmt, err := db.Prepare(`
+		INSERT INTO jobs(title, department, location, status, date_posted, description, requirements, company_id) 
+		VALUES($1, $2, $3, $4, $5, $6, $7, $8) 
+		RETURNING id`)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error preparing statement")
+		return
+	}
+
+	var id int
+	err = stmt.QueryRow(j.Title, j.Department, j.Location, j.Status, time.Now(), j.Description, j.Requirements, j.CompanyID).Scan(&id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error inserting job")
+		return
+	}
+
+	j.ID = id
+	respondWithJSON(w, http.StatusCreated, ApiResponse{
+		Success: true,
+		Message: "Job created successfully",
+		Data:    j,
+	})
+}
+
+func updateJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	var j Job
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&j); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Check if job exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM jobs WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot modify job from another company")
+		return
+	}
+
+	// Update the job
+	_, err = db.Exec(`
+		UPDATE jobs 
+		SET title = $1, department = $2, location = $3, status = $4, 
+		    description = $5, requirements = $6, last_modified = $7
+		WHERE id = $8 AND company_id = $9`,
+		j.Title, j.Department, j.Location, j.Status,
+		j.Description, j.Requirements, time.Now(), id, companyID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating job")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Job updated successfully",
+		Data:    j,
+	})
+}
+
+func deleteJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	// Check if job exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM jobs WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot delete job from another company")
+		return
+	}
+
+	// Delete the job
+	result, err := db.Exec("DELETE FROM jobs WHERE id = $1 AND company_id = $2", id, companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete job")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusInternalServerError, "Job deletion failed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Job deleted successfully",
+	})
+}
+
+// Daily Jobs handlers
+func getDailyJobs(w http.ResponseWriter, r *http.Request) {
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	dailyJobs := []DailyJob{}
+	
+	rows, err := db.Query("SELECT id, jd_no, instructions, assigned_user, assigned_date FROM daily_jobs WHERE company_id = $1", companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching daily jobs")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var dj DailyJob
+		if err := rows.Scan(&dj.ID, &dj.JdNo, &dj.Instructions, &dj.AssignedUser, &dj.AssignedDate); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning daily job row")
+			return
+		}
+		dj.CompanyID = companyID
+		dailyJobs = append(dailyJobs, dj)
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Daily jobs retrieved successfully",
+		Data:    dailyJobs,
+	})
+}
+
+func getDailyJobByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+
+	var dj DailyJob
+	err := db.QueryRow(`
+		SELECT id, jd_no, instructions, assigned_user, assigned_date
+		FROM daily_jobs 
+		WHERE id = $1 AND company_id = $2`, id, companyID).
+		Scan(&dj.ID, &dj.JdNo, &dj.Instructions, &dj.AssignedUser, &dj.AssignedDate)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Daily job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error fetching daily job")
+		return
+	}
+
+	dj.CompanyID = companyID
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Daily job retrieved successfully",
+		Data:    dj,
+	})
+}
+
+func addDailyJob(w http.ResponseWriter, r *http.Request) {
+	var dj DailyJob
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&dj); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Set company ID from context
+	dj.CompanyID = r.Context().Value("companyID").(int)
+
+	// Check if assigned user belongs to the same company
+	if dj.AssignedUser != 0 {
+		var userCompanyID int
+		err := db.QueryRow("SELECT company_id FROM users WHERE id = $1", dj.AssignedUser).Scan(&userCompanyID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respondWithError(w, http.StatusBadRequest, "Assigned user not found")
+				return
+			}
+			respondWithError(w, http.StatusInternalServerError, "Database error")
+			return
+		}
+
+		if userCompanyID != dj.CompanyID {
+			respondWithError(w, http.StatusForbidden, "Cannot assign job to user from another company")
+			return
+		}
+	}
+
+	stmt, err := db.Prepare(`
+		INSERT INTO daily_jobs(jd_no, instructions, assigned_user, assigned_date, company_id) 
+		VALUES($1, $2, $3, $4, $5) 
+		RETURNING id`)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error preparing statement")
+		return
+	}
+
+	var id int
+	err = stmt.QueryRow(dj.JdNo, dj.Instructions, dj.AssignedUser, time.Now(), dj.CompanyID).Scan(&id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error inserting daily job")
+		return
+	}
+
+	dj.ID = id
+	respondWithJSON(w, http.StatusCreated, ApiResponse{
+		Success: true,
+		Message: "Daily job created successfully",
+		Data:    dj,
+	})
+}
+
+func updateDailyJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	var dj DailyJob
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&dj); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Check if daily job exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM daily_jobs WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Daily job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot modify daily job from another company")
+		return
+	}
+
+	// Check if assigned user belongs to the same company
+	if dj.AssignedUser != 0 {
+		var userCompanyID int
+		err := db.QueryRow("SELECT company_id FROM users WHERE id = $1", dj.AssignedUser).Scan(&userCompanyID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respondWithError(w, http.StatusBadRequest, "Assigned user not found")
+				return
+			}
+			respondWithError(w, http.StatusInternalServerError, "Database error")
+			return
+		}
+
+		if userCompanyID != companyID {
+			respondWithError(w, http.StatusForbidden, "Cannot assign job to user from another company")
+			return
+		}
+	}
+
+	// Update the daily job
+	_, err = db.Exec(`
+		UPDATE daily_jobs 
+		SET jd_no = $1, instructions = $2, assigned_user = $3, last_modified = $4
+		WHERE id = $5 AND company_id = $6`,
+		dj.JdNo, dj.Instructions, dj.AssignedUser, time.Now(), id, companyID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating daily job")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Daily job updated successfully",
+		Data:    dj,
+	})
+}
+
+func deleteDailyJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	// Check if daily job exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM daily_jobs WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Daily job not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot delete daily job from another company")
+		return
+	}
+
+	// Delete the daily job
+	result, err := db.Exec("DELETE FROM daily_jobs WHERE id = $1 AND company_id = $2", id, companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete daily job")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusInternalServerError, "Daily job deletion failed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Daily job deleted successfully",
+	})
+}
+
+// Interview handlers
+func getInterviews(w http.ResponseWriter, r *http.Request) {
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	interviews := []Interview{}
+	
+	rows, err := db.Query("SELECT id, candidate_id, candidate_name, position, interview_date, status FROM interviews WHERE company_id = $1", companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching interviews")
+		return
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var i Interview
+		if err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position, &i.InterviewDate, &i.Status); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
+			return
+		}
+		i.CompanyID = companyID
+		interviews = append(interviews, i)
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Interviews retrieved successfully",
+		Data:    interviews,
+	})
+}
+
+func getInterviewByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+
+	var i Interview
+	err := db.QueryRow(`
+		SELECT id, candidate_id, candidate_name, position, interview_date, status, feedback
+		FROM interviews 
+		WHERE id = $1 AND company_id = $2`, id, companyID).
+		Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position, &i.InterviewDate, &i.Status, &i.Feedback)
+	
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Interview not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error fetching interview")
+		return
+	}
+
+	i.CompanyID = companyID
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Interview retrieved successfully",
+		Data:    i,
+	})
+}
+
+func scheduleInterview(w http.ResponseWriter, r *http.Request) {
+	var i Interview
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&i); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Set company ID from context
+	i.CompanyID = r.Context().Value("companyID").(int)
+
+	// Check if candidate belongs to the same company if candidate ID is provided
+	if i.CandidateID != 0 {
+		var candidateCompanyID int
+		err := db.QueryRow("SELECT company_id FROM candidates WHERE id = $1", i.CandidateID).Scan(&candidateCompanyID)
+		if err != nil {
+			if err == sql.ErrNoRows {
+				respondWithError(w, http.StatusBadRequest, "Candidate not found")
+				return
+			}
+			respondWithError(w, http.StatusInternalServerError, "Database error")
+			return
+		}
+
+		if candidateCompanyID != i.CompanyID {
+			respondWithError(w, http.StatusForbidden, "Cannot schedule interview for candidate from another company")
+			return
+		}
+	}
+
+	stmt, err := db.Prepare(`
+		INSERT INTO interviews(candidate_id, candidate_name, position, interview_date, status, feedback, company_id) 
+		VALUES($1, $2, $3, $4, $5, $6, $7) 
+		RETURNING id`)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error preparing statement")
+		return
+	}
+
+	var id int
+	err = stmt.QueryRow(i.CandidateID, i.CandidateName, i.Position, i.InterviewDate, i.Status, i.Feedback, i.CompanyID).Scan(&id)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error scheduling interview")
+		return
+	}
+
+	i.ID = id
+	respondWithJSON(w, http.StatusCreated, ApiResponse{
+		Success: true,
+		Message: "Interview scheduled successfully",
+		Data:    i,
+	})
+}
+
+func updateInterview(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	var i Interview
+	decoder := json.NewDecoder(r.Body)
+	if err := decoder.Decode(&i); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	// Check if interview exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM interviews WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Interview not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot modify interview from another company")
+		return
+	}
+
+	// Update the interview
+	_, err = db.Exec(`
+		UPDATE interviews 
+		SET candidate_name = $1, position = $2, interview_date = $3, 
+		    status = $4, feedback = $5, last_modified = $6
+		WHERE id = $7 AND company_id = $8`,
+		i.CandidateName, i.Position, i.InterviewDate,
+		i.Status, i.Feedback, time.Now(), id, companyID)
+
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating interview")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Interview updated successfully",
+		Data:    i,
+	})
+}
+
+func deleteInterview(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id := vars["id"]
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	// Check if interview exists and belongs to this company
+	var existingCompanyID int
+	err := db.QueryRow("SELECT company_id FROM interviews WHERE id = $1", id).Scan(&existingCompanyID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "Interview not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if existingCompanyID != companyID {
+		respondWithError(w, http.StatusForbidden, "Cannot delete interview from another company")
+		return
+	}
+
+	// Delete the interview
+	result, err := db.Exec("DELETE FROM interviews WHERE id = $1 AND company_id = $2", id, companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete interview")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusInternalServerError, "Interview deletion failed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, ApiResponse{
+		Success: true,
+		Message: "Interview deleted successfully",
+	})
+}
