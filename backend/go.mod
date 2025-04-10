@@ -1,4 +1,3 @@
-
 module github.com/RK-Consulting/skill-sifter
 
 go 1.21
@@ -10,4 +9,3 @@ require (
 	github.com/rs/cors v1.10.1
 	golang.org/x/crypto v0.18.0
 )
-

@@ -9,7 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strconv"
+//	"strconv"
 	"strings"
 	"time"
 
@@ -204,9 +204,9 @@ func main() {
 func initDB() {
 	host := getEnv("DB_HOST", "localhost")
 	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "postgres")
-	dbname := getEnv("DB_NAME", "skillsifter")
+	user := getEnv("DB_USER", "skillsifter")
+	password := getEnv("DB_PASSWORD", "ROOT")
+	dbname := getEnv("DB_NAME", "postgres")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
