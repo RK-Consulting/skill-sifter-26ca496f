@@ -1,0 +1,193 @@
+
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/models"
+	"github.com/gorilla/mux"
+)
+
+// GetJobs retrieves all jobs for a company
+func GetJobs(w http.ResponseWriter, r *http.Request) {
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	jobs := []models.Job{}
+	rows, err := db.DB.Query("SELECT * FROM jobs WHERE company_id = $1", companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching jobs")
+		return
+	}
+	defer rows.Close()
+	
+	// Scan rows into jobs slice
+	for rows.Next() {
+		var j models.Job
+		err := rows.Scan(&j.ID, &j.Title, &j.Department, &j.Location, 
+			&j.Status, &j.DatePosted, &j.Description, &j.Requirements, 
+			&j.LastModified, &j.CompanyID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning job row")
+			return
+		}
+		jobs = append(jobs, j)
+	}
+	
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Jobs retrieved successfully",
+		Data:    jobs,
+	})
+}
+
+// GetJobByID retrieves a single job by ID
+func GetJobByID(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid job ID")
+		return
+	}
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	var job models.Job
+	err = db.DB.QueryRow(
+		"SELECT * FROM jobs WHERE id = $1 AND company_id = $2", 
+		id, companyID,
+	).Scan(&job.ID, &job.Title, &job.Department, &job.Location, 
+		&job.Status, &job.DatePosted, &job.Description, &job.Requirements, 
+		&job.LastModified, &job.CompanyID)
+	
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Job not found")
+		return
+	}
+	
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Job retrieved successfully",
+		Data:    job,
+	})
+}
+
+// AddJob creates a new job
+func AddJob(w http.ResponseWriter, r *http.Request) {
+	var job models.Job
+	err := json.NewDecoder(r.Body).Decode(&job)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+	
+	// Set company ID from the authenticated user
+	job.CompanyID = r.Context().Value("companyID").(int)
+	
+	// Insert job into database
+	var id int
+	err = db.DB.QueryRow(
+		`INSERT INTO jobs (title, department, location, status, 
+			description, requirements, company_id) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		RETURNING id`,
+		job.Title, job.Department, job.Location, job.Status, 
+		job.Description, job.Requirements, job.CompanyID,
+	).Scan(&id)
+	
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error creating job")
+		return
+	}
+	
+	job.ID = id
+	
+	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
+		Success: true,
+		Message: "Job created successfully",
+		Data:    job,
+	})
+}
+
+// UpdateJob updates an existing job
+func UpdateJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid job ID")
+		return
+	}
+	
+	var job models.Job
+	err = json.NewDecoder(r.Body).Decode(&job)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+	
+	// Ensure company ID matches authenticated user's company
+	job.CompanyID = r.Context().Value("companyID").(int)
+	job.ID = id
+	
+	// Update job in database
+	_, err = db.DB.Exec(
+		`UPDATE jobs 
+		SET title = $1, department = $2, location = $3, status = $4, 
+			description = $5, requirements = $6, last_modified = NOW() 
+		WHERE id = $7 AND company_id = $8`,
+		job.Title, job.Department, job.Location, job.Status, 
+		job.Description, job.Requirements, job.ID, job.CompanyID,
+	)
+	
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating job")
+		return
+	}
+	
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Job updated successfully",
+		Data:    job,
+	})
+}
+
+// DeleteJob deletes a job
+func DeleteJob(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid job ID")
+		return
+	}
+	
+	// Get company ID from context
+	companyID := r.Context().Value("companyID").(int)
+	
+	// Delete job from database
+	result, err := db.DB.Exec(
+		"DELETE FROM jobs WHERE id = $1 AND company_id = $2", 
+		id, companyID,
+	)
+	
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error deleting job")
+		return
+	}
+	
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusNotFound, "Job not found")
+		return
+	}
+	
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Job deleted successfully",
+	})
+}
