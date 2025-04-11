@@ -22,11 +22,11 @@ func InitDB() {
 	// Load .env file if exists
 	godotenv.Load()
 	
-	host := getEnv("DB_HOST", "localhost")
-	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "skillsifter")
-	password := getEnv("DB_PASSWORD", "ROOT")
-	dbname := getEnv("DB_NAME", "postgres")
+	host := GetEnv("DB_HOST", "localhost")
+	port := GetEnv("DB_PORT", "5432")
+	user := GetEnv("DB_USER", "skillsifter")
+	password := GetEnv("DB_PASSWORD", "ROOT")
+	dbname := GetEnv("DB_NAME", "postgres")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
@@ -43,14 +43,6 @@ func InitDB() {
 	}
 
 	fmt.Println("Successfully connected to database")
-}
-
-// Helper function to get env variable with fallback
-func getEnv(key, fallback string) string {
-	if value, exists := os.LookupEnv(key); exists {
-		return value
-	}
-	return fallback
 }
 
 // One-time schema initialization function
@@ -198,6 +190,7 @@ func createTableFromStruct(tx *sql.Tx, model interface{}, tableName string) erro
 	
 	t := reflect.TypeOf(model)
 	var columns []string
+	var foreignKeys []string
 	
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -236,7 +229,7 @@ func createTableFromStruct(tx *sql.Tx, model interface{}, tableName string) erro
 				colDef += fmt.Sprintf(" DEFAULT %s", defaultVal)
 			case strings.HasPrefix(part, "foreignkey:"):
 				fkRef := strings.TrimPrefix(part, "foreignkey:")
-				columns = append(columns, fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s", colName, fkRef))
+				foreignKeys = append(foreignKeys, fmt.Sprintf("FOREIGN KEY (%s) REFERENCES %s", colName, fkRef))
 				continue // Don't add this part to the column definition
 			case strings.HasPrefix(part, "type:"):
 				// Override detected type with explicit type
@@ -247,6 +240,9 @@ func createTableFromStruct(tx *sql.Tx, model interface{}, tableName string) erro
 		
 		columns = append(columns, colDef)
 	}
+	
+	// Add foreign key constraints at the end
+	columns = append(columns, foreignKeys...)
 	
 	createSQL := fmt.Sprintf("CREATE TABLE %s (\n\t%s\n)", tableName, strings.Join(columns, ",\n\t"))
 	_, err = tx.Exec(createSQL)
