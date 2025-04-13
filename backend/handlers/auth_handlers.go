@@ -104,7 +104,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	// Get role name for response
 	var roleName string
-	err = db.DB.QueryRow("SELECT name FROM roles WHERE id = $1", roleID).Scan(&roleName)
+	err = db.DB.QueryRow("SELECT name FROM roles WHERE id = $1", role).Scan(&roleName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not fetch role")
 		return
@@ -116,7 +116,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Username:  creds.Username,
 		Email:     creds.Email,
 		Role:      role,
-		Role:      roleName,
 		CompanyID: companyID,
 		CreatedAt: time.Now(),
 	}
@@ -178,7 +177,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set role name in user object
-	//user.Role = roleName
+	user.Role = roleName
 	user.Password = "" // Don't return the password
 
 	// Create JWT token
@@ -276,8 +275,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		ID:        userID,
 		Username:  user.Username,
 		Email:     user.Email,
-		RoleID:    user.RoleID,
-		Role:      roleName,
+		Role:      user.Role,
 		CompanyID: user.CompanyID,
 		CreatedAt: time.Now(),
 	}
