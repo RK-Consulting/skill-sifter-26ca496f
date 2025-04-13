@@ -125,7 +125,7 @@ func InitializeSchema() error {
 			CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_id);
 			CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_id);
 			CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
-			CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
+			CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 		`)
 		
 		if err != nil {
