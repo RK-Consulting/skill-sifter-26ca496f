@@ -97,7 +97,7 @@ func GenerateToken(user models.User, roleName string) (string, error) {
 	claims := &Claims{
 		UserID:    user.ID,
 		Email:     user.Email,
-		Role:      roleName,
+		Role:      user.Role,
 		CompanyID: user.CompanyID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
