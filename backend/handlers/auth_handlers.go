@@ -50,6 +50,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	var companyID int
 	var isFirstUser bool
 
+
 	// Check if company exists
 	if creds.Company != "" {
 		// Check if company already exists
@@ -74,27 +75,17 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get appropriate role ID
-	var roleID int
+		// Assign role name directly
+	role := "recruiter"
 	if isFirstUser {
-		// First user is admin
-		err = tx.QueryRow("SELECT id FROM roles WHERE name = 'admin'").Scan(&roleID)
-	} else {
-		// Default role is recruiter
-		err = tx.QueryRow("SELECT id FROM roles WHERE name = 'recruiter'").Scan(&roleID)
+		role = "admin"
 	}
-
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not determine role")
-		return
-	}
-
 	// Insert user with company ID
 	var userID int
 	err = tx.QueryRow(`
-        INSERT INTO users(username, email, password, role_id, company_id, created_at) 
+        INSERT INTO users(username, email, password, role, company_id, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		creds.Username, creds.Email, hashedPassword, roleID, companyID, time.Now()).Scan(&userID)
+		creds.Username, creds.Email, hashedPassword, role, companyID, time.Now()).Scan(&userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -124,14 +115,14 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		ID:        userID,
 		Username:  creds.Username,
 		Email:     creds.Email,
-		RoleID:    roleID,
+		Role:      role,
 		Role:      roleName,
 		CompanyID: companyID,
 		CreatedAt: time.Now(),
 	}
 
 	// Create JWT token
-	tokenString, err := auth.GenerateToken(user, roleName)
+	tokenString, err := auth.GenerateToken(user, role)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
 		return
@@ -164,12 +155,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var roleName string
 
 	err = db.DB.QueryRow(`
-		SELECT u.id, u.username, u.email, u.password, u.role_id, r.name, u.company_id, u.created_at
-		FROM users u
-		JOIN roles r ON u.role_id = r.id
-		WHERE u.email = $1`, creds.Email).Scan(
+		SELECT id, username, email, password, role, name, company_id, created_at
+		FROM users 
+		WHERE email = $1`, creds.Email).Scan(
 		&user.ID, &user.Username, &user.Email, &hashedPassword,
-		&user.RoleID, &roleName, &user.CompanyID, &user.CreatedAt)
+		&user.Role, &user.CompanyID, &user.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -188,7 +178,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Set role name in user object
-	user.Role = roleName
+	//user.Role = roleName
 	user.Password = "" // Don't return the password
 
 	// Create JWT token
@@ -216,9 +206,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	
 	users := []models.User{}
 	rows, err := db.DB.Query(`
-		SELECT u.id, u.username, u.email, u.role_id, r.name, u.company_id, u.created_at
-		FROM users u
-		JOIN roles r ON u.role_id = r.id
+		SELECT id, username, email, role, name, company_id, created_at
+		FROM users 
 		WHERE u.company_id = $1`, companyID)
 		
 	if err != nil {
@@ -229,7 +218,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.RoleID, &u.Role, &u.CompanyID, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CompanyID, &u.CreatedAt); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning user row")
 			return
 		}
@@ -269,9 +258,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Insert user
 	var userID int
 	err = db.DB.QueryRow(`
-        INSERT INTO users(username, email, password, role_id, company_id, created_at) 
+        INSERT INTO users(username, email, password, role, company_id, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		user.Username, user.Email, hashedPassword, user.RoleID, user.CompanyID, time.Now()).Scan(&userID)
+		user.Username, user.Email, hashedPassword, user.Role, user.CompanyID, time.Now()).Scan(&userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -279,14 +268,6 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		respondWithError(w, http.StatusInternalServerError, "Could not create user")
-		return
-	}
-
-	// Get role name for response
-	var roleName string
-	err = db.DB.QueryRow("SELECT name FROM roles WHERE id = $1", user.RoleID).Scan(&roleName)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not fetch role")
 		return
 	}
 
