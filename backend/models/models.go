@@ -79,7 +79,6 @@ type User struct {
 	Username  string    `json:"username" db:"username,notnull"`
 	Email     string    `json:"email" db:"email,notnull,unique"`
 	Password  string    `json:"password,omitempty" db:"password,notnull"`
-	RoleID    int       `json:"roleId" db:"role_id,notnull,foreignkey:roles.id"`
 	Role      string    `json:"role,omitempty"` // Not stored in DB, for frontend
 	CompanyID int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
 	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
