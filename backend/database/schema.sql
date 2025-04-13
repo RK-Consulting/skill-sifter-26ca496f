@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     username VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role_id INTEGER NOT NULL REFERENCES roles(id),
+    role VARCHAR(100) NOT NULL,
     company_id INTEGER NOT NULL REFERENCES companies(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -86,10 +86,12 @@ CREATE TABLE IF NOT EXISTS interviews (
     company_id INTEGER NOT NULL REFERENCES companies(id)
 );
 
+-- Drop unused index
+DROP INDEX IF EXISTS idx_users_role;
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_id);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_id);
 CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_id);
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
-CREATE INDEX IF NOT EXISTS idx_users_role ON users(role_id);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
