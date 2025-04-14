@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
-    company_id INTEGER NOT NULL REFERENCES companies(id),
+    company_id INTEGER NOT NULL,
+    FOREIGN KEY (company_id) REFERENCES companies(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
