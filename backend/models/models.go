@@ -1,4 +1,3 @@
-
 package models
 
 import (
@@ -17,7 +16,7 @@ type Candidate struct {
 	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
 	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
+	CompanyID    int       `json:"companyId" db:"company_id,notnull"`
 }
 
 // Job model
@@ -31,7 +30,7 @@ type Job struct {
 	Description  string    `json:"description,omitempty" db:"description"`
 	Requirements string    `json:"requirements,omitempty" db:"requirements"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
+	CompanyID    int       `json:"companyId" db:"company_id,notnull"`
 }
 
 // DailyJob model
@@ -39,26 +38,26 @@ type DailyJob struct {
 	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
 	JdNo         int       `json:"jdNo" db:"jd_no,notnull"`
 	Instructions string    `json:"instructions" db:"instructions"`
-	AssignedUser int       `json:"assignedUser" db:"assigned_user,foreignkey:users.id"`
+	AssignedUser int       `json:"assignedUser" db:"assigned_user"`
 	AssignedDate time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
+	CompanyID    int       `json:"companyId" db:"company_id,notnull"`
 }
 
 // Interview model
 type Interview struct {
 	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
-	CandidateID   int       `json:"candidateId" db:"candidate_id,foreignkey:candidates.id"`
+	CandidateID   int       `json:"candidateId" db:"candidate_id"`
 	CandidateName string    `json:"candidateName" db:"candidate_name,notnull"`
 	Position      string    `json:"position" db:"position"`
 	InterviewDate time.Time `json:"interviewDate" db:"interview_date,notnull"`
 	Status        string    `json:"status" db:"status,default:'scheduled'"`
 	Feedback      string    `json:"feedback" db:"feedback"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID     int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
+	CompanyID     int       `json:"companyId" db:"company_id,notnull"`
 }
 
-// Company/Tenant model
+// Company model
 type Company struct {
 	ID        int       `json:"id" db:"id,primarykey,autoincrement"`
 	Name      string    `json:"name" db:"name,notnull,unique"`
@@ -67,9 +66,9 @@ type Company struct {
 
 // Role model
 type Role struct {
-	ID          int      `json:"id" db:"id,primarykey,autoincrement"`
-	Name        string   `json:"name" db:"name,notnull,unique"`
-	Permissions []string `json:"permissions" db:"permissions,type:jsonb,default:'[]'::jsonb"`
+	ID          int       `json:"id" db:"id,primarykey,autoincrement"`
+	Name        string    `json:"name" db:"name,notnull,unique"`
+	Permissions []string  `json:"permissions" db:"permissions,type:jsonb,default:'[]'::jsonb"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
@@ -79,8 +78,8 @@ type User struct {
 	Username  string    `json:"username" db:"username,notnull"`
 	Email     string    `json:"email" db:"email,notnull,unique"`
 	Password  string    `json:"password,omitempty" db:"password,notnull"`
-	Role      string    `json:"role,omitempty"` // Not stored in DB, for frontend
-	CompanyID int       `json:"companyId" db:"company_id,notnull,foreignkey:companies.id"`
+	Role      string    `json:"role" db:"role,notnull"`
+	CompanyID int       `json:"companyId" db:"company_id,notnull"`
 	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
@@ -96,7 +95,7 @@ type Credentials struct {
 	Password  string `json:"password"`
 	Username  string `json:"username,omitempty"`
 	CompanyID int    `json:"companyId,omitempty"`
-	Company   string `json:"company,omitempty"` // For registration
+	Company   string `json:"company,omitempty"`
 }
 
 // ApiResponse represents a standard API response
