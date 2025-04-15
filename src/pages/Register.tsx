@@ -45,6 +45,7 @@ const formSchema = z.object({
 const Register = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState('');
   
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -60,9 +61,13 @@ const Register = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsSubmitting(true);
+      setApiError('');
       
       // Remove confirmPassword as it's not needed for the API
       const { confirmPassword, ...userData } = values;
+
+      console.log("Attempting to register with:", { ...userData, password: "***" });
+      console.log("API URL:", import.meta.env.VITE_API_URL || 'http://localhost:8080/api');
       
       const response = await authService.register(userData);
       
@@ -71,10 +76,21 @@ const Register = () => {
         navigate('/login');
       } else {
         toast.error(response.data.message || "Registration failed");
+        setApiError(response.data.message || "Registration failed");
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      toast.error(error.response?.data?.message || "Registration failed. Please try again.");
+      
+      // Handle different types of errors
+      if (error.code === 'ERR_NETWORK') {
+        const errorMessage = "Cannot connect to server. Please make sure the backend is running.";
+        toast.error(errorMessage);
+        setApiError(errorMessage);
+      } else {
+        const errorMessage = error.response?.data?.message || "Registration failed. Please try again.";
+        toast.error(errorMessage);
+        setApiError(errorMessage);
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -99,6 +115,12 @@ const Register = () => {
               <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
             </CardHeader>
             <CardContent>
+              {apiError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
+                  <p><strong>Error:</strong> {apiError}</p>
+                </div>
+              )}
+
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                   <FormField
@@ -189,6 +211,15 @@ const Register = () => {
               </Form>
             </CardContent>
           </Card>
+
+          {/* Debug information in development mode */}
+          {import.meta.env.DEV && (
+            <div className="mt-8 p-3 bg-blue-50 border border-blue-200 rounded-md">
+              <p className="text-sm text-gray-700 mb-1"><strong>Debug Info:</strong></p>
+              <p className="text-sm text-gray-700">API URL: {import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}</p>
+              <p className="text-sm text-gray-700">Environment: {import.meta.env.MODE}</p>
+            </div>
+          )}
         </Container>
       </div>
       <Footer />

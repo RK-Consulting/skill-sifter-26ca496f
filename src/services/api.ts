@@ -1,12 +1,17 @@
 
 import axios from 'axios';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+
+console.log('API URL configured as:', API_URL);
+
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 10000, // 10 seconds timeout
 });
 
 // Add request interceptor to include authorization header if token exists
@@ -25,6 +30,8 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    console.error('API Error:', error.message);
+    
     if (error.response && error.response.status === 401) {
       // Token has expired or is invalid
       localStorage.removeItem('token');
@@ -34,6 +41,13 @@ api.interceptors.response.use(
         window.location.href = '/login';
       }
     }
+    
+    // Add more specific error information
+    if (!error.response && error.code === 'ERR_NETWORK') {
+      error.serverDown = true;
+      console.error('Server connection failed. Is the backend running?');
+    }
+    
     return Promise.reject(error);
   }
 );
@@ -92,5 +106,16 @@ export const interviewService = {
   updateInterview: (id: number, interviewData: any) => api.put(`/interviews/${id}`, interviewData),
   deleteInterview: (id: number) => api.delete(`/interviews/${id}`),
 };
+
+// Check API connectivity
+api.get('/health-check')
+  .then(() => console.log('✅ API connection successful'))
+  .catch(error => {
+    if (error.code === 'ERR_NETWORK') {
+      console.error('❌ Cannot connect to API server. Please make sure the backend is running.');
+    } else {
+      console.error('❌ API health check failed:', error.message);
+    }
+  });
 
 export default api;
