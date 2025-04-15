@@ -75,7 +75,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		// Assign role name directly
+	// Assign role name directly
 	role := "recruiter"
 	if isFirstUser {
 		role = "admin"
@@ -99,14 +99,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
-		return
-	}
-
-	// Get role name for response
-	var roleName string
-	err = db.DB.QueryRow("SELECT name FROM roles WHERE id = $1", role).Scan(&roleName)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not fetch role")
 		return
 	}
 
@@ -151,12 +143,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	// Get user from database
 	var user models.User
 	var hashedPassword string
-	var roleName string
 
 	err = db.DB.QueryRow(`
-		SELECT id, username, email, password, role, name, company_id, created_at
-		FROM users 
-		WHERE email = $1`, creds.Email).Scan(
+		SELECT u.id, u.username, u.email, u.password, u.role, u.company_id, u.created_at
+		FROM users u
+		WHERE u.email = $1`, creds.Email).Scan(
 		&user.ID, &user.Username, &user.Email, &hashedPassword,
 		&user.Role, &user.CompanyID, &user.CreatedAt)
 
@@ -176,12 +167,10 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Set role name in user object
-	user.Role = roleName
 	user.Password = "" // Don't return the password
 
 	// Create JWT token
-	tokenString, err := auth.GenerateToken(user, roleName)
+	tokenString, err := auth.GenerateToken(user, user.Role)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
 		return
@@ -205,9 +194,9 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	
 	users := []models.User{}
 	rows, err := db.DB.Query(`
-		SELECT id, username, email, role, name, company_id, created_at
+		SELECT id, username, email, role, company_id, created_at
 		FROM users 
-		WHERE u.company_id = $1`, companyID)
+		WHERE company_id = $1`, companyID)
 		
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching users")

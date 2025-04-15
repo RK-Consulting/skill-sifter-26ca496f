@@ -34,6 +34,9 @@ const formSchema = z.object({
   confirmPassword: z.string().min(6, {
     message: "Password must be at least 6 characters",
   }),
+  company: z.string().min(2, {
+    message: "Company name must be at least 2 characters",
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -50,6 +53,7 @@ const Register = () => {
       email: "",
       password: "",
       confirmPassword: "",
+      company: "",
     },
   });
 
@@ -118,6 +122,19 @@ const Register = () => {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="Enter your email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="company"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company Name</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your company name" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
