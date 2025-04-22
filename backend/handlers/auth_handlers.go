@@ -50,9 +50,9 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
     // Check if company exists
     if creds.Company != "" {
-        // Generate a unique company ID
+        // Generate a unique company ID (string)
         companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.Company), " ", "_"))
-        
+
         // Check if company already exists
         var exists bool
         err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.Company).Scan(&exists)
@@ -62,7 +62,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         }
 
         if !exists {
-            // Create new company
+            // Create new company, string-type companyID
             _, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
                 companyID, creds.Company, time.Now())
             if err != nil {
@@ -71,7 +71,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
             }
             isFirstUser = true
         } else {
-            // Get existing company ID
+            // Get existing company ID as string
             err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.Company).Scan(&companyID)
             if err != nil {
                 respondWithError(w, http.StatusInternalServerError, "Could not get company ID")
@@ -89,7 +89,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         role = "admin"
     }
 
-    // Insert user
+    // Insert user (companyID is string)
     var userID int
     err = tx.QueryRow(`
         INSERT INTO users(username, email, password, role, company_id, created_at) 
@@ -117,7 +117,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         Username:  creds.Username,
         Email:     creds.Email,
         Role:      role,
-        CompanyID: companyID,
+        CompanyID: companyID, // string
         CreatedAt: time.Now(),
     }
 

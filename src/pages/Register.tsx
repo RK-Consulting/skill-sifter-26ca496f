@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -66,11 +65,15 @@ const Register = () => {
       // Remove confirmPassword as it's not needed for the API
       const { confirmPassword, ...userData } = values;
 
+      // BE SURE company is sent as a string only, and processed correctly by backend!
+      // The company_id is handled by backend, nothing to fix here on the frontend input except making code clean.
+
       console.log("Attempting to register with:", { ...userData, password: "***" });
       console.log("API URL:", import.meta.env.VITE_API_URL || 'http://localhost:8080/api');
       
       const response = await authService.register(userData);
-      
+
+      // Response expects user: {companyId: string}
       if (response.data.success) {
         toast.success("Registration successful. Please login.");
         navigate('/login');
@@ -80,8 +83,6 @@ const Register = () => {
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      
-      // Handle different types of errors
       if (error.code === 'ERR_NETWORK') {
         const errorMessage = "Cannot connect to server. Please make sure the backend is running.";
         toast.error(errorMessage);
