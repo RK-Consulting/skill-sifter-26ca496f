@@ -1,3 +1,4 @@
+
 package handlers
 
 import (
@@ -83,10 +84,27 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Assign role
-    role := "recruiter"
-    if isFirstUser {
+    // Determine role
+    var role string
+    if creds.Role != "" {
+        role = creds.Role
+    } else if isFirstUser {
         role = "admin"
+    } else {
+        role = "recruiter" // Default role if none provided
+    }
+
+    // Validate role
+    validRoles := map[string]bool{
+        "admin":       true,
+        "manager":     true,
+        "recruiter":   true,
+        "team_leader": true,
+    }
+    
+    if !validRoles[role] {
+        respondWithError(w, http.StatusBadRequest, "Invalid role")
+        return
     }
 
     // Insert user (companyID is string)

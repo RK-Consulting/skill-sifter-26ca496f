@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -19,6 +20,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { authService } from '@/services/api';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const formSchema = z.object({
   username: z.string().min(3, {
@@ -36,6 +44,7 @@ const formSchema = z.object({
   company: z.string().min(2, {
     message: "Company name must be at least 2 characters",
   }),
+  role: z.string().default("recruiter"),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -54,6 +63,7 @@ const Register = () => {
       password: "",
       confirmPassword: "",
       company: "",
+      role: "recruiter", // Default role
     },
   });
 
@@ -159,6 +169,29 @@ const Register = () => {
                         <FormControl>
                           <Input placeholder="Enter your company name" {...field} />
                         </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="role"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Role</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select a role" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="admin">Admin</SelectItem>
+                            <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="recruiter">Recruiter</SelectItem>
+                            <SelectItem value="team_leader">Team Leader</SelectItem>
+                          </SelectContent>
+                        </Select>
                         <FormMessage />
                       </FormItem>
                     )}

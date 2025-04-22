@@ -1,3 +1,4 @@
+
 package models
 
 import (
@@ -96,6 +97,7 @@ type Credentials struct {
 	Username  string `json:"username,omitempty"`
 	CompanyID string `json:"companyId,omitempty"`
 	Company   string `json:"company,omitempty"`
+	Role      string `json:"role,omitempty"` // Added role field
 }
 
 // ApiResponse represents a standard API response
