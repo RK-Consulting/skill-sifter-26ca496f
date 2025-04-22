@@ -37,6 +37,11 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware) // Add logging middleware
 
+	//a fallback route to avoid 404 on /
+	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("SkillSifter API root"))
+	}).Methods("GET")
+	
 	// Health check route
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
