@@ -14,7 +14,7 @@ import (
 // GetCandidates retrieves all candidates for a company
 func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	candidates := []models.Candidate{}
 	rows, err := db.DB.Query("SELECT * FROM candidates WHERE company_id = $1", companyID)
@@ -55,7 +55,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	var candidate models.Candidate
 	err = db.DB.QueryRow(
@@ -89,7 +89,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Set company ID from the authenticated user
-	candidate.CompanyID = r.Context().Value("companyID").(int)
+	candidate.CompanyID = r.Context().Value("companyID").(string)
 	
 	// Insert candidate into database
 	var id int
@@ -135,7 +135,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Ensure company ID matches authenticated user's company
-	candidate.CompanyID = r.Context().Value("companyID").(int)
+	candidate.CompanyID = r.Context().Value("companyID").(string)
 	candidate.ID = id
 	
 	// Update candidate in database
@@ -171,7 +171,7 @@ func DeleteCandidate(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	// Delete candidate from database
 	result, err := db.DB.Exec(

@@ -14,7 +14,7 @@ import (
 // GetDailyJobs retrieves all daily jobs for a company
 func GetDailyJobs(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	dailyJobs := []models.DailyJob{}
 	rows, err := db.DB.Query("SELECT * FROM daily_jobs WHERE company_id = $1", companyID)
@@ -53,7 +53,7 @@ func GetDailyJobByID(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	var dailyJob models.DailyJob
 	err = db.DB.QueryRow(
@@ -85,7 +85,7 @@ func AddDailyJob(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Set company ID from the authenticated user
-	dailyJob.CompanyID = r.Context().Value("companyID").(int)
+	dailyJob.CompanyID = r.Context().Value("companyID").(string)
 	
 	// Insert daily job into database
 	var id int
@@ -128,7 +128,7 @@ func UpdateDailyJob(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Ensure company ID matches authenticated user's company
-	dailyJob.CompanyID = r.Context().Value("companyID").(int)
+	dailyJob.CompanyID = r.Context().Value("companyID").(string)
 	dailyJob.ID = id
 	
 	// Update daily job in database
@@ -162,7 +162,7 @@ func DeleteDailyJob(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	// Delete daily job from database
 	result, err := db.DB.Exec(

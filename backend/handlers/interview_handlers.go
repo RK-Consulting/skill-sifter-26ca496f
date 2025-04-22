@@ -14,7 +14,7 @@ import (
 // GetInterviews retrieves all interviews for a company
 func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	interviews := []models.Interview{}
 	rows, err := db.DB.Query("SELECT * FROM interviews WHERE company_id = $1", companyID)
@@ -53,7 +53,7 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	var interview models.Interview
 	err = db.DB.QueryRow(
@@ -86,7 +86,7 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Set company ID from the authenticated user
-	interview.CompanyID = r.Context().Value("companyID").(int)
+	interview.CompanyID = r.Context().Value("companyID").(string)
 	
 	// Insert interview into database
 	var id int
@@ -130,7 +130,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Ensure company ID matches authenticated user's company
-	interview.CompanyID = r.Context().Value("companyID").(int)
+	interview.CompanyID = r.Context().Value("companyID").(string)
 	interview.ID = id
 	
 	// Update interview in database
@@ -166,7 +166,7 @@ func DeleteInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	// Delete interview from database
 	result, err := db.DB.Exec(

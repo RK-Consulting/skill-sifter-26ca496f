@@ -14,7 +14,7 @@ import (
 // GetJobs retrieves all jobs for a company
 func GetJobs(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	jobs := []models.Job{}
 	rows, err := db.DB.Query("SELECT * FROM jobs WHERE company_id = $1", companyID)
@@ -54,7 +54,7 @@ func GetJobByID(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	var job models.Job
 	err = db.DB.QueryRow(
@@ -87,7 +87,7 @@ func AddJob(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Set company ID from the authenticated user
-	job.CompanyID = r.Context().Value("companyID").(int)
+	job.CompanyID = r.Context().Value("companyID").(string)
 	
 	// Insert job into database
 	var id int
@@ -132,7 +132,7 @@ func UpdateJob(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	
 	// Ensure company ID matches authenticated user's company
-	job.CompanyID = r.Context().Value("companyID").(int)
+	job.CompanyID = r.Context().Value("companyID").(string)
 	job.ID = id
 	
 	// Update job in database
@@ -167,7 +167,7 @@ func DeleteJob(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	// Delete job from database
 	result, err := db.DB.Exec(
