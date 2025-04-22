@@ -15,20 +15,34 @@ import (
 	"github.com/rs/cors"
 )
 
+// Logging middleware to track requests
+func loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// Initialize database connection
 	db.InitDB()
 	defer db.DB.Close()
-	
+
 	// Initialize schema (one-time operation)
 	if err := db.InitializeSchema(); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
 
-	// Create router
+	// Create main router
 	r := mux.NewRouter()
+	r.Use(loggingMiddleware) // Add logging middleware
 
-	// Authentication routes
+	// Health check route
+	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("pong"))
+	}).Methods("GET")
+
+	// Public Auth Routes
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST")
 
@@ -43,13 +57,13 @@ func main() {
 	adminRouter.HandleFunc("/users", handlers.CreateUser).Methods("POST")
 	adminRouter.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT")
 	adminRouter.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE")
-	
+
 	// Manager and Admin routes
 	managerRouter := apiRouter.PathPrefix("/manager").Subrouter()
 	managerRouter.Use(auth.RoleMiddleware("manager", "admin"))
-	// Add manager-specific routes here if needed
+	// Add any manager-specific endpoints here if needed
 
-	// API routes (protected but accessible by all roles)
+	// General API Routes (accessible by all roles)
 	apiRouter.HandleFunc("/candidates", handlers.GetCandidates).Methods("GET")
 	apiRouter.HandleFunc("/candidates", handlers.AddCandidate).Methods("POST")
 	apiRouter.HandleFunc("/candidates/{id}", handlers.GetCandidateByID).Methods("GET")
@@ -76,13 +90,13 @@ func main() {
 
 	// Setup CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"http://localhost:5173", "*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
 
-	// Start server
+	// Start HTTP server
 	port := db.GetEnv("PORT", "8080")
 	fmt.Printf("Server starting on port %s...\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, c.Handler(r)))
