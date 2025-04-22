@@ -1,4 +1,3 @@
-
 package handlers
 
 import (
@@ -7,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"fmt"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
@@ -14,120 +14,129 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// RegisterUser handles user registration
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-	var creds models.Credentials
-	err := json.NewDecoder(r.Body).Decode(&creds)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-		return
-	}
-	defer r.Body.Close()
+    var creds models.Credentials
+    err := json.NewDecoder(r.Body).Decode(&creds)
+    if err != nil {
+        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+        return
+    }
+    defer r.Body.Close()
 
-	// Validate required fields
-	if creds.Email == "" || creds.Password == "" || creds.Username == "" {
-		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
-		return
-	}
+    // Validate required fields
+    if creds.Email == "" || creds.Password == "" || creds.Username == "" {
+        respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
+        return
+    }
 
-	// Hash the password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not hash password")
-		return
-	}
+    // Hash the password
+    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Could not hash password")
+        return
+    }
 
-	// Start a transaction
-	tx, err := db.DB.Begin()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
-		return
-	}
+    // Start a transaction
+    tx, err := db.DB.Begin()
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
+        return
+    }
 
-	// Defer rollback in case of error (no-op if tx.Commit is called)
-	defer tx.Rollback()
+    defer tx.Rollback()
 
-	var companyID int
-	var isFirstUser bool
+    var companyID string
+    var isFirstUser bool
 
+    // Check if company exists
+    if creds.Company != "" {
+        // Generate a unique company ID
+        companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.Company), " ", "_"))
+        
+        // Check if company already exists
+        var exists bool
+        err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.Company).Scan(&exists)
+        if err != nil {
+            respondWithError(w, http.StatusInternalServerError, "Database error")
+            return
+        }
 
-	// Check if company exists
-	if creds.Company != "" {
-		// Check if company already exists
-		err := tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.Company).Scan(&companyID)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				// Create new company
-				err = tx.QueryRow("INSERT INTO companies(name, created_at) VALUES($1, $2) RETURNING id",
-					creds.Company, time.Now()).Scan(&companyID)
-				if err != nil {
-					respondWithError(w, http.StatusInternalServerError, "Could not create company")
-					return
-				}
-				isFirstUser = true
-			} else {
-				respondWithError(w, http.StatusInternalServerError, "Database error")
-				return
-			}
-		}
-	} else {
-		respondWithError(w, http.StatusBadRequest, "Company name is required")
-		return
-	}
+        if !exists {
+            // Create new company
+            _, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+                companyID, creds.Company, time.Now())
+            if err != nil {
+                respondWithError(w, http.StatusInternalServerError, "Could not create company")
+                return
+            }
+            isFirstUser = true
+        } else {
+            // Get existing company ID
+            err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.Company).Scan(&companyID)
+            if err != nil {
+                respondWithError(w, http.StatusInternalServerError, "Could not get company ID")
+                return
+            }
+        }
+    } else {
+        respondWithError(w, http.StatusBadRequest, "Company name is required")
+        return
+    }
 
-	// Assign role name directly
-	role := "recruiter"
-	if isFirstUser {
-		role = "admin"
-	}
-	// Insert user with company ID
-	var userID int
-	err = tx.QueryRow(`
+    // Assign role
+    role := "recruiter"
+    if isFirstUser {
+        role = "admin"
+    }
+
+    // Insert user
+    var userID int
+    err = tx.QueryRow(`
         INSERT INTO users(username, email, password, role, company_id, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		creds.Username, creds.Email, hashedPassword, role, companyID, time.Now()).Scan(&userID)
+        creds.Username, creds.Email, hashedPassword, role, companyID, time.Now()).Scan(&userID)
 
-	if err != nil {
-		if strings.Contains(err.Error(), "unique constraint") {
-			respondWithError(w, http.StatusConflict, "Email already exists")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "Could not register user")
-		return
-	}
+    if err != nil {
+        if strings.Contains(err.Error(), "unique constraint") {
+            respondWithError(w, http.StatusConflict, "Email already exists")
+            return
+        }
+        respondWithError(w, http.StatusInternalServerError, "Could not register user")
+        return
+    }
 
-	// Commit transaction
-	if err = tx.Commit(); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
-		return
-	}
+    // Commit transaction
+    if err = tx.Commit(); err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
+        return
+    }
 
-	// Create user object for response (without password)
-	user := models.User{
-		ID:        userID,
-		Username:  creds.Username,
-		Email:     creds.Email,
-		Role:      role,
-		CompanyID: companyID,
-		CreatedAt: time.Now(),
-	}
+    // Create user object for response (without password)
+    user := models.User{
+        ID:        userID,
+        Username:  creds.Username,
+        Email:     creds.Email,
+        Role:      role,
+        CompanyID: companyID,
+        CreatedAt: time.Now(),
+    }
 
-	// Create JWT token
-	tokenString, err := auth.GenerateToken(user, role)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
-		return
-	}
+    // Create JWT token
+    tokenString, err := auth.GenerateToken(user, role)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Could not generate token")
+        return
+    }
 
-	// Return token and user info
-	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
-		Success: true,
-		Message: "User registered successfully",
-		Data: models.TokenResponse{
-			Token: tokenString,
-			User:  user,
-		},
-	})
+    // Return token and user info
+    respondWithJSON(w, http.StatusCreated, models.ApiResponse{
+        Success: true,
+        Message: "User registered successfully",
+        Data: models.TokenResponse{
+            Token: tokenString,
+            User:  user,
+        },
+    })
 }
 
 // LoginUser handles user login
@@ -190,7 +199,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 // GetUsers fetches all users for a company (admin only)
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	users := []models.User{}
 	rows, err := db.DB.Query(`
@@ -223,7 +232,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // CreateUser creates a new user (admin only)
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Get company ID from context
-	companyID := r.Context().Value("companyID").(int)
+	companyID := r.Context().Value("companyID").(string)
 	
 	var user models.User
 	err := json.NewDecoder(r.Body).Decode(&user)

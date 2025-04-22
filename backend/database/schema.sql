@@ -1,7 +1,6 @@
-
 -- Create companies/tenants table
 CREATE TABLE IF NOT EXISTS companies (
-    id SERIAL PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -29,7 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
-    company_id INTEGER NOT NULL,
+    company_id VARCHAR(255) NOT NULL,
     FOREIGN KEY (company_id) REFERENCES companies(id),
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -46,7 +45,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     resume_url TEXT,
     cover_letter TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id INTEGER NOT NULL REFERENCES companies(id)
+    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
 );
 
 -- Create jobs table
@@ -60,7 +59,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     description TEXT,
     requirements TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id INTEGER NOT NULL REFERENCES companies(id)
+    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
 );
 
 -- Create daily_jobs table
@@ -71,7 +70,7 @@ CREATE TABLE IF NOT EXISTS daily_jobs (
     assigned_user INTEGER REFERENCES users(id),
     assigned_date TIMESTAMP DEFAULT NOW(),
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id INTEGER NOT NULL REFERENCES companies(id)
+    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
 );
 
 -- Create interviews table
@@ -84,7 +83,7 @@ CREATE TABLE IF NOT EXISTS interviews (
     status VARCHAR(50) DEFAULT 'scheduled',
     feedback TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id INTEGER NOT NULL REFERENCES companies(id)
+    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
 );
 
 -- Drop unused index

@@ -1,4 +1,3 @@
-
 package auth
 
 import (
@@ -19,7 +18,7 @@ type Claims struct {
 	UserID    int    `json:"userId"`
 	Email     string `json:"email"`
 	Role      string `json:"role"`
-	CompanyID int    `json:"companyId"`
+	CompanyID string `json:"companyId"`
 	jwt.RegisteredClaims
 }
 
