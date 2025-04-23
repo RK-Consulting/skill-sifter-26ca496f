@@ -46,6 +46,10 @@ func main() {
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	}).Methods("GET")
+	
+	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	}).Methods("GET")
 
 	// Public Auth Routes
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST")
@@ -95,7 +99,7 @@ func main() {
 
 	// Setup CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"*"},
+		AllowedOrigins:   []string{"https://skillsifter.in"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
