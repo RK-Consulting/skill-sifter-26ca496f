@@ -27,6 +27,9 @@ const formSchema = z.object({
   password: z.string().min(6, {
     message: "Password must be at least 6 characters",
   }),
+  companyId: z.string().min(1, {
+    message: "Company ID is required",
+  }),
 });
 
 // Dummy credentials
@@ -43,6 +46,7 @@ const Login = () => {
     defaultValues: {
       email: "",
       password: "",
+      companyId: "",
     },
   });
 
@@ -66,7 +70,7 @@ const Login = () => {
         return;
       }
       
-      // If not using dummy credentials, try regular login via API
+      // Regular login via API
       const response = await authService.login(values);
 
       if (response.data.success) {
@@ -120,6 +124,20 @@ const Login = () => {
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="companyId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company ID</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter your company ID" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
                   <FormField
                     control={form.control}
                     name="email"

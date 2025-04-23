@@ -31,38 +31,56 @@ const formSchema = z.object({
   password: z.string().min(6, {
     message: "Password must be at least 6 characters",
   }),
+  confirmPassword: z.string(),
   company: z.string().min(2, {
     message: "Company name must be at least 2 characters",
   }),
   role: z.string().min(2, {
     message: "Please select a role",
   }),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 const Register = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [generatedCompanyId, setGeneratedCompanyId] = useState<string>('');
+  const [showCompanyIdDialog, setShowCompanyIdDialog] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
       email: "",
       password: "",
+      confirmPassword: "",
       company: "",
       role: "",
     },
   });
 
+  const generateCompanyId = (companyName: string) => {
+    const randomNum = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `${companyName.toLowerCase().replace(/\s+/g, '_')}_${randomNum}`;
+  };
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      const companyId = generateCompanyId(values.company);
+      setGeneratedCompanyId(companyId);
+      
       const payload = {
         username: values.username,
         email: values.email,
         password: values.password,
         company: values.company,
-        role: values.role // Pass selected role
+        companyId: companyId,
+        role: values.role
       };
+      
       const response = await authService.register(payload);
 
       if (response.data.success) {
@@ -73,7 +91,11 @@ const Register = () => {
           id: response.data.data.user.id,
           isLoggedIn: true 
         }));
-        // --------- Log JWT payload for debugging ----------
+        
+        // Show company ID dialog
+        setShowCompanyIdDialog(true);
+        
+        // Log JWT payload for debugging
         if (response.data.data.token) {
           const parts = response.data.data.token.split('.');
           if (parts.length === 3) {
@@ -81,9 +103,6 @@ const Register = () => {
             console.log("[JWT PAYLOAD]", payload);
           }
         }
-        // --------------------------------------------------
-        toast.success("Registration successful");
-        navigate('/');
       } else {
         toast.error(response.data.message || "Registration failed");
       }
@@ -142,6 +161,7 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
+                  
                   <FormField
                     control={form.control}
                     name="password"
@@ -155,6 +175,21 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
+
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Confirm Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Confirm your password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <FormField
                     control={form.control}
                     name="company"
@@ -214,6 +249,32 @@ const Register = () => {
               </Form>
             </CardContent>
           </Card>
+
+          {showCompanyIdDialog && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-lg p-6 max-w-md w-full">
+                <h3 className="text-lg font-semibold mb-4">Important: Save Your Company ID</h3>
+                <p className="mb-4 text-gray-600">
+                  Please save your Company ID. You will need this for all future logins:
+                </p>
+                <div className="bg-gray-100 p-3 rounded mb-4 font-mono text-center">
+                  {generatedCompanyId}
+                </div>
+                <div className="flex justify-end">
+                  <Button 
+                    onClick={() => {
+                      setShowCompanyIdDialog(false);
+                      navigate('/');
+                    }}
+                    variant="primary"
+                  >
+                    I've Saved It
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+          
         </Container>
       </div>
       <Footer />
