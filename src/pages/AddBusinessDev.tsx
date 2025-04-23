@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
 
 const formSchema = z.object({
   clientName: z.string().min(2, 'Client name is required'),
@@ -23,6 +24,8 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const AddBusinessDev = () => {
   const navigate = useNavigate();
@@ -39,11 +42,38 @@ const AddBusinessDev = () => {
     },
   });
 
-  const onSubmit = (data: FormData) => {
+  const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     
-    // Simulate API call
-    setTimeout(() => {
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        toast.error('Authentication required. Please log in.');
+        navigate('/login');
+        return;
+      }
+      
+      // Send data to API using JWT auth
+      const response = await axios.post(`${API_URL}/business-dev`, data, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.data.success) {
+        toast.success('Business contact added successfully');
+        navigate('/business-dev');
+      } else {
+        toast.error(response.data.message || 'Failed to add business contact');
+      }
+    } catch (error: any) {
+      console.error('Error saving business contact:', error);
+      toast.error(error.response?.data?.message || 'Failed to add business contact');
+      
+      // Fallback to localStorage for demo purposes if API fails
       try {
         // Get existing data from localStorage
         const existingBusinessDevs = JSON.parse(localStorage.getItem('businessDevs') || '[]');
@@ -63,15 +93,14 @@ const AddBusinessDev = () => {
         existingBusinessDevs.push(newBusinessDev);
         localStorage.setItem('businessDevs', JSON.stringify(existingBusinessDevs));
         
-        toast.success('Business contact added successfully');
+        toast.success('Business contact saved locally (API connection failed)');
         navigate('/business-dev');
-      } catch (error) {
-        console.error('Error saving business contact:', error);
-        toast.error('Failed to add business contact');
-      } finally {
-        setIsSubmitting(false);
+      } catch (localError) {
+        console.error('Error saving to localStorage:', localError);
       }
-    }, 1000);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

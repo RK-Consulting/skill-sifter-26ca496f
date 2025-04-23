@@ -8,6 +8,8 @@ import { Search, Filter, Plus, Users, Clock, MapPin, Calendar } from 'lucide-rea
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from 'sonner';
+import { jobService } from '@/services/api';
 
 interface Job {
   id: number;
@@ -27,59 +29,41 @@ const Jobs = () => {
   const [filteredJobs, setFilteredJobs] = useState<Job[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Load jobs from localStorage or use defaults if none exist
-    const storedJobs = localStorage.getItem('jobs');
-    const defaultJobs = [
-      { 
-        id: 1,
-        title: 'Senior UI Designer',
-        department: 'Design',
-        location: 'New York',
-        type: 'Full-time',
-        applicants: 24,
-        postedDate: 'Sep 14, 2023',
-        status: 'Active'
-      },
-      { 
-        id: 2,
-        title: 'Software Engineer',
-        department: 'Engineering',
-        location: 'San Francisco',
-        type: 'Full-time',
-        applicants: 38,
-        postedDate: 'Sep 10, 2023',
-        status: 'Active'
-      },
-      { 
-        id: 3,
-        title: 'Product Manager',
-        department: 'Product',
-        location: 'Remote',
-        type: 'Full-time',
-        applicants: 12,
-        postedDate: 'Sep 5, 2023',
-        status: 'Closed'
-      },
-      { 
-        id: 4,
-        title: 'Data Scientist',
-        department: 'Data',
-        location: 'Boston',
-        type: 'Contract',
-        applicants: 8,
-        postedDate: 'Aug 28, 2023',
-        status: 'Draft'
-      },
-    ];
+    // Load jobs from API using JWT auth
+    const fetchJobs = async () => {
+      try {
+        setIsLoading(true);
+        const response = await jobService.getAllJobs();
+        
+        if (response.data.success) {
+          setJobs(response.data.data || []);
+        } else {
+          // If API returns success: false
+          toast.error(response.data.message || "Failed to load jobs");
+          // Fall back to localStorage for demo purposes
+          const storedJobs = localStorage.getItem('jobs');
+          if (storedJobs) {
+            setJobs(JSON.parse(storedJobs));
+          }
+        }
+      } catch (error: any) {
+        console.error("Error fetching jobs:", error);
+        toast.error("Failed to load jobs. Using demo data.");
+        
+        // Fall back to localStorage for demo purposes
+        const storedJobs = localStorage.getItem('jobs');
+        if (storedJobs) {
+          setJobs(JSON.parse(storedJobs));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
     
-    if (storedJobs) {
-      setJobs(JSON.parse(storedJobs));
-    } else {
-      setJobs(defaultJobs);
-      localStorage.setItem('jobs', JSON.stringify(defaultJobs));
-    }
+    fetchJobs();
   }, []);
 
   useEffect(() => {
@@ -160,55 +144,62 @@ const Jobs = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredJobs.length > 0 ? (
-                  filteredJobs.map((job) => (
-                    <Card key={job.id} className="overflow-hidden border border-ats-gray-200 hover:border-ats-gray-300 transition-colors">
-                      <div className="p-6">
-                        <div className="flex justify-between items-start mb-4">
-                          <h3 className="text-lg font-semibold">{job.title}</h3>
-                          <span className={`text-xs px-2 py-1 rounded-full font-medium
-                            ${job.status === 'Active' ? 'bg-green-100 text-green-800' : ''}
-                            ${job.status === 'Draft' ? 'bg-gray-100 text-gray-800' : ''}
-                            ${job.status === 'Closed' ? 'bg-red-100 text-red-800' : ''}
-                          `}>
-                            {job.status}
-                          </span>
+              {isLoading ? (
+                <div className="text-center py-12">
+                  <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-current border-e-transparent align-[-0.125em] text-ats-blue motion-reduce:animate-[spin_1.5s_linear_infinite]"></div>
+                  <p className="mt-4 text-ats-gray-500">Loading jobs...</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredJobs.length > 0 ? (
+                    filteredJobs.map((job) => (
+                      <Card key={job.id} className="overflow-hidden border border-ats-gray-200 hover:border-ats-gray-300 transition-colors">
+                        <div className="p-6">
+                          <div className="flex justify-between items-start mb-4">
+                            <h3 className="text-lg font-semibold">{job.title}</h3>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium
+                              ${job.status === 'Active' ? 'bg-green-100 text-green-800' : ''}
+                              ${job.status === 'Draft' ? 'bg-gray-100 text-gray-800' : ''}
+                              ${job.status === 'Closed' ? 'bg-red-100 text-red-800' : ''}
+                            `}>
+                              {job.status}
+                            </span>
+                          </div>
+                          
+                          <p className="text-ats-gray-500 text-sm mb-4">{job.department}</p>
+                          
+                          <div className="space-y-2 mb-5">
+                            <div className="flex items-center text-sm text-ats-gray-600">
+                              <MapPin size={16} className="mr-2" />
+                              <span>{job.location}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-ats-gray-600">
+                              <Clock size={16} className="mr-2" />
+                              <span>{job.type}</span>
+                            </div>
+                            <div className="flex items-center text-sm text-ats-gray-600">
+                              <Calendar size={16} className="mr-2" />
+                              <span>Posted on {job.postedDate}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="border-t border-ats-gray-200 pt-4 flex justify-between items-center">
+                            <div className="flex items-center text-ats-gray-600">
+                              <Users size={16} className="mr-2" />
+                              <span className="text-sm">{job.applicants} Applicants</span>
+                            </div>
+                            <Button variant="ghost" size="sm">View Details</Button>
+                          </div>
                         </div>
-                        
-                        <p className="text-ats-gray-500 text-sm mb-4">{job.department}</p>
-                        
-                        <div className="space-y-2 mb-5">
-                          <div className="flex items-center text-sm text-ats-gray-600">
-                            <MapPin size={16} className="mr-2" />
-                            <span>{job.location}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-ats-gray-600">
-                            <Clock size={16} className="mr-2" />
-                            <span>{job.type}</span>
-                          </div>
-                          <div className="flex items-center text-sm text-ats-gray-600">
-                            <Calendar size={16} className="mr-2" />
-                            <span>Posted on {job.postedDate}</span>
-                          </div>
-                        </div>
-                        
-                        <div className="border-t border-ats-gray-200 pt-4 flex justify-between items-center">
-                          <div className="flex items-center text-ats-gray-600">
-                            <Users size={16} className="mr-2" />
-                            <span className="text-sm">{job.applicants} Applicants</span>
-                          </div>
-                          <Button variant="ghost" size="sm">View Details</Button>
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                ) : (
-                  <div className="col-span-full text-center py-8 text-gray-500">
-                    {searchTerm ? 'No jobs found matching your search.' : 'No jobs found.'}
-                  </div>
-                )}
-              </div>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-8 text-gray-500">
+                      {searchTerm ? 'No jobs found matching your search.' : 'No jobs found.'}
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </Container>

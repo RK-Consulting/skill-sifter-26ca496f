@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +7,7 @@ import { toast } from 'sonner';
 
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
+import Footer from '@/components/layout/Footer';
 import {
   Form,
   FormControl,
@@ -21,9 +21,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent } from '@/components/ui-custom/Card';
+import { jobService } from '@/services/api';
 
 const formSchema = z.object({
-  // General job fields
   title: z.string().min(3, {
     message: "Job title must be at least 3 characters",
   }),
@@ -35,7 +35,6 @@ const formSchema = z.object({
   }),
   isRemote: z.boolean().default(false),
   
-  // From JobDescription struct
   jdNo: z.string().min(1, {
     message: "JD Number is required",
   }),
@@ -52,7 +51,6 @@ const formSchema = z.object({
     message: "Salary is required",
   }),
   
-  // From JobRequirement struct
   description: z.string().min(10, {
     message: "Job description must be at least 10 characters",
   }),
@@ -70,6 +68,8 @@ const formSchema = z.object({
 
 const AddJob = () => {
   const navigate = useNavigate();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -92,31 +92,57 @@ const AddJob = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // In a real application, you would send this to your backend
-    console.log(values);
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsSubmitting(true);
     
-    // Get existing jobs from localStorage or initialize empty array
-    const existingJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-    
-    // Add new job with ID
-    const newJob = {
-      id: existingJobs.length + 1,
-      ...values,
-      applicants: 0,
-      postedDate: new Date().toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
-        day: 'numeric' 
-      }),
-      status: 'Active'
-    };
-    
-    // Save updated jobs list
-    localStorage.setItem('jobs', JSON.stringify([...existingJobs, newJob]));
-    
-    toast.success("Job posted successfully");
-    navigate('/jobs');
+    try {
+      // Send to API using JWT auth
+      const response = await jobService.createJob({
+        ...values,
+        // Format date for API
+        postedDate: new Date().toISOString(),
+        status: 'Active'
+      });
+      
+      if (response.data.success) {
+        toast.success("Job posted successfully");
+        navigate('/jobs');
+      } else {
+        toast.error(response.data.message || "Failed to post job");
+      }
+    } catch (error: any) {
+      console.error('Error posting job:', error);
+      toast.error(error.response?.data?.message || "Failed to post job");
+      
+      // Fallback to localStorage for demo purposes
+      try {
+        const existingJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
+        
+        // Add new job with ID
+        const newJob = {
+          id: existingJobs.length + 1,
+          ...values,
+          applicants: 0,
+          postedDate: new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'short', 
+            day: 'numeric' 
+          }),
+          status: 'Active'
+        };
+        
+        // Save updated jobs list
+        localStorage.setItem('jobs', JSON.stringify([...existingJobs, newJob]));
+        
+        toast.success("Job saved locally (API connection failed)");
+        navigate('/jobs');
+      } catch (localError) {
+        console.error('Error saving to localStorage:', localError);
+        toast.error("Failed to save job data");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -369,8 +395,12 @@ const AddJob = () => {
                     >
                       Cancel
                     </Button>
-                    <Button type="submit" variant="primary">
-                      Post Job
+                    <Button 
+                      type="submit" 
+                      variant="primary"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Posting...' : 'Post Job'}
                     </Button>
                   </div>
                 </form>

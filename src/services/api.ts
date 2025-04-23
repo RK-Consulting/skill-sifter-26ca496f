@@ -20,6 +20,17 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      
+      // Log JWT payload for debugging (development only)
+      try {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          console.debug("[JWT Request]", payload);
+        }
+      } catch (e) {
+        console.error("Error parsing JWT token:", e);
+      }
     }
     return config;
   },
@@ -96,6 +107,15 @@ export const dailyJobService = {
   createDailyJob: (dailyJobData: any) => api.post('/daily-jobs', dailyJobData),
   updateDailyJob: (id: number, dailyJobData: any) => api.put(`/daily-jobs/${id}`, dailyJobData),
   deleteDailyJob: (id: number) => api.delete(`/daily-jobs/${id}`),
+};
+
+// Business development services
+export const businessDevService = {
+  getAllBusinessDevs: () => api.get('/business-dev'),
+  getBusinessDevById: (id: number) => api.get(`/business-dev/${id}`),
+  createBusinessDev: (businessDevData: any) => api.post('/business-dev', businessDevData),
+  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/business-dev/${id}`, businessDevData),
+  deleteBusinessDev: (id: number) => api.delete(`/business-dev/${id}`),
 };
 
 // Interviews services
