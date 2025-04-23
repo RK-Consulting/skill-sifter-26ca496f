@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -69,9 +68,8 @@ const Login = () => {
       
       // If not using dummy credentials, try regular login via API
       const response = await authService.login(values);
-      
+
       if (response.data.success) {
-        // Store user data from API response
         localStorage.setItem('token', response.data.data.token || 'mock-jwt-token');
         localStorage.setItem('user', JSON.stringify({ 
           username: response.data.data.username, 
@@ -79,7 +77,15 @@ const Login = () => {
           id: response.data.data.id,
           isLoggedIn: true 
         }));
-        
+        // --------- Log JWT payload for debugging ----------
+        if (response.data.data.token) {
+          const parts = response.data.data.token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            console.log("[JWT PAYLOAD]", payload);
+          }
+        }
+        // --------------------------------------------------
         toast.success("Login successful");
         navigate('/');
       } else {

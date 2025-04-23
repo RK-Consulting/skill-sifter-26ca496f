@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent } from '@/components/ui-custom/Card';
+import { candidateService } from '@/services/api';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -70,27 +70,35 @@ const AddCandidate = () => {
     },
   });
 
-  const onSubmit = (values: z.infer<typeof formSchema>) => {
-    // In a real application, you would send this to your backend
-    console.log(values);
-    
-    // Get existing candidates from localStorage or initialize empty array
-    const existingCandidates = JSON.parse(localStorage.getItem('candidates') || '[]');
-    
-    // Add new candidate with ID
-    const newCandidate = {
-      id: existingCandidates.length + 1,
-      ...values,
-      status: 'Screening',
-      date: new Date().toLocaleDateString(),
-      resumePath: "" // Added for the resumePath field from the struct
-    };
-    
-    // Save updated candidates list
-    localStorage.setItem('candidates', JSON.stringify([...existingCandidates, newCandidate]));
-    
-    toast.success("Candidate added successfully");
-    navigate('/candidates');
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      // This sends the form data to the backend API with token-auth
+      const response = await candidateService.createCandidate({
+        name: values.name,
+        email: values.email,
+        phone: values.phone,
+        position: values.role,
+        location: values.location,
+        // Mapping extra fields as properties on candidate, update as needed
+        experience: values.experience,
+        skills: values.skills,
+        currentCTC: values.currentCTC,
+        expectedCTC: values.expectedCTC,
+        noticePeriod: values.noticePeriod,
+        clientName: values.clientName,
+        newJD: values.newJD,
+        jlptLanguage: values.jlptLanguage,
+        // status: 'Screening' // backend will use default if not provided
+      });
+
+      // Success!
+      toast.success("Candidate added successfully");
+      navigate('/candidates');
+    } catch (error: any) {
+      // Show error message from backend if available
+      const message = error?.response?.data?.message || "Failed to add candidate. Please try again.";
+      toast.error(message);
+    }
   };
 
   return (

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -19,18 +18,12 @@ import Button from '@/components/ui-custom/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authService } from '@/services/api';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const formSchema = z.object({
-  username: z.string().min(3, {
-    message: "Username must be at least 3 characters",
+  username: z.string().min(2, {
+    message: "Username must be at least 2 characters",
   }),
   email: z.string().email({
     message: "Please enter a valid email address",
@@ -38,72 +31,67 @@ const formSchema = z.object({
   password: z.string().min(6, {
     message: "Password must be at least 6 characters",
   }),
-  confirmPassword: z.string().min(6, {
-    message: "Password must be at least 6 characters",
-  }),
   company: z.string().min(2, {
     message: "Company name must be at least 2 characters",
   }),
-  role: z.string().default("recruiter"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords do not match",
-  path: ["confirmPassword"],
+  role: z.string().min(2, {
+    message: "Please select a role",
+  }),
 });
 
 const Register = () => {
   const navigate = useNavigate();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [apiError, setApiError] = useState('');
-  
+  const [isLoading, setIsLoading] = useState(false);
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       username: "",
       email: "",
       password: "",
-      confirmPassword: "",
       company: "",
-      role: "recruiter", // Default role
+      role: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      setIsSubmitting(true);
-      setApiError('');
-      
-      // Remove confirmPassword as it's not needed for the API
-      const { confirmPassword, ...userData } = values;
+      setIsLoading(true);
+      const payload = {
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        company: values.company,
+        role: values.role // Pass selected role
+      };
+      const response = await authService.register(payload);
 
-      // BE SURE company is sent as a string only, and processed correctly by backend!
-      // The company_id is handled by backend, nothing to fix here on the frontend input except making code clean.
-
-      console.log("Attempting to register with:", { ...userData, password: "***" });
-      console.log("API URL:", import.meta.env.VITE_API_URL || 'http://localhost:8080/api');
-      
-      const response = await authService.register(userData);
-
-      // Response expects user: {companyId: string}
       if (response.data.success) {
-        toast.success("Registration successful. Please login.");
-        navigate('/login');
+        localStorage.setItem('token', response.data.data.token || 'mock-jwt-token');
+        localStorage.setItem('user', JSON.stringify({ 
+          username: response.data.data.user.username, 
+          email: response.data.data.user.email,
+          id: response.data.data.user.id,
+          isLoggedIn: true 
+        }));
+        // --------- Log JWT payload for debugging ----------
+        if (response.data.data.token) {
+          const parts = response.data.data.token.split('.');
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            console.log("[JWT PAYLOAD]", payload);
+          }
+        }
+        // --------------------------------------------------
+        toast.success("Registration successful");
+        navigate('/');
       } else {
         toast.error(response.data.message || "Registration failed");
-        setApiError(response.data.message || "Registration failed");
       }
     } catch (error: any) {
       console.error("Registration error:", error);
-      if (error.code === 'ERR_NETWORK') {
-        const errorMessage = "Cannot connect to server. Please make sure the backend is running.";
-        toast.error(errorMessage);
-        setApiError(errorMessage);
-      } else {
-        const errorMessage = error.response?.data?.message || "Registration failed. Please try again.";
-        toast.error(errorMessage);
-        setApiError(errorMessage);
-      }
+      toast.error(error.response?.data?.message || "Registration failed.");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
@@ -123,17 +111,11 @@ const Register = () => {
           
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl text-center">Create an Account</CardTitle>
+              <CardTitle className="text-2xl text-center">Register</CardTitle>
             </CardHeader>
             <CardContent>
-              {apiError && (
-                <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md text-red-700 text-sm">
-                  <p><strong>Error:</strong> {apiError}</p>
-                </div>
-              )}
-
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField
                     control={form.control}
                     name="username"
@@ -141,7 +123,7 @@ const Register = () => {
                       <FormItem>
                         <FormLabel>Username</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter a username" {...field} />
+                          <Input placeholder="Enter your username" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -155,6 +137,19 @@ const Register = () => {
                         <FormLabel>Email</FormLabel>
                         <FormControl>
                           <Input type="email" placeholder="Enter your email" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Password</FormLabel>
+                        <FormControl>
+                          <Input type="password" placeholder="Enter your password" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -196,40 +191,14 @@ const Register = () => {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="password"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Create a password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="confirmPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Confirm Password</FormLabel>
-                        <FormControl>
-                          <Input type="password" placeholder="Confirm your password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="flex flex-col space-y-2 pt-2">
+                  <div className="flex flex-col space-y-2">
                     <Button 
                       type="submit" 
                       variant="primary" 
                       className="w-full"
-                      disabled={isSubmitting}
+                      disabled={isLoading}
                     >
-                      {isSubmitting ? 'Registering...' : 'Register'}
+                      {isLoading ? 'Registering...' : 'Register'}
                     </Button>
                     <div className="text-center text-sm mt-4">
                       Already have an account?{" "}
@@ -245,15 +214,6 @@ const Register = () => {
               </Form>
             </CardContent>
           </Card>
-
-          {/* Debug information in development mode */}
-          {import.meta.env.DEV && (
-            <div className="mt-8 p-3 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-gray-700 mb-1"><strong>Debug Info:</strong></p>
-              <p className="text-sm text-gray-700">API URL: {import.meta.env.VITE_API_URL || 'http://localhost:8080/api'}</p>
-              <p className="text-sm text-gray-700">Environment: {import.meta.env.MODE}</p>
-            </div>
-          )}
         </Container>
       </div>
       <Footer />

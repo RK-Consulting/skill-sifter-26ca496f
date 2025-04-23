@@ -28,7 +28,9 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// Get token from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			http.Error(w, "Authorization header is required", http.StatusUnauthorized)
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Header().Set("Content-Type", "application/json")
+			w.Write([]byte(`{"success":false,"message":"Authorization header is required. Please include a valid Bearer token in your request headers."}`))
 			return
 		}
 
