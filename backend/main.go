@@ -111,5 +111,5 @@ func main() {
 	// Start HTTP server
 	port := db.GetEnv("PORT", "8080")
 	fmt.Printf("Server starting on port %s...\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, c.Handler(r)))
+	log.Fatal(http.ListenAndServe(":"+port, handler))
 }
