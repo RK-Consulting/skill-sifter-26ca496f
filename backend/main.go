@@ -99,12 +99,15 @@ func main() {
 
 	// Setup CORS
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://skillsifter.in"},
+		AllowedOrigins:   []string{"https://skillsifter.in", "https://www.skillsifter.in", "https://api.skillsifter.in"},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization"},
 		AllowCredentials: true,
 	})
 
+	// Wrap the router
+	handler := c.Handler(r)
+	
 	// Start HTTP server
 	port := db.GetEnv("PORT", "8080")
 	fmt.Printf("Server starting on port %s...\n", port)
