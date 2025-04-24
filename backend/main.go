@@ -97,12 +97,20 @@ func main() {
 	apiRouter.HandleFunc("/interviews/{id}", handlers.UpdateInterview).Methods("PUT")
 	apiRouter.HandleFunc("/interviews/{id}", handlers.DeleteInterview).Methods("DELETE")
 
-	// Setup CORS
+	// Setup CORS - Updated to allow requests from skillsifter.in and local development
 	c := cors.New(cors.Options{
-		AllowedOrigins:   []string{"https://skillsifter.in", "https://www.skillsifter.in", "https://api.skillsifter.in"},
+		AllowedOrigins: []string{
+			"https://skillsifter.in",
+			"https://www.skillsifter.in",
+			"https://api.skillsifter.in",
+			"http://localhost:5173",  // Local development
+			"http://localhost:3000",  // Another common local development port
+		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept"},
+		ExposedHeaders:   []string{"Content-Length"},
 		AllowCredentials: true,
+		MaxAge:           86400, // 24 hours for preflight cache
 	})
 
 	// Wrap the router
