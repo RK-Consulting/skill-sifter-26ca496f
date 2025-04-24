@@ -37,12 +37,12 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware) // Add logging middleware
 
-	//a fallback route to avoid 404 on /
+	// Root route handler
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("SkillSifter API root"))
 	}).Methods("GET")
 	
-	// Health check route
+	// Health check routes - both with and without /api prefix
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	}).Methods("GET")
@@ -50,8 +50,18 @@ func main() {
 	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
 	}).Methods("GET")
+	
+	r.HandleFunc("/api/health-check", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("OK"))
+	}).Methods("GET")
+	
+	r.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("pong"))
+	}).Methods("GET")
 
-	// Public Auth Routes
+	// Public Auth Routes - ensure both with and without /api prefix work
+	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST")
+	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST")
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST")
 
