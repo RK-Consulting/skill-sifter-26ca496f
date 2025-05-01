@@ -40,7 +40,12 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Log detailed error information for debugging
     console.error('API Error:', error.message);
+    
+    if (error.response) {
+      console.error(`Status: ${error.response.status}, URL: ${error.config?.url}`);
+    }
     
     if (error.response && error.response.status === 401) {
       // Token has expired or is invalid
@@ -62,7 +67,7 @@ api.interceptors.response.use(
   }
 );
 
-// Authentication services
+// Authentication services - No /api prefix needed as it's in the baseURL
 export const authService = {
   register: (userData: any) => api.post('/auth/register', userData),
   login: (credentials: any) => api.post('/auth/login', credentials),
@@ -126,15 +131,44 @@ export const interviewService = {
   deleteInterview: (id: number) => api.delete(`/interviews/${id}`),
 };
 
-// Check API connectivity
-api.get('/health-check')
-  .then(() => console.log('✅ API connection successful'))
-  .catch(error => {
-    if (error.code === 'ERR_NETWORK') {
-      console.error('❌ Cannot connect to API server. Please make sure the backend is running.');
-    } else {
-      console.error('❌ API health check failed:', error.message);
-    }
-  });
+// Check API connectivity - Try both with and without trailing slash
+const checkApiHealth = () => {
+  // First try health-check endpoint (should work with Nginx stripping /api)
+  return api.get('/health-check')
+    .then(() => {
+      console.log('✅ API connection successful');
+      return true;
+    })
+    .catch(error => {
+      if (error.response && error.response.status === 404) {
+        // If 404, try /ping endpoint as fallback
+        return api.get('/ping')
+          .then(() => {
+            console.log('✅ API connection successful via ping endpoint');
+            return true;
+          })
+          .catch(fallbackError => {
+            logApiError(fallbackError);
+            return false;
+          });
+      } else {
+        logApiError(error);
+        return false;
+      }
+    });
+};
+
+const logApiError = (error: any) => {
+  if (error.code === 'ERR_NETWORK') {
+    console.error('❌ Cannot connect to API server. Please make sure the backend is running.');
+  } else if (error.response) {
+    console.error(`❌ API health check failed with status ${error.response.status}`);
+  } else {
+    console.error('❌ API health check failed:', error.message);
+  }
+};
+
+// Run health check on startup
+checkApiHealth();
 
 export default api;

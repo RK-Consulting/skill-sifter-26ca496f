@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -37,42 +36,49 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware) // Add logging middleware
 
-	// Root route handler - accessible through both / and /api/
+	// Root route handler - Respond to both root paths
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("SkillSifter API root"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message":"SkillSifter API root"}`))
 	}).Methods("GET")
 	
 	r.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("SkillSifter API root"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message":"SkillSifter API root"}`))
 	}).Methods("GET")
 	
-	// Health check routes - ALL directly accessible without /api/ prefix
-	// This is important since Nginx is stripping the /api prefix
-	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong"))
-	}).Methods("GET")
-	
+	// IMPORTANT: Health check routes at root level
+	// These need to be registered WITHOUT any prefixes since Nginx strips /api/
 	r.HandleFunc("/health-check", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"OK"}`))
 	}).Methods("GET")
 	
-	// Health check routes - also accessible WITH /api/ prefix
+	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message":"pong"}`))
+	}).Methods("GET")
+
+	// IMPORTANT: Direct auth routes without /api prefix
+	// Since Nginx strips /api prefix, we need these registered at root level
+	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST")
+	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST")
+
+	// Also register health checks and auth routes WITH /api prefix for direct access
 	r.HandleFunc("/api/health-check", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"OK"}`))
 	}).Methods("GET")
 	
 	r.HandleFunc("/api/ping", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("pong"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"message":"pong"}`))
 	}).Methods("GET")
 
-	// Public Auth Routes - ensure both with and without /api prefix work
-	// Authentication routes must work both with and without /api/ prefix
-	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST")
-	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST")
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST")
 
-	// Protected routes
+	// Protected routes - maintain /api prefix for consistency
 	apiRouter := r.PathPrefix("/api").Subrouter()
 	apiRouter.Use(auth.AuthMiddleware)
 
@@ -114,16 +120,17 @@ func main() {
 	apiRouter.HandleFunc("/interviews/{id}", handlers.UpdateInterview).Methods("PUT")
 	apiRouter.HandleFunc("/interviews/{id}", handlers.DeleteInterview).Methods("DELETE")
 
-	// Setup CORS - Updated to allow requests from skillsifter.in and local development
+	// Setup CORS - Updated to allow ALL necessary origins and methods
 	c := cors.New(cors.Options{
 		AllowedOrigins: []string{
 			"https://skillsifter.in",
 			"https://www.skillsifter.in",
 			"https://api.skillsifter.in",
-			"http://localhost:5173",  // Local development
-			"http://localhost:3000",  // Another common local development port
-			"http://127.0.0.1:5173", // Local development with numeric IP
-			"http://127.0.0.1:3000", // Local development with numeric IP
+			"http://localhost:5173",
+			"http://localhost:3000",
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:3000",
+			"*", // Allow all origins as a fallback (remove in production if possible)
 		},
 		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
 		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
@@ -131,6 +138,12 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           86400, // 24 hours for preflight cache
 	})
+
+	// Log startup configuration
+	log.Println("CORS Configuration:")
+	log.Println("- Allowed Origins:", c.Options.AllowedOrigins)
+	log.Println("- Allowed Methods:", c.Options.AllowedMethods)
+	log.Println("- Allowed Headers:", c.Options.AllowedHeaders)
 
 	// Wrap the router
 	handler := c.Handler(r)
