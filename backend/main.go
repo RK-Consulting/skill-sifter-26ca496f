@@ -37,12 +37,17 @@ func main() {
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware) // Add logging middleware
 
-	// Root route handler
+	// Root route handler - accessible through both / and /api/
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("SkillSifter API root"))
 	}).Methods("GET")
 	
-	// Health check routes - both with and without /api prefix
+	r.HandleFunc("/api", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("SkillSifter API root"))
+	}).Methods("GET")
+	
+	// Health check routes - ALL directly accessible without /api/ prefix
+	// This is important since Nginx is stripping the /api prefix
 	r.HandleFunc("/ping", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("pong"))
 	}).Methods("GET")
@@ -51,6 +56,7 @@ func main() {
 		w.Write([]byte("OK"))
 	}).Methods("GET")
 	
+	// Health check routes - also accessible WITH /api/ prefix
 	r.HandleFunc("/api/health-check", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
 	}).Methods("GET")
@@ -60,6 +66,7 @@ func main() {
 	}).Methods("GET")
 
 	// Public Auth Routes - ensure both with and without /api prefix work
+	// Authentication routes must work both with and without /api/ prefix
 	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST")
 	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST")
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST")
@@ -115,10 +122,12 @@ func main() {
 			"https://api.skillsifter.in",
 			"http://localhost:5173",  // Local development
 			"http://localhost:3000",  // Another common local development port
+			"http://127.0.0.1:5173", // Local development with numeric IP
+			"http://127.0.0.1:3000", // Local development with numeric IP
 		},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept"},
-		ExposedHeaders:   []string{"Content-Length"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           86400, // 24 hours for preflight cache
 	})
