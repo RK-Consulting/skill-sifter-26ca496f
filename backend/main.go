@@ -49,7 +49,7 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 
 // Setup CORS configuration
 func setupCORS() *cors.Cors {
-	return cors.New(cors.Options{
+	corsOptions := cors.Options{
 		AllowedOrigins: []string{
 			"https://skillsifter.in",
 			"https://www.skillsifter.in",
@@ -65,7 +65,9 @@ func setupCORS() *cors.Cors {
 		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
 		AllowCredentials: true,
 		MaxAge:           86400, // 24 hours for preflight cache
-	})
+	}
+
+	return cors.New(corsOptions)
 }
 
 // Setup public routes that don't require authentication
@@ -178,10 +180,16 @@ func main() {
 	c := setupCORS()
 	
 	// Log startup configuration
+	corsOptions := cors.Options{
+		AllowedOrigins:   []string{"https://skillsifter.in", "http://localhost:5173", "*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	}
 	log.Println("CORS Configuration:")
-	log.Println("- Allowed Origins:", c.Options.AllowedOrigins)
-	log.Println("- Allowed Methods:", c.Options.AllowedMethods)
-	log.Println("- Allowed Headers:", c.Options.AllowedHeaders)
+	log.Println("- Allowed Origins:", corsOptions.AllowedOrigins)
+	log.Println("- Allowed Methods:", corsOptions.AllowedMethods)
+	log.Println("- Allowed Headers:", corsOptions.AllowedHeaders)
 	
 	// Wrap the router with CORS handler
 	handler := c.Handler(r)
