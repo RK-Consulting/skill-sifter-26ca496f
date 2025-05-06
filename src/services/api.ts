@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -11,6 +12,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 10000, // 10 seconds timeout
+  withCredentials: true, // Important for CORS with credentials
 });
 
 // Add request interceptor to include authorization header if token exists
@@ -131,41 +133,30 @@ export const interviewService = {
   deleteInterview: (id: number) => api.delete(`/interviews/${id}`),
 };
 
-// Check API connectivity - Try both with and without trailing slash
-const checkApiHealth = () => {
-  // First try health-check endpoint (should work with Nginx stripping /api)
-  return api.get('/health-check')
-    .then(() => {
-      console.log('✅ API connection successful');
+// Improved health check function that tries multiple endpoints and paths
+const checkApiHealth = async () => {
+  const endpoints = [
+    '/health-check',
+    '/api/health-check',
+    '/ping',
+    '/api/ping'
+  ];
+  
+  for (const endpoint of endpoints) {
+    try {
+      console.log(`Trying health check at: ${API_URL}${endpoint}`);
+      await api.get(endpoint);
+      console.log(`✅ API connection successful via ${endpoint}`);
       return true;
-    })
-    .catch(error => {
-      if (error.response && error.response.status === 404) {
-        // If 404, try /ping endpoint as fallback
-        return api.get('/ping')
-          .then(() => {
-            console.log('✅ API connection successful via ping endpoint');
-            return true;
-          })
-          .catch(fallbackError => {
-            logApiError(fallbackError);
-            return false;
-          });
-      } else {
-        logApiError(error);
-        return false;
-      }
-    });
-};
-
-const logApiError = (error: any) => {
-  if (error.code === 'ERR_NETWORK') {
-    console.error('❌ Cannot connect to API server. Please make sure the backend is running.');
-  } else if (error.response) {
-    console.error(`❌ API health check failed with status ${error.response.status}`);
-  } else {
-    console.error('❌ API health check failed:', error.message);
+    } catch (error: any) {
+      console.log(`❌ Failed with ${endpoint}:`, error.message);
+      // Continue to next endpoint
+    }
   }
+  
+  // If all attempts failed
+  console.error('❌ All health check attempts failed. API may be unreachable.');
+  return false;
 };
 
 // Run health check on startup
