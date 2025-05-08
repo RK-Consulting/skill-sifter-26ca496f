@@ -16,10 +16,10 @@ var JwtKey = []byte("skill_sifter_secret_key") // In production, use env variabl
 
 // Claims for JWT
 type Claims struct {
-	UserID    int    `json:"userId"`
-	Email     string `json:"email"`
-	Role      string `json:"role"`
-	CompanyID string `json:"companyId"`
+	UserID      int    `json:"userId"`
+	Email       string `json:"email"`
+	Role        string `json:"role"`
+	CompanyName string `json:"companyName"`
 	jwt.RegisteredClaims
 }
 
@@ -60,7 +60,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx = context.WithValue(ctx, "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "email", claims.Email)
 		ctx = context.WithValue(ctx, "role", claims.Role)
-		ctx = context.WithValue(ctx, "companyID", claims.CompanyID)
+		ctx = context.WithValue(ctx, "companyName", claims.CompanyName)
 
 		// Call the next handler with the updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -97,10 +97,10 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 func GenerateToken(user models.User, roleName string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
-		UserID:    user.ID,
-		Email:     user.Email,
-		Role:      user.Role,
-		CompanyID: user.CompanyID,
+		UserID:      user.ID,
+		Email:       user.Email,
+		Role:        user.Role,
+		CompanyName: user.CompanyName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
 		},

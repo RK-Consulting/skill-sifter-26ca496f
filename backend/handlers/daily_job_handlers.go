@@ -13,11 +13,11 @@ import (
 
 // GetDailyJobs retrieves all daily jobs for a company
 func GetDailyJobs(w http.ResponseWriter, r *http.Request) {
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	dailyJobs := []models.DailyJob{}
-	rows, err := db.DB.Query("SELECT * FROM daily_jobs WHERE company_id = $1", companyID)
+	rows, err := db.DB.Query("SELECT * FROM daily_jobs WHERE company_name = $1", companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching daily jobs")
 		return
@@ -28,7 +28,7 @@ func GetDailyJobs(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var dj models.DailyJob
 		err := rows.Scan(&dj.ID, &dj.JdNo, &dj.Instructions, &dj.AssignedUser,
-			&dj.AssignedDate, &dj.LastModified, &dj.CompanyID)
+			&dj.AssignedDate, &dj.LastModified, &dj.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning daily job row")
 			return
@@ -52,15 +52,15 @@ func GetDailyJobByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	var dailyJob models.DailyJob
 	err = db.DB.QueryRow(
-		"SELECT * FROM daily_jobs WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"SELECT * FROM daily_jobs WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	).Scan(&dailyJob.ID, &dailyJob.JdNo, &dailyJob.Instructions, &dailyJob.AssignedUser,
-		&dailyJob.AssignedDate, &dailyJob.LastModified, &dailyJob.CompanyID)
+		&dailyJob.AssignedDate, &dailyJob.LastModified, &dailyJob.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Daily job not found")
@@ -84,16 +84,16 @@ func AddDailyJob(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Set company ID from the authenticated user
-	dailyJob.CompanyID = r.Context().Value("companyID").(string)
+	// Set company name from the authenticated user
+	dailyJob.CompanyName = r.Context().Value("companyName").(string)
 	
 	// Insert daily job into database
 	var id int
 	err = db.DB.QueryRow(
-		`INSERT INTO daily_jobs (jd_no, instructions, assigned_user, company_id) 
+		`INSERT INTO daily_jobs (jd_no, instructions, assigned_user, company_name) 
 		VALUES ($1, $2, $3, $4) 
 		RETURNING id`,
-		dailyJob.JdNo, dailyJob.Instructions, dailyJob.AssignedUser, dailyJob.CompanyID,
+		dailyJob.JdNo, dailyJob.Instructions, dailyJob.AssignedUser, dailyJob.CompanyName,
 	).Scan(&id)
 	
 	if err != nil {
@@ -127,17 +127,17 @@ func UpdateDailyJob(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Ensure company ID matches authenticated user's company
-	dailyJob.CompanyID = r.Context().Value("companyID").(string)
+	// Ensure company name matches authenticated user's company
+	dailyJob.CompanyName = r.Context().Value("companyName").(string)
 	dailyJob.ID = id
 	
 	// Update daily job in database
 	_, err = db.DB.Exec(
 		`UPDATE daily_jobs 
 		SET jd_no = $1, instructions = $2, assigned_user = $3, last_modified = NOW() 
-		WHERE id = $4 AND company_id = $5`,
+		WHERE id = $4 AND company_name = $5`,
 		dailyJob.JdNo, dailyJob.Instructions, dailyJob.AssignedUser, 
-		dailyJob.ID, dailyJob.CompanyID,
+		dailyJob.ID, dailyJob.CompanyName,
 	)
 	
 	if err != nil {
@@ -161,13 +161,13 @@ func DeleteDailyJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	// Delete daily job from database
 	result, err := db.DB.Exec(
-		"DELETE FROM daily_jobs WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"DELETE FROM daily_jobs WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	)
 	
 	if err != nil {

@@ -13,11 +13,11 @@ import (
 
 // GetCandidates retrieves all candidates for a company
 func GetCandidates(w http.ResponseWriter, r *http.Request) {
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	candidates := []models.Candidate{}
-	rows, err := db.DB.Query("SELECT * FROM candidates WHERE company_id = $1", companyID)
+	rows, err := db.DB.Query("SELECT * FROM candidates WHERE company_name = $1", companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching candidates")
 		return
@@ -30,7 +30,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 		// Scan all fields from the row into the candidate struct
 		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, 
 			&c.Status, &c.DateApplied, &c.ResumeURL, &c.CoverLetter, 
-			&c.LastModified, &c.CompanyID)
+			&c.LastModified, &c.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning candidate row")
 			return
@@ -54,17 +54,17 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	var candidate models.Candidate
 	err = db.DB.QueryRow(
-		"SELECT * FROM candidates WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"SELECT * FROM candidates WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	).Scan(&candidate.ID, &candidate.Name, &candidate.Email, &candidate.Phone, 
 		&candidate.Position, &candidate.Status, &candidate.DateApplied, 
 		&candidate.ResumeURL, &candidate.CoverLetter, &candidate.LastModified, 
-		&candidate.CompanyID)
+		&candidate.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
@@ -88,19 +88,19 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Set company ID from the authenticated user
-	candidate.CompanyID = r.Context().Value("companyID").(string)
+	// Set company name from the authenticated user
+	candidate.CompanyName = r.Context().Value("companyName").(string)
 	
 	// Insert candidate into database
 	var id int
 	err = db.DB.QueryRow(
 		`INSERT INTO candidates (name, email, phone, position, status, 
-			resume_url, cover_letter, company_id) 
+			resume_url, cover_letter, company_name) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
 		RETURNING id`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
 		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
-		candidate.CompanyID,
+		candidate.CompanyName,
 	).Scan(&id)
 	
 	if err != nil {
@@ -134,8 +134,8 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Ensure company ID matches authenticated user's company
-	candidate.CompanyID = r.Context().Value("companyID").(string)
+	// Ensure company name matches authenticated user's company
+	candidate.CompanyName = r.Context().Value("companyName").(string)
 	candidate.ID = id
 	
 	// Update candidate in database
@@ -143,10 +143,10 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		`UPDATE candidates 
 		SET name = $1, email = $2, phone = $3, position = $4, status = $5, 
 			resume_url = $6, cover_letter = $7, last_modified = NOW() 
-		WHERE id = $8 AND company_id = $9`,
+		WHERE id = $8 AND company_name = $9`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
 		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
-		candidate.ID, candidate.CompanyID,
+		candidate.ID, candidate.CompanyName,
 	)
 	
 	if err != nil {
@@ -170,13 +170,13 @@ func DeleteCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	// Delete candidate from database
 	result, err := db.DB.Exec(
-		"DELETE FROM candidates WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"DELETE FROM candidates WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	)
 	
 	if err != nil {
