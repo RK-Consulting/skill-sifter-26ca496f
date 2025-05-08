@@ -46,42 +46,34 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
     defer tx.Rollback()
 
+    // Check if company name is provided
+    if creds.CompanyName == "" {
+        respondWithError(w, http.StatusBadRequest, "Company name is required")
+        return
+    }
+
+    // Check if company already exists
+    var exists bool
+    err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists)
+    if err != nil {
+        respondWithError(w, http.StatusInternalServerError, "Database error")
+        return
+    }
+
+    // Generate company ID for new companies
     var companyID string
     var isFirstUser bool
 
-    // Check if company exists
-    if creds.Company != "" {
-        // Generate a unique company ID (string)
-        companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.Company), " ", "_"))
-
-        // Check if company already exists
-        var exists bool
-        err := tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.Company).Scan(&exists)
+    if !exists {
+        // Create new company with generated ID
+        companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
+        _, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+            companyID, creds.CompanyName, time.Now())
         if err != nil {
-            respondWithError(w, http.StatusInternalServerError, "Database error")
+            respondWithError(w, http.StatusInternalServerError, "Could not create company")
             return
         }
-
-        if !exists {
-            // Create new company, string-type companyID
-            _, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
-                companyID, creds.Company, time.Now())
-            if err != nil {
-                respondWithError(w, http.StatusInternalServerError, "Could not create company")
-                return
-            }
-            isFirstUser = true
-        } else {
-            // Get existing company ID as string
-            err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.Company).Scan(&companyID)
-            if err != nil {
-                respondWithError(w, http.StatusInternalServerError, "Could not get company ID")
-                return
-            }
-        }
-    } else {
-        respondWithError(w, http.StatusBadRequest, "Company name is required")
-        return
+        isFirstUser = true
     }
 
     // Determine role
@@ -107,12 +99,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    // Insert user (companyID is string)
+    // Insert user with company name
     var userID int
     err = tx.QueryRow(`
-        INSERT INTO users(username, email, password, role, company_id, created_at) 
+        INSERT INTO users(username, email, password, role, company_name, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-        creds.Username, creds.Email, hashedPassword, role, companyID, time.Now()).Scan(&userID)
+        creds.Username, creds.Email, hashedPassword, role, creds.CompanyName, time.Now()).Scan(&userID)
 
     if err != nil {
         if strings.Contains(err.Error(), "unique constraint") {
@@ -131,12 +123,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
     // Create user object for response (without password)
     user := models.User{
-        ID:        userID,
-        Username:  creds.Username,
-        Email:     creds.Email,
-        Role:      role,
-        CompanyID: companyID, // string
-        CreatedAt: time.Now(),
+        ID:         userID,
+        Username:   creds.Username,
+        Email:      creds.Email,
+        Role:       role,
+        CompanyName: creds.CompanyName, // Use company name instead of ID
+        CreatedAt:  time.Now(),
     }
 
     // Create JWT token
@@ -172,11 +164,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var hashedPassword string
 
 	err = db.DB.QueryRow(`
-		SELECT u.id, u.username, u.email, u.password, u.role, u.company_id, u.created_at
+		SELECT u.id, u.username, u.email, u.password, u.role, u.company_name, u.created_at
 		FROM users u
 		WHERE u.email = $1`, creds.Email).Scan(
 		&user.ID, &user.Username, &user.Email, &hashedPassword,
-		&user.Role, &user.CompanyID, &user.CreatedAt)
+		&user.Role, &user.CompanyName, &user.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -216,14 +208,14 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 // GetUsers fetches all users for a company (admin only)
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	users := []models.User{}
 	rows, err := db.DB.Query(`
-		SELECT id, username, email, role, company_id, created_at
+		SELECT id, username, email, role, company_name, created_at
 		FROM users 
-		WHERE company_id = $1`, companyID)
+		WHERE company_name = $1`, companyName)
 		
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching users")
@@ -233,7 +225,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CompanyID, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CompanyName, &u.CreatedAt); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning user row")
 			return
 		}
@@ -249,8 +241,8 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 // CreateUser creates a new user (admin only)
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	var user models.User
 	err := json.NewDecoder(r.Body).Decode(&user)
@@ -260,8 +252,8 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Set company ID from logged in admin
-	user.CompanyID = companyID
+	// Set company name from logged in admin
+	user.CompanyName = companyName
 
 	// Hash the password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
@@ -273,9 +265,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Insert user
 	var userID int
 	err = db.DB.QueryRow(`
-        INSERT INTO users(username, email, password, role, company_id, created_at) 
+        INSERT INTO users(username, email, password, role, company_name, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		user.Username, user.Email, hashedPassword, user.Role, user.CompanyID, time.Now()).Scan(&userID)
+		user.Username, user.Email, hashedPassword, user.Role, user.CompanyName, time.Now()).Scan(&userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -288,12 +280,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Create user object for response (without password)
 	createdUser := models.User{
-		ID:        userID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Role:      user.Role,
-		CompanyID: user.CompanyID,
-		CreatedAt: time.Now(),
+		ID:         userID,
+		Username:   user.Username,
+		Email:      user.Email,
+		Role:       user.Role,
+		CompanyName: user.CompanyName,
+		CreatedAt:  time.Now(),
 	}
 
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{

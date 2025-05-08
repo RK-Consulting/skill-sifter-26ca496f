@@ -17,7 +17,7 @@ type Candidate struct {
 	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
 	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    string    `json:"companyId" db:"company_id,notnull"`
+	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Job model
@@ -31,7 +31,7 @@ type Job struct {
 	Description  string    `json:"description,omitempty" db:"description"`
 	Requirements string    `json:"requirements,omitempty" db:"requirements"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    string    `json:"companyId" db:"company_id,notnull"`
+	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // DailyJob model
@@ -42,7 +42,7 @@ type DailyJob struct {
 	AssignedUser int       `json:"assignedUser" db:"assigned_user"`
 	AssignedDate time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID    string    `json:"companyId" db:"company_id,notnull"`
+	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Interview model
@@ -55,7 +55,7 @@ type Interview struct {
 	Status        string    `json:"status" db:"status,default:'scheduled'"`
 	Feedback      string    `json:"feedback" db:"feedback"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyID     string    `json:"companyId" db:"company_id,notnull"`
+	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Company model
@@ -75,13 +75,13 @@ type Role struct {
 
 // User model
 type User struct {
-	ID        int       `json:"id" db:"id,primarykey,autoincrement"`
-	Username  string    `json:"username" db:"username,notnull"`
-	Email     string    `json:"email" db:"email,notnull,unique"`
-	Password  string    `json:"password,omitempty" db:"password,notnull"`
-	Role      string    `json:"role" db:"role,notnull"`
-	CompanyID string    `json:"companyId" db:"company_id,notnull"` // <-- This stays as string!
-	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	ID         int       `json:"id" db:"id,primarykey,autoincrement"`
+	Username   string    `json:"username" db:"username,notnull"`
+	Email      string    `json:"email" db:"email,notnull,unique"`
+	Password   string    `json:"password,omitempty" db:"password,notnull"`
+	Role       string    `json:"role" db:"role,notnull"`
+	CompanyName string    `json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
+	CreatedAt  time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // SchemaVersion for tracking db schema version
@@ -92,12 +92,11 @@ type SchemaVersion struct {
 
 // Credentials for login/register
 type Credentials struct {
-	Email     string `json:"email"`
-	Password  string `json:"password"`
-	Username  string `json:"username,omitempty"`
-	CompanyID string `json:"companyId,omitempty"`
-	Company   string `json:"company,omitempty"`
-	Role      string `json:"role,omitempty"` // Added role field
+	Email       string `json:"email"`
+	Password    string `json:"password"`
+	Username    string `json:"username,omitempty"`
+	CompanyName string `json:"companyName,omitempty"` // Changed from CompanyID
+	Role        string `json:"role,omitempty"`
 }
 
 // ApiResponse represents a standard API response

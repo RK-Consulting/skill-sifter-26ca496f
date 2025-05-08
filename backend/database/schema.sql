@@ -1,3 +1,4 @@
+
 -- Create companies/tenants table
 CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(255) PRIMARY KEY,
@@ -21,15 +22,14 @@ INSERT INTO roles (name, permissions, created_at) VALUES
 ('team_leader', '["view_candidates", "add_candidates", "view_jobs", "manage_team"]', NOW())
 ON CONFLICT (name) DO NOTHING;
 
--- Create users table with role and company
+-- Create users table with role and company name (changed from company_id)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     role VARCHAR(100) NOT NULL,
-    company_id VARCHAR(255) NOT NULL,
-    FOREIGN KEY (company_id) REFERENCES companies(id),
+    company_name VARCHAR(255) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     resume_url TEXT,
     cover_letter TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
+    company_name VARCHAR(255) NOT NULL
 );
 
 -- Create jobs table
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     description TEXT,
     requirements TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
+    company_name VARCHAR(255) NOT NULL
 );
 
 -- Create daily_jobs table
@@ -70,7 +70,7 @@ CREATE TABLE IF NOT EXISTS daily_jobs (
     assigned_user INTEGER REFERENCES users(id),
     assigned_date TIMESTAMP DEFAULT NOW(),
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
+    company_name VARCHAR(255) NOT NULL
 );
 
 -- Create interviews table
@@ -83,15 +83,15 @@ CREATE TABLE IF NOT EXISTS interviews (
     status VARCHAR(50) DEFAULT 'scheduled',
     feedback TEXT,
     last_modified TIMESTAMP DEFAULT NOW(),
-    company_id VARCHAR(255) NOT NULL REFERENCES companies(id)
+    company_name VARCHAR(255) NOT NULL
 );
 
 -- Drop unused index
 DROP INDEX IF EXISTS idx_users_role;
 -- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_id);
-CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
-CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_id);
-CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_id);
-CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
+CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_name);
+CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_name);
+CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_name);
+CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_name);
+CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_name);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
