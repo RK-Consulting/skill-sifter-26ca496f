@@ -120,11 +120,11 @@ func InitializeSchema() error {
 		
 		// Create indexes for performance
 		_, err = tx.Exec(`
-			CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_id);
-			CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_id);
-			CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_id);
-			CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_id);
-			CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_id);
+			CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_name);
+			CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_name);
+			CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_name);
+			CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_name);
+			CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_name);
 			CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 		`)
 		

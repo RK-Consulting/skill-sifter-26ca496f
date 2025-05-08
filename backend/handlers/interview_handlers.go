@@ -13,11 +13,11 @@ import (
 
 // GetInterviews retrieves all interviews for a company
 func GetInterviews(w http.ResponseWriter, r *http.Request) {
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	interviews := []models.Interview{}
-	rows, err := db.DB.Query("SELECT * FROM interviews WHERE company_id = $1", companyID)
+	rows, err := db.DB.Query("SELECT * FROM interviews WHERE company_name = $1", companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching interviews")
 		return
@@ -28,7 +28,7 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var i models.Interview
 		err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position,
-			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.CompanyID)
+			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
 			return
@@ -52,16 +52,16 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	var interview models.Interview
 	err = db.DB.QueryRow(
-		"SELECT * FROM interviews WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"SELECT * FROM interviews WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	).Scan(&interview.ID, &interview.CandidateID, &interview.CandidateName, &interview.Position,
 		&interview.InterviewDate, &interview.Status, &interview.Feedback, 
-		&interview.LastModified, &interview.CompanyID)
+		&interview.LastModified, &interview.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Interview not found")
@@ -85,17 +85,17 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Set company ID from the authenticated user
-	interview.CompanyID = r.Context().Value("companyID").(string)
+	// Set company name from the authenticated user
+	interview.CompanyName = r.Context().Value("companyName").(string)
 	
 	// Insert interview into database
 	var id int
 	err = db.DB.QueryRow(
-		`INSERT INTO interviews (candidate_id, candidate_name, position, interview_date, status, feedback, company_id) 
+		`INSERT INTO interviews (candidate_id, candidate_name, position, interview_date, status, feedback, company_name) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7) 
 		RETURNING id`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
-		interview.InterviewDate, interview.Status, interview.Feedback, interview.CompanyID,
+		interview.InterviewDate, interview.Status, interview.Feedback, interview.CompanyName,
 	).Scan(&id)
 	
 	if err != nil {
@@ -129,8 +129,8 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	
-	// Ensure company ID matches authenticated user's company
-	interview.CompanyID = r.Context().Value("companyID").(string)
+	// Ensure company name matches authenticated user's company
+	interview.CompanyName = r.Context().Value("companyName").(string)
 	interview.ID = id
 	
 	// Update interview in database
@@ -138,10 +138,10 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		`UPDATE interviews 
 		SET candidate_id = $1, candidate_name = $2, position = $3, interview_date = $4, 
 			status = $5, feedback = $6, last_modified = NOW() 
-		WHERE id = $7 AND company_id = $8`,
+		WHERE id = $7 AND company_name = $8`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
 		interview.InterviewDate, interview.Status, interview.Feedback, 
-		interview.ID, interview.CompanyID,
+		interview.ID, interview.CompanyName,
 	)
 	
 	if err != nil {
@@ -165,13 +165,13 @@ func DeleteInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Get company ID from context
-	companyID := r.Context().Value("companyID").(string)
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
 	
 	// Delete interview from database
 	result, err := db.DB.Exec(
-		"DELETE FROM interviews WHERE id = $1 AND company_id = $2", 
-		id, companyID,
+		"DELETE FROM interviews WHERE id = $1 AND company_name = $2", 
+		id, companyName,
 	)
 	
 	if err != nil {
