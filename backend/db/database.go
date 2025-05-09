@@ -28,7 +28,7 @@ func InitDB() {
 	password := GetEnv("DB_PASSWORD", "ROOT")
 	dbname := GetEnv("DB_NAME", "postgres")
 
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s search_path=public sslmode=disable",
 		host, port, user, password, dbname)
 
 	var err error
@@ -71,7 +71,7 @@ func InitializeSchema() error {
 		
 		// Create schema_version table
 		_, err = tx.Exec(`
-			CREATE TABLE schema_version (
+			CREATE TABLE public.schema_version (
 				version INTEGER PRIMARY KEY,
 				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 			)
