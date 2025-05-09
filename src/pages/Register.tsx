@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -72,12 +73,12 @@ const Register = () => {
       const companyId = generateCompanyId(values.company);
       setGeneratedCompanyId(companyId);
       
+      // Updated payload to match backend expectations
       const payload = {
         username: values.username,
         email: values.email,
         password: values.password,
-        company: values.company,
-        companyId: companyId,
+        companyName: values.company, // Changed from company to companyName
         role: values.role
       };
       
