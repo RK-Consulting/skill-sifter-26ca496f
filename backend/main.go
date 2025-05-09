@@ -1,201 +1,181 @@
-
 package main
 
 import (
-	"fmt"
-	"log"
-	"net/http"
+        "fmt"
+        "log"
+        "net/http"
 
-	"github.com/RK-Consulting/skill-sifter/auth"
-	"github.com/RK-Consulting/skill-sifter/db"
-	"github.com/RK-Consulting/skill-sifter/handlers"
-	_ "github.com/lib/pq"
+        "github.com/RK-Consulting/skill-sifter/auth"
+        "github.com/RK-Consulting/skill-sifter/db"
+        "github.com/RK-Consulting/skill-sifter/handlers"
+        _ "github.com/lib/pq"
 
-	"github.com/gorilla/mux"
-	"github.com/rs/cors"
+        "github.com/gorilla/mux"
+        "github.com/rs/cors"
 )
 
-// Logging middleware to track requests
+// ----------- Middleware -----------
+
 func loggingMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
-		next.ServeHTTP(w, r)
-	})
+        return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                log.Printf("%s %s %s", r.RemoteAddr, r.Method, r.URL.Path)
+                next.ServeHTTP(w, r)
+        })
 }
 
-// Handler for root route
+// ----------- Basic Handlers -----------
+
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"message":"Welcome to SkillSifter API"}`))
+        w.Header().Set("Content-Type", "application/json")
+        w.Write([]byte(`{"message":"Welcome to SkillSifter API"}`))
 }
 
-// Handler for API root route
 func apiRootHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"message":"Welcome to SkillSifter API"}`))
+        w.Header().Set("Content-Type", "application/json")
+        w.Write([]byte(`{"message":"Welcome to SkillSifter API"}`))
 }
 
-// Handler for health check
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"OK"}`))
+        w.Header().Set("Content-Type", "application/json")
+        w.Write([]byte(`{"status":"OK"}`))
 }
 
-// Handler for ping
 func pingHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"message":"pong"}`))
+        w.Header().Set("Content-Type", "application/json")
+        w.Write([]byte(`{"message":"pong"}`))
 }
 
-// Setup CORS configuration
+// ----------- CORS Setup -----------
+
 func setupCORS() *cors.Cors {
-	corsOptions := cors.Options{
-		AllowedOrigins: []string{
-			"https://skillsifter.in",
-			"https://www.skillsifter.in",
-			"https://api.skillsifter.in",
-			"http://localhost:5173",
-			"http://localhost:3000",
-			"http://127.0.0.1:5173",
-			"http://127.0.0.1:3000",
-			"*", // Allow all origins for development
-		},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
-		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
-		AllowCredentials: true,
-		MaxAge:           86400, // 24 hours for preflight cache
-	}
-
-	return cors.New(corsOptions)
+        corsOptions := cors.Options{
+                AllowedOrigins: []string{
+                        "https://skillsifter.in",
+                        "https://www.skillsifter.in",
+                        "https://api.skillsifter.in",
+                        "http://localhost:5173",
+                        "http://localhost:3000",
+                        "http://127.0.0.1:5173",
+                        "http://127.0.0.1:3000",
+                        "*", // For development only
+                },
+                AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
+                AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
+                ExposedHeaders:   []string{"Content-Length", "Content-Type"},
+                AllowCredentials: true,
+                MaxAge:           86400,
+        }
+        return cors.New(corsOptions)
 }
 
-// Setup public routes that don't require authentication
+// ----------- Public Routes -----------
+
 func setupPublicRoutes(r *mux.Router) {
-	// Root route handlers - respond to both root paths
-	r.HandleFunc("/", rootHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api", apiRootHandler).Methods("GET", "OPTIONS")
-	
-	// Health check routes
-	r.HandleFunc("/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
-	
-	// Ping routes
-	r.HandleFunc("/ping", pingHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
+        r.HandleFunc("/", rootHandler).Methods("GET", "OPTIONS")
+        r.HandleFunc("/api", apiRootHandler).Methods("GET", "OPTIONS")
 
-	// Auth routes
-	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
+        r.HandleFunc("/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
+        r.HandleFunc("/api/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
+
+        r.HandleFunc("/ping", pingHandler).Methods("GET", "OPTIONS")
+        r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
+
+        r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
+        r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
+        r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
+        r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
 }
 
-// Setup protected routes that require authentication
+// ----------- Protected Routes -----------
+
 func setupProtectedRoutes(r *mux.Router) {
-	// API Router (with authentication)
-	apiRouter := r.PathPrefix("/api").Subrouter()
-	apiRouter.Use(auth.AuthMiddleware)
+        apiRouter := r.PathPrefix("/api").Subrouter()
+        apiRouter.Use(auth.AuthMiddleware)
 
-	// Admin-only routes
-	adminRouter := apiRouter.PathPrefix("/admin").Subrouter()
-	adminRouter.Use(auth.RoleMiddleware("admin"))
-	adminRouter.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
-	adminRouter.HandleFunc("/users", handlers.CreateUser).Methods("POST", "OPTIONS")
-	adminRouter.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT", "OPTIONS")
-	adminRouter.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
+        // Admin Routes
+        adminRouter := apiRouter.PathPrefix("/admin").Subrouter()
+        adminRouter.Use(auth.RoleMiddleware("admin"))
+        adminRouter.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
+        adminRouter.HandleFunc("/users", handlers.CreateUser).Methods("POST", "OPTIONS")
+        adminRouter.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT", "OPTIONS")
+        adminRouter.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
 
-	// Manager and Admin routes
-	managerRouter := apiRouter.PathPrefix("/manager").Subrouter()
-	managerRouter.Use(auth.RoleMiddleware("manager", "admin"))
-	// Add any manager-specific endpoints here if needed
+        // Manager Routes
+        managerRouter := apiRouter.PathPrefix("/manager").Subrouter()
+        managerRouter.Use(auth.RoleMiddleware("manager", "admin"))
+        // Add manager-specific routes if needed
 
-	// General API Routes (accessible by all roles)
-	setupResourceRoutes(apiRouter, "/candidates", handlers.GetCandidates, handlers.AddCandidate, 
-		handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
-	
-	setupResourceRoutes(apiRouter, "/jobs", handlers.GetJobs, handlers.AddJob, 
-		handlers.GetJobByID, handlers.UpdateJob, handlers.DeleteJob)
-	
-	setupResourceRoutes(apiRouter, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, 
-		handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
-	
-	setupResourceRoutes(apiRouter, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, 
-		handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+        // General API Resources
+        setupResourceRoutes(apiRouter, "/candidates", handlers.GetCandidates, handlers.AddCandidate,
+                handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
 
-	// Also register non-prefixed routes to work both with and without /api prefix
-	nonPrefixRouter := r.NewRoute().Subrouter()
-	nonPrefixRouter.Use(auth.AuthMiddleware)
-	
-	// Register the same routes without the /api prefix for compatibility
-	setupResourceRoutes(nonPrefixRouter, "/candidates", handlers.GetCandidates, handlers.AddCandidate, 
-		handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
-	
-	setupResourceRoutes(nonPrefixRouter, "/jobs", handlers.GetJobs, handlers.AddJob, 
-		handlers.GetJobByID, handlers.UpdateJob, handlers.DeleteJob)
-	
-	setupResourceRoutes(nonPrefixRouter, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, 
-		handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
-	
-	setupResourceRoutes(nonPrefixRouter, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, 
-		handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+        setupResourceRoutes(apiRouter, "/jobs", handlers.GetJobs, handlers.AddJob,
+                handlers.GetJobByID, handlers.UpdateJob, handlers.DeleteJob)
+
+        setupResourceRoutes(apiRouter, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob,
+                handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
+
+        setupResourceRoutes(apiRouter, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview,
+                handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+
+        // Duplicate for root-level paths (no /api prefix)
+        nonApi := r.NewRoute().Subrouter()
+        nonApi.Use(auth.AuthMiddleware)
+
+        setupResourceRoutes(nonApi, "/candidates", handlers.GetCandidates, handlers.AddCandidate,
+                handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
+
+        setupResourceRoutes(nonApi, "/jobs", handlers.GetJobs, handlers.AddJob,
+                handlers.GetJobByID, handlers.UpdateJob, handlers.DeleteJob)
+
+        setupResourceRoutes(nonApi, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob,
+                handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
+
+        setupResourceRoutes(nonApi, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview,
+                handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
 }
 
-// Helper function to set up CRUD routes for a resource
-func setupResourceRoutes(router *mux.Router, path string, 
-	getAll http.HandlerFunc, create http.HandlerFunc,
-	getOne http.HandlerFunc, update http.HandlerFunc, delete http.HandlerFunc) {
-	
-	router.HandleFunc(path, getAll).Methods("GET", "OPTIONS")
-	router.HandleFunc(path, create).Methods("POST", "OPTIONS")
-	router.HandleFunc(path+"/{id}", getOne).Methods("GET", "OPTIONS")
-	router.HandleFunc(path+"/{id}", update).Methods("PUT", "OPTIONS")
-	router.HandleFunc(path+"/{id}", delete).Methods("DELETE", "OPTIONS")
+// ----------- Resource Router Helper -----------
+
+func setupResourceRoutes(router *mux.Router, path string,
+        getAll http.HandlerFunc, create http.HandlerFunc,
+        getOne http.HandlerFunc, update http.HandlerFunc, delete http.HandlerFunc) {
+
+        router.HandleFunc(path, getAll).Methods("GET", "OPTIONS")
+        router.HandleFunc(path, create).Methods("POST", "OPTIONS")
+        router.HandleFunc(path+"/{id}", getOne).Methods("GET", "OPTIONS")
+        router.HandleFunc(path+"/{id}", update).Methods("PUT", "OPTIONS")
+        router.HandleFunc(path+"/{id}", delete).Methods("DELETE", "OPTIONS")
 }
+
+// ----------- Main Entry Point -----------
 
 func main() {
-	// Initialize database connection
-	db.InitDB()
-	defer db.DB.Close()
+        // Init DB
+        db.InitDB()
+        defer db.DB.Close()
 
-	// Initialize schema (one-time operation)
-	if err := db.InitializeSchema(); err != nil {
-		log.Fatalf("Schema initialization failed: %v", err)
-	}
+        if err := db.InitializeSchema(); err != nil {
+                log.Fatalf("Schema initialization failed: %v", err)
+        }
 
-	// Create main router
-	r := mux.NewRouter()
-	r.Use(loggingMiddleware) // Add logging middleware
+        // Setup Router
+        r := mux.NewRouter()
+        r.Use(loggingMiddleware)
 
-	// Setup routes
-	setupPublicRoutes(r)
-	setupProtectedRoutes(r)
-	
-	// Always respond to OPTIONS requests for all routes
-	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusNoContent)
-	})
+        setupPublicRoutes(r)
+        setupProtectedRoutes(r)
 
-	// Setup CORS
-	c := setupCORS()
-	
-	// Log startup configuration
-	corsOptions := cors.Options{
-		AllowedOrigins:   []string{"https://skillsifter.in", "http://localhost:5173", "*"},
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Content-Type", "Authorization"},
-		AllowCredentials: true,
-	}
-	log.Println("CORS Configuration:")
-	log.Println("- Allowed Origins:", corsOptions.AllowedOrigins)
-	log.Println("- Allowed Methods:", corsOptions.AllowedMethods)
-	log.Println("- Allowed Headers:", corsOptions.AllowedHeaders)
-	
-	// Wrap the router with CORS handler
-	handler := c.Handler(r)
-	
-	// Start HTTP server
-	port := db.GetEnv("PORT", "8080")
-	fmt.Printf("Server starting on port %s...\n", port)
-	log.Fatal(http.ListenAndServe(":"+port, handler))
+        // Global OPTIONS handler for all unmatched OPTIONS requests
+        r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+                w.WriteHeader(http.StatusNoContent)
+        })
+
+        // Apply CORS
+        corsHandler := setupCORS().Handler(r)
+
+        // Start Server
+        port := db.GetEnv("PORT", "8080")
+        fmt.Printf("✅ SkillSifter API running at http://localhost:%s\n", port)
+        log.Fatal(http.ListenAndServe(":"+port, corsHandler))
 }
