@@ -57,7 +57,7 @@ func setupCORS() *cors.Cors {
                         "http://localhost:3000",
                         "http://127.0.0.1:5173",
                         "http://127.0.0.1:3000",
-                        "*", // For development only
+                        // "*", // For development only
                 },
                 AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
                 AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
