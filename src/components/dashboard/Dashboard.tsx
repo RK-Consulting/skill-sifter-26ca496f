@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Users, 
@@ -20,7 +19,11 @@ import ActivitySection from './ActivitySection';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui-custom/Card';
 
-const Dashboard = () => {
+interface DashboardProps {
+  username: string;
+}
+
+const Dashboard = ({ username }: DashboardProps) => {
   // Stats data
   const statsData = [
     {
@@ -118,7 +121,7 @@ const Dashboard = () => {
     <section className="py-8 animate-fade-up">
       <Container>
         {/* Header */}
-        <DashboardHeader username="Alex" />
+        <DashboardHeader username={username} />
 
         {/* Stats Grid */}
         <StatsCards stats={statsData} />
