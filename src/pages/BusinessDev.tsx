@@ -1,6 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
@@ -9,6 +10,8 @@ import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
+import { businessDevService } from '@/services/api';
+import { toast } from 'sonner';
 
 interface BusinessDev {
   id: number;
@@ -17,76 +20,82 @@ interface BusinessDev {
   contactPerson: string;
   contactNumber: string;
   contactEmail: string;
-  createdAt: string; // Added for display purposes
+  createdAt: string;
 }
 
 const BusinessDev = () => {
   const navigate = useNavigate();
-  const [businessDevs, setBusinessDevs] = useState<BusinessDev[]>([]);
-  const [filteredDevs, setFilteredDevs] = useState<BusinessDev[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    // Load business dev records from localStorage or use defaults if none exist
-    const storedDevs = localStorage.getItem('businessDevs');
-    const defaultDevs = [
-      { 
-        id: 1, 
-        clientName: "TechSolutions Inc", 
-        partnerName: "Innovate Partners", 
-        contactPerson: "John Smith", 
-        contactNumber: "+1 (555) 123-4567", 
-        contactEmail: "john.smith@techsolutions.com",
-        createdAt: "1 day ago" 
-      },
-      { 
-        id: 2, 
-        clientName: "Global Finance Group", 
-        partnerName: "Capital Ventures", 
-        contactPerson: "Sarah Johnson", 
-        contactNumber: "+1 (555) 987-6543", 
-        contactEmail: "sjohnson@globalfinance.com",
-        createdAt: "3 days ago" 
-      },
-      { 
-        id: 3, 
-        clientName: "Healthcare Systems", 
-        partnerName: "", 
-        contactPerson: "Michael Brown", 
-        contactNumber: "+1 (555) 456-7890", 
-        contactEmail: "mbrown@healthsystems.com",
-        createdAt: "1 week ago" 
-      },
-      { 
-        id: 4, 
-        clientName: "Retail Solutions", 
-        partnerName: "Shop Partners", 
-        contactPerson: "Emily Davis", 
-        contactNumber: "+1 (555) 234-5678", 
-        contactEmail: "edavis@retailsolutions.com",
-        createdAt: "2 weeks ago" 
-      },
-    ];
-    
-    if (storedDevs) {
-      setBusinessDevs(JSON.parse(storedDevs));
-    } else {
-      setBusinessDevs(defaultDevs);
-      localStorage.setItem('businessDevs', JSON.stringify(defaultDevs));
-    }
-  }, []);
+  // Mock data as fallback if API fails
+  const mockBusinessDevs = [
+    { 
+      id: 1, 
+      clientName: "TechSolutions Inc", 
+      partnerName: "Innovate Partners", 
+      contactPerson: "John Smith", 
+      contactNumber: "+1 (555) 123-4567", 
+      contactEmail: "john.smith@techsolutions.com",
+      createdAt: "1 day ago" 
+    },
+    { 
+      id: 2, 
+      clientName: "Global Finance Group", 
+      partnerName: "Capital Ventures", 
+      contactPerson: "Sarah Johnson", 
+      contactNumber: "+1 (555) 987-6543", 
+      contactEmail: "sjohnson@globalfinance.com",
+      createdAt: "3 days ago" 
+    },
+    { 
+      id: 3, 
+      clientName: "Healthcare Systems", 
+      partnerName: "", 
+      contactPerson: "Michael Brown", 
+      contactNumber: "+1 (555) 456-7890", 
+      contactEmail: "mbrown@healthsystems.com",
+      createdAt: "1 week ago" 
+    },
+    { 
+      id: 4, 
+      clientName: "Retail Solutions", 
+      partnerName: "Shop Partners", 
+      contactPerson: "Emily Davis", 
+      contactNumber: "+1 (555) 234-5678", 
+      contactEmail: "edavis@retailsolutions.com",
+      createdAt: "2 weeks ago" 
+    },
+  ];
 
-  useEffect(() => {
+  // Fetch business dev data using React Query
+  const { data: businessDevs, isLoading, isError } = useQuery({
+    queryKey: ['businessDevs'],
+    queryFn: async () => {
+      try {
+        const response = await businessDevService.getAllBusinessDevs();
+        console.log('BusinessDev API response:', response.data);
+        return response.data.data || [];
+      } catch (error) {
+        console.error('Error fetching business dev contacts:', error);
+        toast.error('Failed to load business contacts');
+        // Return mock data on error
+        return mockBusinessDevs;
+      }
+    }
+  });
+
+  // Filter business devs based on search term
+  const filteredDevs = React.useMemo(() => {
+    if (!businessDevs) return [];
+    
     if (searchTerm) {
-      const filtered = businessDevs.filter(dev => 
+      return businessDevs.filter((dev: BusinessDev) => 
         dev.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dev.contactPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
         dev.contactEmail.toLowerCase().includes(searchTerm.toLowerCase())
       );
-      setFilteredDevs(filtered);
-    } else {
-      setFilteredDevs(businessDevs);
     }
+    return businessDevs;
   }, [searchTerm, businessDevs]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,7 +107,6 @@ const BusinessDev = () => {
   };
 
   const viewBusinessDevDetails = (id: number) => {
-    // In a real application, this would navigate to a business dev details page
     console.log(`View business dev ${id}`);
   };
 
@@ -112,7 +120,7 @@ const BusinessDev = () => {
             <p className="text-ats-gray-500">Manage client relationships and business contacts.</p>
           </div>
 
-          <Card className="mb-8">
+          <Card className="mb-8 animate-fade-up">
             <CardContent className="p-6">
               <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
                 <div className="relative w-full md:w-80">
@@ -142,51 +150,61 @@ const BusinessDev = () => {
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Client Name</TableHead>
-                    <TableHead>Partner</TableHead>
-                    <TableHead>Contact Person</TableHead>
-                    <TableHead>Contact Info</TableHead>
-                    <TableHead>Added</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDevs.length > 0 ? (
-                    filteredDevs.map((dev) => (
-                      <TableRow key={dev.id}>
-                        <TableCell className="font-medium">{dev.clientName}</TableCell>
-                        <TableCell>{dev.partnerName || '-'}</TableCell>
-                        <TableCell>{dev.contactPerson}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>{dev.contactEmail}</div>
-                            <div className="text-ats-gray-500">{dev.contactNumber}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{dev.createdAt}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => viewBusinessDevDetails(dev.id)}
-                          >
-                            <ChevronRight size={16} />
-                          </Button>
+              {isLoading ? (
+                <div className="h-64 flex items-center justify-center">
+                  <p className="text-ats-gray-500">Loading business contacts...</p>
+                </div>
+              ) : isError ? (
+                <div className="h-64 flex items-center justify-center">
+                  <p className="text-red-500">Error loading data. Using local data as fallback.</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Client Name</TableHead>
+                      <TableHead>Partner</TableHead>
+                      <TableHead>Contact Person</TableHead>
+                      <TableHead>Contact Info</TableHead>
+                      <TableHead>Added</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDevs.length > 0 ? (
+                      filteredDevs.map((dev: BusinessDev) => (
+                        <TableRow key={dev.id}>
+                          <TableCell className="font-medium">{dev.clientName}</TableCell>
+                          <TableCell>{dev.partnerName || '-'}</TableCell>
+                          <TableCell>{dev.contactPerson}</TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>{dev.contactEmail}</div>
+                              <div className="text-ats-gray-500">{dev.contactNumber}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{dev.createdAt}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => viewBusinessDevDetails(dev.id)}
+                            >
+                              <ChevronRight size={16} />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          {searchTerm ? 'No clients found matching your search.' : 'No clients found.'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        {searchTerm ? 'No clients found matching your search.' : 'No clients found.'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </Container>

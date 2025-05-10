@@ -1,12 +1,15 @@
 
 import { useQuery } from '@tanstack/react-query';
-import { candidateService, jobService, dailyJobService, businessDevService } from '@/services/api';
+import { candidateService, jobService, dailyJobService, businessDevService, interviewService } from '@/services/api';
 
 interface DashboardStats {
   totalCandidates: number;
   activeJobs: number;
   dailyTasks: number;
   businessContacts: number;
+  totalInterviews: number;
+  scheduledInterviews: number;
+  completedInterviews: number;
   isLoading: boolean;
   error: Error | null;
 }
@@ -52,6 +55,16 @@ export const useDashboardStats = (): DashboardStats => {
     queryFn: businessDevService.getAllBusinessDevs,
   });
 
+  // Fetch interviews
+  const { 
+    data: interviewsData, 
+    isLoading: interviewsLoading,
+    error: interviewsError
+  } = useQuery({
+    queryKey: ['interviews'],
+    queryFn: interviewService.getAllInterviews,
+  });
+
   // Calculate total candidates from API response
   const totalCandidates = candidatesData?.data?.length || 0;
   
@@ -66,17 +79,26 @@ export const useDashboardStats = (): DashboardStats => {
   // Business contacts count from backend
   const businessContacts = businessData?.data?.length || 0;
 
+  // Interview statistics
+  const interviews = interviewsData?.data || [];
+  const totalInterviews = interviews.length || 0;
+  const scheduledInterviews = interviews.filter((interview: any) => interview.status === 'Scheduled').length || 0;
+  const completedInterviews = interviews.filter((interview: any) => interview.status === 'Completed').length || 0;
+
   // Determine overall loading state
-  const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading;
+  const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading || interviewsLoading;
   
   // Determine if there's any error
-  const error = candidatesError || jobsError || dailyJobsError || businessError || null;
+  const error = candidatesError || jobsError || dailyJobsError || businessError || interviewsError || null;
 
   return {
     totalCandidates,
     activeJobs,
     dailyTasks,
     businessContacts,
+    totalInterviews,
+    scheduledInterviews,
+    completedInterviews,
     isLoading,
     error
   };

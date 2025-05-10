@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { toast } from "sonner";
 import { interviewService } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Interview {
   id: number;
@@ -69,16 +71,17 @@ const Interviews = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = React.useState('');
   
-  // Fetch interviews using React Query with fallback to mock data
+  // Fetch interviews using React Query
   const { data: interviewsData, isLoading, isError } = useQuery({
     queryKey: ['interviews'],
     queryFn: async () => {
       try {
         const response = await interviewService.getAllInterviews();
         console.log('Interviews API response:', response.data);
-        return response.data.data;
+        return response.data.data || [];
       } catch (error) {
         console.error('Error fetching interviews:', error);
+        toast.error('Failed to load interviews');
         // Return mock data on error
         return mockInterviews;
       }
@@ -90,9 +93,9 @@ const Interviews = () => {
     if (!interviewsData) return [];
     
     return interviewsData.filter((interview: Interview) => 
-      interview.candidateName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      interview.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      interview.status.toLowerCase().includes(searchTerm.toLowerCase())
+      interview.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interview.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interview.status?.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, interviewsData]);
 
@@ -109,16 +112,33 @@ const Interviews = () => {
     navigate(`/interviews/${id}`);
   };
 
-  // Handle loading state
+  // Render loading skeletons
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="pt-24 pb-10 flex-grow">
           <Container>
-            <div className="flex justify-center items-center h-64">
-              <p className="text-lg text-ats-gray-500">Loading interviews...</p>
+            <div className="mb-8">
+              <h1 className="text-3xl font-semibold tracking-tight mb-3">Interviews</h1>
+              <p className="text-ats-gray-500">Manage and track all candidate interviews.</p>
             </div>
+            <Card className="mb-8">
+              <CardContent className="p-6">
+                <div className="flex flex-col md:flex-row justify-between gap-4 mb-6">
+                  <Skeleton className="h-10 w-80" />
+                  <div className="flex gap-3">
+                    <Skeleton className="h-10 w-24" />
+                    <Skeleton className="h-10 w-40" />
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  {Array(5).fill(0).map((_, i) => (
+                    <Skeleton key={i} className="h-16 w-full" />
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </Container>
         </main>
         <Footer />
@@ -165,6 +185,14 @@ const Interviews = () => {
                   </Button>
                 </div>
               </div>
+
+              {isError && (
+                <div className="px-4 py-3 mb-4 bg-red-50 border border-red-200 rounded-md">
+                  <p className="text-red-600 text-sm">
+                    Error loading data from server. Showing fallback data.
+                  </p>
+                </div>
+              )}
 
               <Table>
                 <TableHeader>
