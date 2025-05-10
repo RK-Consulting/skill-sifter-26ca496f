@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Dashboard from '@/components/dashboard/Dashboard';
 import Footer from '@/components/layout/Footer';
+import { useQuery } from '@tanstack/react-query';
 
 const Index = () => {
   const [username, setUsername] = useState('User');

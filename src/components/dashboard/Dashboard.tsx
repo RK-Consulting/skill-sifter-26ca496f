@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { 
   Users, 
@@ -8,7 +9,8 @@ import {
   Clock3, 
   XCircle,
   TrendingUp,
-  Activity
+  Activity,
+  AlertCircle
 } from 'lucide-react';
 import Container from '../layout/Container';
 import DashboardHeader from './DashboardHeader';
@@ -18,17 +20,30 @@ import PipelineStatus from './PipelineStatus';
 import ActivitySection from './ActivitySection';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui-custom/Card';
+import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface DashboardProps {
   username: string;
 }
 
 const Dashboard = ({ username }: DashboardProps) => {
-  // Stats data
+  // Fetch real-time dashboard stats
+  const { 
+    totalCandidates, 
+    activeJobs, 
+    dailyTasks, 
+    businessContacts, 
+    isLoading, 
+    error 
+  } = useDashboardStats();
+
+  // Stats data with real numbers
   const statsData = [
     {
       title: "Total Candidates",
-      value: "148",
+      value: isLoading ? "..." : totalCandidates.toString(),
       trend: "+12",
       icon: <Users />,
       trendType: "up" as const,
@@ -36,7 +51,7 @@ const Dashboard = ({ username }: DashboardProps) => {
     },
     {
       title: "Active Jobs",
-      value: "12",
+      value: isLoading ? "..." : activeJobs.toString(),
       trend: "+2",
       icon: <Briefcase />,
       trendType: "up" as const,
@@ -44,7 +59,7 @@ const Dashboard = ({ username }: DashboardProps) => {
     },
     {
       title: "Daily Tasks",
-      value: "8",
+      value: isLoading ? "..." : dailyTasks.toString(),
       trend: "+3",
       icon: <Calendar />,
       trendType: "up" as const,
@@ -52,7 +67,7 @@ const Dashboard = ({ username }: DashboardProps) => {
     },
     {
       title: "Business Contacts",
-      value: "24",
+      value: isLoading ? "..." : businessContacts.toString(),
       trend: "+4",
       icon: <Store />,
       trendType: "up" as const,
@@ -123,8 +138,35 @@ const Dashboard = ({ username }: DashboardProps) => {
         {/* Header */}
         <DashboardHeader username={username} />
 
+        {/* Error display if there's any API error */}
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Error loading dashboard data. Please try again later.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Stats Grid */}
-        <StatsCards stats={statsData} />
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            {[1, 2, 3, 4].map((item) => (
+              <Card key={item}>
+                <CardContent className="p-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <Skeleton className="h-6 w-16 rounded-full" />
+                  </div>
+                  <Skeleton className="h-8 w-16 mb-1" />
+                  <Skeleton className="h-5 w-24" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <StatsCards stats={statsData} />
+        )}
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
