@@ -33,20 +33,25 @@ api.interceptors.request.use(
         console.error("Error parsing JWT token:", e);
       }
     }
+    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// Add response interceptor to handle token expiration
+// Add response interceptor to handle token expiration and log detailed errors
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log(`API Response: ${response.status} ${response.config.url}`);
+    return response;
+  },
   (error) => {
     // Log detailed error information for debugging
     console.error('API Error:', error.message);
     
     if (error.response) {
       console.error(`Status: ${error.response.status}, URL: ${error.config?.url}`);
+      console.error('Response data:', error.response.data);
     }
     
     if (error.response && error.response.status === 401) {
@@ -69,7 +74,7 @@ api.interceptors.response.use(
   }
 );
 
-// Authentication services - No /api prefix needed as it's in the baseURL
+// Authentication services
 export const authService = {
   register: (userData: any) => api.post('/auth/register', userData),
   login: (credentials: any) => api.post('/auth/login', credentials),

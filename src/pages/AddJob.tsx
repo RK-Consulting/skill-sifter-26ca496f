@@ -107,20 +107,25 @@ const AddJob = () => {
         datePosted: new Date().toISOString()
       };
       
+      console.log("Calling API with job data:", jobData);
+      
       // Send to API
       const response = await jobService.createJob(jobData);
       
       console.log("API response:", response);
       
-      if (response.data.success) {
+      if (response.data?.success) {
         toast.success("Job posted successfully");
         navigate('/jobs');
       } else {
-        toast.error(response.data.message || "Failed to post job");
+        toast.error(response.data?.message || "Failed to post job");
       }
     } catch (error: any) {
       console.error('Error posting job:', error);
-      toast.error(error.response?.data?.message || "Failed to post job");
+      const errorMessage = error.response?.data?.message || 
+                          (error.response?.status === 405 ? "Method not allowed. Please check API configuration." : 
+                           "Failed to post job. Server error.");
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

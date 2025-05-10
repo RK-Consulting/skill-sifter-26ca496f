@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -93,18 +94,19 @@ const Jobs = () => {
     navigate(`/jobs/${id}`);
   };
   
-  // Fetch jobs using React Query
+  // Fetch jobs using React Query with proper error handling
   const { data: jobsData, isLoading, isError } = useQuery({
     queryKey: ['jobs'],
     queryFn: async () => {
       try {
+        console.log('Attempting to fetch jobs from API...');
         const response = await jobService.getAllJobs();
         console.log('Jobs API response:', response.data);
-        return response.data.data;
+        return response.data.data || [];
       } catch (error) {
         console.error('Error fetching jobs:', error);
-        toast.error('Failed to fetch jobs');
-        // Return mock data on error
+        // Show toast but still return mock data to avoid UI breaks
+        toast.error('Failed to fetch jobs. Using sample data instead.');
         return mockJobs;
       }
     }
@@ -161,46 +163,50 @@ const Jobs = () => {
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Title</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead>Location</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Date Posted</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredJobs.length > 0 ? (
-                    filteredJobs.map((job) => (
-                      <TableRow key={job.id}>
-                        <TableCell className="font-medium">{job.title}</TableCell>
-                        <TableCell>{job.department}</TableCell>
-                        <TableCell>{job.location}</TableCell>
-                        <TableCell>{job.status}</TableCell>
-                        <TableCell>{job.datePosted}</TableCell>
-                        <TableCell className="text-right">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => viewJobDetails(job.id)}
-                          >
-                            <ChevronRight size={16} />
-                          </Button>
+              {isLoading ? (
+                <div className="py-8 text-center text-ats-gray-500">Loading jobs...</div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Department</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Date Posted</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredJobs.length > 0 ? (
+                      filteredJobs.map((job: Job) => (
+                        <TableRow key={job.id}>
+                          <TableCell className="font-medium">{job.title}</TableCell>
+                          <TableCell>{job.department}</TableCell>
+                          <TableCell>{job.location}</TableCell>
+                          <TableCell>{job.status}</TableCell>
+                          <TableCell>{job.datePosted}</TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => viewJobDetails(job.id)}
+                            >
+                              <ChevronRight size={16} />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                          {searchTerm ? 'No jobs found matching your search.' : 'No jobs found.'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                        {searchTerm ? 'No jobs found matching your search.' : 'No jobs found.'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </Container>
