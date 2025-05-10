@@ -52,19 +52,19 @@ export const useDashboardStats = (): DashboardStats => {
     queryFn: businessDevService.getAllBusinessDevs,
   });
 
-  // Calculate total candidates
-  const totalCandidates = candidatesData?.data?.data?.length || 0;
+  // Calculate total candidates from API response
+  const totalCandidates = candidatesData?.data?.length || 0;
   
-  // Calculate active jobs (filter by status 'open')
-  const activeJobs = jobsData?.data?.data?.filter(
-    (job: any) => job.status === 'open'
+  // Calculate active jobs (filter by status 'open' or 'Active')
+  const activeJobs = jobsData?.data?.filter(
+    (job: any) => job.status === 'open' || job.status === 'Active'
   )?.length || 0;
   
-  // Daily tasks count
-  const dailyTasks = dailyJobsData?.data?.data?.length || 0;
+  // Daily tasks count from backend
+  const dailyTasks = dailyJobsData?.data?.length || 0;
   
-  // Business contacts count
-  const businessContacts = businessData?.data?.data?.length || 0;
+  // Business contacts count from backend
+  const businessContacts = businessData?.data?.length || 0;
 
   // Determine overall loading state
   const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading;

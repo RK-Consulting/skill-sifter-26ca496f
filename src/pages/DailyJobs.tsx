@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -18,7 +18,9 @@ interface DailyJob {
   jdNo: number;
   instructions: string;
   assignedUser: number;
-  assignedDate: string; // We'll format this from the timestamp
+  assignedDate: string;
+  lastModified?: string;
+  companyName?: string;
 }
 
 const formatDate = (dateString: string) => {
@@ -33,62 +35,18 @@ const formatDate = (dateString: string) => {
   return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) !== 1 ? 's' : ''} ago`;
 };
 
-// Mock data for fallback if API fails
-const mockDailyJobs: DailyJob[] = [
-  {
-    id: 1,
-    jdNo: 1001,
-    instructions: 'Source candidates for Senior Java Developer position',
-    assignedUser: 1,
-    assignedDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 2,
-    jdNo: 1002,
-    instructions: 'Review resumes for Frontend Developer candidates',
-    assignedUser: 2,
-    assignedDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 3,
-    jdNo: 1003,
-    instructions: 'Prepare interview questions for DevOps Engineer',
-    assignedUser: 1,
-    assignedDate: new Date().toISOString(),
-  },
-  {
-    id: 4,
-    jdNo: 1004,
-    instructions: 'Follow up with candidates from yesterday interviews',
-    assignedUser: 3,
-    assignedDate: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 5,
-    jdNo: 1005,
-    instructions: 'Update job descriptions for open positions',
-    assignedUser: 2,
-    assignedDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
-
 const DailyJobs = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Fetch daily jobs using React Query with fallback to mock data
-  const { data: dailyJobsData, isLoading, isError } = useQuery({
+  // Fetch daily jobs using React Query
+  const { data: dailyJobsData, isLoading, error } = useQuery({
     queryKey: ['dailyJobs'],
     queryFn: async () => {
-      try {
-        const response = await dailyJobService.getAllDailyJobs();
-        console.log('Daily jobs API response:', response.data);
-        return response.data.data;
-      } catch (error) {
-        console.error('Error fetching daily jobs:', error);
-        // Return mock data on error
-        return mockDailyJobs;
-      }
+      const response = await dailyJobService.getAllDailyJobs();
+      console.log('Daily jobs API response:', response);
+      // Make sure we're getting the expected data structure
+      return response.data.data || [];
     }
   });
 
@@ -98,7 +56,7 @@ const DailyJobs = () => {
     
     return dailyJobsData.filter((job: DailyJob) => 
       job.instructions.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.jdNo.toString().includes(searchTerm)
+      String(job.jdNo).includes(searchTerm)
     );
   }, [searchTerm, dailyJobsData]);
 
@@ -111,9 +69,7 @@ const DailyJobs = () => {
   };
 
   const viewJobDetails = (id: number) => {
-    // In a real application, this would navigate to a job details page
-    console.log(`View daily job ${id}`);
-    toast.info(`Viewing details for job #${id}`);
+    navigate(`/daily-jobs/${id}`);
   };
 
   // Handle loading and error states
@@ -131,6 +87,10 @@ const DailyJobs = () => {
         <Footer />
       </div>
     );
+  }
+
+  if (error) {
+    console.error("Error loading daily jobs:", error);
   }
 
   return (
@@ -173,44 +133,57 @@ const DailyJobs = () => {
                 </div>
               </div>
 
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>JD No</TableHead>
-                    <TableHead>Instructions</TableHead>
-                    <TableHead>Assigned User</TableHead>
-                    <TableHead>Assigned Date</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredJobs.length > 0 ? (
-                    filteredJobs.map((job: DailyJob) => (
-                      <TableRow key={job.id}>
-                        <TableCell className="font-medium">{job.jdNo}</TableCell>
-                        <TableCell>{job.instructions}</TableCell>
-                        <TableCell>User #{job.assignedUser}</TableCell>
-                        <TableCell>{formatDate(job.assignedDate)}</TableCell>
-                        <TableCell className="text-right">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => viewJobDetails(job.id)}
-                          >
-                            <ChevronRight size={16} />
-                          </Button>
+              {error ? (
+                <div className="text-center py-8">
+                  <p className="text-red-500">Failed to load daily jobs. Please try again.</p>
+                  <Button 
+                    variant="outline"
+                    className="mt-4"
+                    onClick={() => window.location.reload()}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>JD No</TableHead>
+                      <TableHead>Instructions</TableHead>
+                      <TableHead>Assigned User</TableHead>
+                      <TableHead>Assigned Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredJobs.length > 0 ? (
+                      filteredJobs.map((job: DailyJob) => (
+                        <TableRow key={job.id}>
+                          <TableCell className="font-medium">{job.jdNo}</TableCell>
+                          <TableCell>{job.instructions}</TableCell>
+                          <TableCell>User #{job.assignedUser}</TableCell>
+                          <TableCell>{formatDate(job.assignedDate)}</TableCell>
+                          <TableCell className="text-right">
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => viewJobDetails(job.id)}
+                            >
+                              <ChevronRight size={16} />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          {searchTerm ? 'No assignments found matching your search.' : 'No daily job assignments found.'}
                         </TableCell>
                       </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-8 text-gray-500">
-                        {searchTerm ? 'No assignments found matching your search.' : 'No assignments found.'}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
         </Container>

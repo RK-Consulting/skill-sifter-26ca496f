@@ -66,11 +66,13 @@ const formSchema = z.object({
   }),
 });
 
+type FormData = z.infer<typeof formSchema>;
+
 const AddJob = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -92,17 +94,23 @@ const AddJob = () => {
     },
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+  const onSubmit = async (values: FormData) => {
     setIsSubmitting(true);
+    console.log("Submitting job:", values);
     
     try {
-      // Send to API using JWT auth
-      const response = await jobService.createJob({
+      // Format job data for API
+      const jobData = {
         ...values,
-        // Format date for API
-        postedDate: new Date().toISOString(),
-        status: 'Active'
-      });
+        // Ensure we're using proper field names expected by the API
+        status: 'open',
+        datePosted: new Date().toISOString()
+      };
+      
+      // Send to API
+      const response = await jobService.createJob(jobData);
+      
+      console.log("API response:", response);
       
       if (response.data.success) {
         toast.success("Job posted successfully");
@@ -113,33 +121,6 @@ const AddJob = () => {
     } catch (error: any) {
       console.error('Error posting job:', error);
       toast.error(error.response?.data?.message || "Failed to post job");
-      
-      // Fallback to localStorage for demo purposes
-      try {
-        const existingJobs = JSON.parse(localStorage.getItem('jobs') || '[]');
-        
-        // Add new job with ID
-        const newJob = {
-          id: existingJobs.length + 1,
-          ...values,
-          applicants: 0,
-          postedDate: new Date().toLocaleDateString('en-US', { 
-            year: 'numeric', 
-            month: 'short', 
-            day: 'numeric' 
-          }),
-          status: 'Active'
-        };
-        
-        // Save updated jobs list
-        localStorage.setItem('jobs', JSON.stringify([...existingJobs, newJob]));
-        
-        toast.success("Job saved locally (API connection failed)");
-        navigate('/jobs');
-      } catch (localError) {
-        console.error('Error saving to localStorage:', localError);
-        toast.error("Failed to save job data");
-      }
     } finally {
       setIsSubmitting(false);
     }

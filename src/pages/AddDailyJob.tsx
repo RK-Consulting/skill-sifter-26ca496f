@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -39,15 +38,20 @@ const AddDailyJob = () => {
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
+    console.log("Submitting daily job:", data);
     
     try {
-      // Create daily job using API with JWT auth
-      const response = await dailyJobService.createDailyJob({
+      // Prepare data for API
+      const dailyJobData = {
         jdNo: data.jdNo,
         instructions: data.instructions,
         assignedUser: data.assignedUser,
         assignedDate: new Date().toISOString()
-      });
+      };
+      
+      // Send to API
+      const response = await dailyJobService.createDailyJob(dailyJobData);
+      console.log("API response:", response);
       
       if (response.data.success) {
         toast.success('Daily job assignment added successfully');
@@ -58,22 +62,6 @@ const AddDailyJob = () => {
     } catch (error: any) {
       console.error('Error saving daily job:', error);
       toast.error(error.response?.data?.message || 'Failed to add daily job assignment');
-      
-      // Log JWT payload for debugging if there's an authentication error
-      if (error.response?.status === 401 || error.response?.status === 403) {
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            const parts = token.split('.');
-            if (parts.length === 3) {
-              const payload = JSON.parse(atob(parts[1]));
-              console.log("[JWT PAYLOAD - DEBUG]", payload);
-            }
-          } catch (e) {
-            console.error("Error parsing JWT token:", e);
-          }
-        }
-      }
     } finally {
       setIsSubmitting(false);
     }
