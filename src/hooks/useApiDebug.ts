@@ -60,13 +60,23 @@ export const useApiDebug = () => {
       // Check for specific filter is not a function error
       if (args[0] && typeof args[0] === 'string' && args[0].includes('TypeError') && args[0].includes('filter is not a function')) {
         console.warn('DEBUG: Detected TypeError: filter is not a function. This usually means a component expected an array but received something else.');
+        console.warn('Data received:', args);
         console.trace('Stack trace for filter error:');
       }
       
       // Check for specific map is not a function error
       if (args[0] && typeof args[0] === 'string' && args[0].includes('TypeError') && args[0].includes('map is not a function')) {
         console.warn('DEBUG: Detected TypeError: map is not a function. This usually means a component expected an array but received something else.');
+        console.warn('Data received:', args);
         console.trace('Stack trace for map error:');
+      }
+      
+      // Check for TypeError explicitly
+      if (args[0] instanceof TypeError) {
+        if (args[0].message.includes('filter is not a function') || args[0].message.includes('map is not a function')) {
+          console.warn('DEBUG: Received non-array data where array was expected.');
+          console.trace('Stack trace for array error:');
+        }
       }
       
       originalErrorHandler.apply(console, args);

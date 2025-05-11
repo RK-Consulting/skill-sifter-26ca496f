@@ -51,7 +51,8 @@ const Login = () => {
     
     if (token && user) {
       // User is already logged in, redirect to home
-      navigate('/');
+      console.log('User already logged in, redirecting to dashboard');
+      navigate('/', { replace: true });
     } else {
       // Mark the component as initialized for rendering
       setIsInitialized(true);
@@ -85,21 +86,23 @@ const Login = () => {
         }));
         
         toast.success("Login successful");
-        navigate('/');
+        console.log('Login successful with dummy credentials, redirecting to dashboard');
+        navigate('/', { replace: true });
         return;
       }
       
       // Regular login via API
       const response = await authService.login(values);
 
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         localStorage.setItem('token', response.data.data.token || 'mock-jwt-token');
         localStorage.setItem('user', JSON.stringify({ 
-          username: response.data.data.username, 
-          email: response.data.data.email,
-          id: response.data.data.id,
+          username: response.data.data.username || 'User', 
+          email: response.data.data.email || values.email,
+          id: response.data.data.id || 1,
           isLoggedIn: true 
         }));
+        
         // --------- Log JWT payload for debugging ----------
         if (response.data.data.token) {
           const parts = response.data.data.token.split('.');
@@ -109,10 +112,12 @@ const Login = () => {
           }
         }
         // --------------------------------------------------
+        
         toast.success("Login successful");
-        navigate('/');
+        console.log('Login successful via API, redirecting to dashboard');
+        navigate('/', { replace: true });
       } else {
-        toast.error(response.data.message || "Login failed");
+        toast.error(response.data?.message || "Login failed");
       }
     } catch (error: any) {
       console.error("Login error:", error);

@@ -34,11 +34,10 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
       const isAuthed = !!(token && user);
       setIsAuthenticated(isAuthed);
       
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Authentication check:', isAuthed ? 'Authenticated' : 'Not authenticated');
-      }
+      console.log('Authentication check:', isAuthed ? 'Authenticated' : 'Not authenticated');
     };
     
+    // Check auth immediately
     checkAuth();
     
     // Listen for storage events (for when user logs in/out in another tab)
