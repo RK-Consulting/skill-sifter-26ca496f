@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -32,6 +33,10 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
       const user = localStorage.getItem('user');
       const isAuthed = !!(token && user);
       setIsAuthenticated(isAuthed);
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Authentication check:', isAuthed ? 'Authenticated' : 'Not authenticated');
+      }
     };
     
     checkAuth();
@@ -45,10 +50,12 @@ const ProtectedRoute = ({ children }: { children: JSX.Element }) => {
   
   // Show loading or nothing while checking authentication
   if (isAuthenticated === null) {
-    return null;
+    return <div className="flex justify-center items-center h-screen">
+      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-ats-blue-500"></div>
+    </div>;
   }
   
-  return isAuthenticated ? children : <Navigate to="/login" />;
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
 };
 
 // Create a QueryClient with retry settings

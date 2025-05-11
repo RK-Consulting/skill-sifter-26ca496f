@@ -1,7 +1,7 @@
 
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.VITE_API_URL || 'https://api.skillsifter.in';
 
 console.log('API URL configured as:', API_URL);
 
@@ -52,6 +52,14 @@ api.interceptors.response.use(
     if (error.response) {
       console.error(`Status: ${error.response.status}, URL: ${error.config?.url}`);
       console.error('Response data:', error.response.data);
+      
+      // Add specific error handling for 405 Method Not Allowed
+      if (error.response.status === 405) {
+        console.error(`Method not allowed: ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
+        console.error('API routes may be misconfigured. Check the backend routes configuration.');
+      }
+    } else if (error.request) {
+      console.error('No response received. Server may be down or unreachable.');
     }
     
     if (error.response && error.response.status === 401) {
@@ -68,6 +76,12 @@ api.interceptors.response.use(
     if (!error.response && error.code === 'ERR_NETWORK') {
       error.serverDown = true;
       console.error('Server connection failed. Is the backend running?');
+      
+      // For demo purposes, we can allow continuing with mock data
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('Using mock data due to server connection failure');
+        error.useMockData = true;
+      }
     }
     
     return Promise.reject(error);
@@ -164,7 +178,9 @@ const checkApiHealth = async () => {
   return false;
 };
 
-// Run health check on startup
-checkApiHealth();
+// Run health check on startup but don't block the main thread
+setTimeout(() => {
+  checkApiHealth().catch(err => console.error('Health check failed:', err));
+}, 1000);
 
 export default api;

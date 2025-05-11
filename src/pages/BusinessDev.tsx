@@ -68,25 +68,30 @@ const BusinessDev = () => {
   ];
 
   // Fetch business dev data using React Query
-  const { data: businessDevs, isLoading, isError } = useQuery({
+  const { data: businessDevs = [], isLoading, isError } = useQuery({
     queryKey: ['businessDevs'],
     queryFn: async () => {
       try {
         const response = await businessDevService.getAllBusinessDevs();
         console.log('BusinessDev API response:', response.data);
-        return response.data.data || [];
+        // Ensure we return an array
+        return Array.isArray(response?.data?.data) ? response.data.data : mockBusinessDevs;
       } catch (error) {
         console.error('Error fetching business dev contacts:', error);
         toast.error('Failed to load business contacts');
         // Return mock data on error
         return mockBusinessDevs;
       }
-    }
+    },
+    staleTime: 60000 // 1 minute
   });
 
-  // Filter business devs based on search term
+  // Filter business devs based on search term - ensure businessDevs is an array
   const filteredDevs = React.useMemo(() => {
-    if (!businessDevs) return [];
+    if (!Array.isArray(businessDevs)) {
+      console.warn('Expected businessDevs to be an array but got:', typeof businessDevs);
+      return [];
+    }
     
     if (searchTerm) {
       return businessDevs.filter((dev: BusinessDev) => 

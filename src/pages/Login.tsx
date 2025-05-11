@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,6 +42,22 @@ const DUMMY_USER = {
 const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    // Check if user is already logged in
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    
+    if (token && user) {
+      // User is already logged in, redirect to home
+      navigate('/');
+    } else {
+      // Mark the component as initialized for rendering
+      setIsInitialized(true);
+    }
+  }, [navigate]);
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,6 +70,8 @@ const Login = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      
+      console.log('Login submission:', { email: values.email, companyId: values.companyId });
       
       // Check if using dummy credentials
       if (values.email === DUMMY_USER.email && values.password === DUMMY_USER.password) {
@@ -102,6 +121,15 @@ const Login = () => {
       setIsLoading(false);
     }
   };
+
+  // Don't render anything until we've checked authentication status
+  if (!isInitialized) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-ats-blue-500"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">

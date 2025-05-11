@@ -37,6 +37,8 @@ export const useApiDebug = () => {
             break;
           case 405:
             console.warn('Method not allowed - Check if you\'re using the correct HTTP method (GET, POST, PUT, DELETE)');
+            // Log method and URL to help diagnose the issue
+            console.warn(`Attempted ${error.config?.method?.toUpperCase()} on ${error.config?.url}`);
             break;
           case 422:
             console.warn('Validation error - Check your request data');
@@ -51,10 +53,21 @@ export const useApiDebug = () => {
     // Add event listeners
     window.addEventListener('unhandledrejection', monitorErrors);
     window.addEventListener('error', monitorErrors);
+
+    // Monitor TypeError specifically for the filter is not a function error
+    const originalErrorHandler = console.error;
+    console.error = function(...args) {
+      // Check for specific filter not a function error
+      if (args[0] && typeof args[0] === 'string' && args[0].includes('TypeError') && args[0].includes('filter is not a function')) {
+        console.warn('DEBUG: Detected TypeError: filter is not a function. This usually means a component expected an array but received something else.');
+      }
+      originalErrorHandler.apply(console, args);
+    };
     
     return () => {
       window.removeEventListener('unhandledrejection', monitorErrors);
       window.removeEventListener('error', monitorErrors);
+      console.error = originalErrorHandler;
     };
   }, []);
 };
