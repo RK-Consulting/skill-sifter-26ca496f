@@ -65,25 +65,41 @@ export const useDashboardStats = (): DashboardStats => {
     queryFn: interviewService.getAllInterviews,
   });
 
-  // Calculate total candidates from API response
-  const totalCandidates = candidatesData?.data?.length || 0;
+  // Safely extract data with array check
+  const safeGetArray = (data: any): any[] => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (data.data && Array.isArray(data.data)) return data.data;
+    if (data.data && data.data.data && Array.isArray(data.data.data)) return data.data.data;
+    console.warn('Expected array data but received:', data);
+    return [];
+  };
+
+  // Extract data safely
+  const candidatesArray = safeGetArray(candidatesData);
+  const jobsArray = safeGetArray(jobsData);
+  const dailyJobsArray = safeGetArray(dailyJobsData);
+  const businessArray = safeGetArray(businessData);
+  const interviewsArray = safeGetArray(interviewsData);
+  
+  // Calculate totals using the safe arrays
+  const totalCandidates = candidatesArray.length;
   
   // Calculate active jobs (filter by status 'open' or 'Active')
-  const activeJobs = jobsData?.data?.filter(
+  const activeJobs = jobsArray.filter(
     (job: any) => job.status === 'open' || job.status === 'Active'
-  )?.length || 0;
+  ).length;
   
   // Daily tasks count from backend
-  const dailyTasks = dailyJobsData?.data?.length || 0;
+  const dailyTasks = dailyJobsArray.length;
   
   // Business contacts count from backend
-  const businessContacts = businessData?.data?.length || 0;
+  const businessContacts = businessArray.length;
 
   // Interview statistics
-  const interviews = interviewsData?.data || [];
-  const totalInterviews = interviews.length || 0;
-  const scheduledInterviews = interviews.filter((interview: any) => interview.status === 'Scheduled').length || 0;
-  const completedInterviews = interviews.filter((interview: any) => interview.status === 'Completed').length || 0;
+  const totalInterviews = interviewsArray.length;
+  const scheduledInterviews = interviewsArray.filter((interview: any) => interview.status === 'Scheduled').length;
+  const completedInterviews = interviewsArray.filter((interview: any) => interview.status === 'Completed').length;
 
   // Determine overall loading state
   const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading || interviewsLoading;

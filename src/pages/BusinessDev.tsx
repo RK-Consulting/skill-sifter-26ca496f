@@ -67,32 +67,43 @@ const BusinessDev = () => {
     },
   ];
 
+  // Safely extract data with array check
+  const safeGetData = (response: any): BusinessDev[] => {
+    if (!response) return mockBusinessDevs;
+    
+    // Check different response structures
+    if (Array.isArray(response)) return response;
+    if (response.data && Array.isArray(response.data)) return response.data;
+    if (response.data && response.data.data && Array.isArray(response.data.data)) return response.data.data;
+    
+    console.warn('Expected array data but received:', response);
+    return mockBusinessDevs;
+  };
+
   // Fetch business dev data using React Query
-  const { data: businessDevs = [], isLoading, isError } = useQuery({
+  const { data: rawBusinessDevs, isLoading, isError } = useQuery({
     queryKey: ['businessDevs'],
     queryFn: async () => {
       try {
         const response = await businessDevService.getAllBusinessDevs();
-        console.log('BusinessDev API response:', response.data);
-        // Ensure we return an array
-        return Array.isArray(response?.data?.data) ? response.data.data : mockBusinessDevs;
+        console.log('BusinessDev API response:', response);
+        return response;
       } catch (error) {
         console.error('Error fetching business dev contacts:', error);
         toast.error('Failed to load business contacts');
-        // Return mock data on error
-        return mockBusinessDevs;
+        throw error;
       }
     },
-    staleTime: 60000 // 1 minute
+    staleTime: 60000, // 1 minute
+    retry: 1,
+    retryDelay: 1000,
   });
+
+  // Extract safe data
+  const businessDevs = safeGetData(rawBusinessDevs);
 
   // Filter business devs based on search term - ensure businessDevs is an array
   const filteredDevs = React.useMemo(() => {
-    if (!Array.isArray(businessDevs)) {
-      console.warn('Expected businessDevs to be an array but got:', typeof businessDevs);
-      return [];
-    }
-    
     if (searchTerm) {
       return businessDevs.filter((dev: BusinessDev) => 
         dev.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||

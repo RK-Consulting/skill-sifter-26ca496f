@@ -136,11 +136,11 @@ export const dailyJobService = {
 
 // Business development services
 export const businessDevService = {
-  getAllBusinessDevs: () => api.get('/business-dev'),
-  getBusinessDevById: (id: number) => api.get(`/business-dev/${id}`),
-  createBusinessDev: (businessDevData: any) => api.post('/business-dev', businessDevData),
-  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/business-dev/${id}`, businessDevData),
-  deleteBusinessDev: (id: number) => api.delete(`/business-dev/${id}`),
+  getAllBusinessDevs: () => api.get('/api/business-dev'), // Updated to use /api prefix
+  getBusinessDevById: (id: number) => api.get(`/api/business-dev/${id}`),
+  createBusinessDev: (businessDevData: any) => api.post('/api/business-dev', businessDevData),
+  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/api/business-dev/${id}`, businessDevData),
+  deleteBusinessDev: (id: number) => api.delete(`/api/business-dev/${id}`),
 };
 
 // Interviews services
