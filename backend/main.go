@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -117,6 +118,10 @@ func setupProtectedRoutes(r *mux.Router) {
 
         setupResourceRoutes(apiRouter, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview,
                 handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+                
+        // Add business-dev routes with the /api prefix
+        setupResourceRoutes(apiRouter, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev,
+                handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 
         // Duplicate for root-level paths (no /api prefix)
         nonApi := r.NewRoute().Subrouter()
@@ -133,6 +138,10 @@ func setupProtectedRoutes(r *mux.Router) {
 
         setupResourceRoutes(nonApi, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview,
                 handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+                
+        // Add business-dev routes without the /api prefix
+        setupResourceRoutes(nonApi, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev,
+                handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 }
 
 // ----------- Resource Router Helper -----------

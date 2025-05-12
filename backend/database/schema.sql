@@ -86,6 +86,19 @@ CREATE TABLE IF NOT EXISTS interviews (
     company_name VARCHAR(255) NOT NULL
 );
 
+-- Create business_dev table
+CREATE TABLE IF NOT EXISTS business_dev (
+    id SERIAL PRIMARY KEY,
+    client_name VARCHAR(255) NOT NULL,
+    partner_name VARCHAR(255),
+    contact_person VARCHAR(255) NOT NULL,
+    contact_number VARCHAR(50),
+    contact_email VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT NOW(),
+    last_modified TIMESTAMP DEFAULT NOW(),
+    company_name VARCHAR(255) NOT NULL
+);
+
 -- Drop unused index
 DROP INDEX IF EXISTS idx_users_role;
 -- Create indexes for performance
@@ -95,3 +108,4 @@ CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_name);
 CREATE INDEX IF NOT EXISTS idx_interviews_company ON interviews(company_name);
 CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_name);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_business_dev_company ON business_dev(company_name);

@@ -58,6 +58,19 @@ type Interview struct {
 	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
 }
 
+// BusinessDev model
+type BusinessDev struct {
+	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
+	ClientName    string    `json:"clientName" db:"client_name,notnull"`
+	PartnerName   string    `json:"partnerName" db:"partner_name"`
+	ContactPerson string    `json:"contactPerson" db:"contact_person,notnull"`
+	ContactNumber string    `json:"contactNumber" db:"contact_number"`
+	ContactEmail  string    `json:"contactEmail" db:"contact_email,notnull"`
+	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
+}
+
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`

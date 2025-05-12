@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import axios from 'axios';
+import { businessDevService } from '@/services/api';
 
 const formSchema = z.object({
   clientName: z.string().min(2, 'Client name is required'),
@@ -24,8 +24,6 @@ const formSchema = z.object({
 });
 
 type FormData = z.infer<typeof formSchema>;
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const AddBusinessDev = () => {
   const navigate = useNavigate();
@@ -55,19 +53,14 @@ const AddBusinessDev = () => {
         return;
       }
       
-      // Send data to API using JWT auth
-      const response = await axios.post(`${API_URL}/business-dev`, data, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
+      // Send data to API using our business service
+      const response = await businessDevService.createBusinessDev(data);
       
-      if (response.data.success) {
+      if (response.data && response.data.success) {
         toast.success('Business contact added successfully');
         navigate('/business-dev');
       } else {
-        toast.error(response.data.message || 'Failed to add business contact');
+        toast.error(response.data?.message || 'Failed to add business contact');
       }
     } catch (error: any) {
       console.error('Error saving business contact:', error);

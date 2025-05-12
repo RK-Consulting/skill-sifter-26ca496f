@@ -134,9 +134,9 @@ export const dailyJobService = {
   deleteDailyJob: (id: number) => api.delete(`/daily-jobs/${id}`),
 };
 
-// Business development services
+// Business development services - ensure consistency by using /api/business-dev
 export const businessDevService = {
-  getAllBusinessDevs: () => api.get('/api/business-dev'), // Updated to use /api prefix
+  getAllBusinessDevs: () => api.get('/api/business-dev'),
   getBusinessDevById: (id: number) => api.get(`/api/business-dev/${id}`),
   createBusinessDev: (businessDevData: any) => api.post('/api/business-dev', businessDevData),
   updateBusinessDev: (id: number, businessDevData: any) => api.put(`/api/business-dev/${id}`, businessDevData),
