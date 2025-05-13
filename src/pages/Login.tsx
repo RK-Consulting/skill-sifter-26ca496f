@@ -74,9 +74,13 @@ const Login = () => {
       
       console.log('Login submission:', { email: values.email, companyId: values.companyId });
       
+      // Extract username from email (everything before @)
+      const username = values.email.split('@')[0];
+      const formattedUsername = username.charAt(0).toUpperCase() + username.slice(1);
+
       // Check if using dummy credentials
       if (values.email === DUMMY_USER.email && values.password === DUMMY_USER.password) {
-        // Store dummy user data
+        // Store dummy user data with proper username
         localStorage.setItem('token', 'dummy-token-123456');
         localStorage.setItem('user', JSON.stringify({ 
           username: 'Admin User', 
@@ -95,9 +99,12 @@ const Login = () => {
       const response = await authService.login(values);
 
       if (response.data && response.data.success) {
+        // Use username from response if available, otherwise format from email
+        const displayUsername = response.data.data.username || formattedUsername;
+        
         localStorage.setItem('token', response.data.data.token || 'mock-jwt-token');
         localStorage.setItem('user', JSON.stringify({ 
-          username: response.data.data.username || 'User', 
+          username: displayUsername, 
           email: response.data.data.email || values.email,
           id: response.data.data.id || 1,
           isLoggedIn: true 

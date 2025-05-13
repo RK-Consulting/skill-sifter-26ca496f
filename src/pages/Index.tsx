@@ -16,6 +16,7 @@ const Index = () => {
         const userData = JSON.parse(userStr);
         if (userData && userData.username) {
           setUsername(userData.username);
+          console.log('Username set to:', userData.username);
         }
       } catch (error) {
         console.error('Error parsing user data:', error);
