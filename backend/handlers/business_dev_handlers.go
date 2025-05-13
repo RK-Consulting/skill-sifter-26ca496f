@@ -21,23 +21,45 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Query database
-	rows, err := db.DB.Query("SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE company_name = $1 ORDER BY created_at DESC", companyName)
+	// Query database with error handling
+	query := "SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE company_name = $1 ORDER BY created_at DESC"
+	
+	// Log the query for debugging
+	// fmt.Printf("Executing query: %s with company name: %s\n", query, companyName)
+	
+	rows, err := db.DB.Query(query, companyName)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error fetching business development records")
+		// Log the specific error
+		// fmt.Printf("Database error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Error querying business development records")
 		return
 	}
 	defer rows.Close()
 
+	// Handle case with no rows
 	var businessDevs []models.BusinessDev
 	for rows.Next() {
 		var b models.BusinessDev
 		if err := rows.Scan(&b.ID, &b.ClientName, &b.PartnerName, &b.ContactPerson, &b.ContactNumber, &b.ContactEmail, &b.CreatedAt, &b.LastModified); err != nil {
+			// Log the specific scan error
+			// fmt.Printf("Row scan error: %v\n", err)
 			respondWithError(w, http.StatusInternalServerError, "Error scanning business dev record")
 			return
 		}
 		b.CompanyName = companyName
 		businessDevs = append(businessDevs, b)
+	}
+
+	// Check for any errors during iteration
+	if err = rows.Err(); err != nil {
+		// fmt.Printf("Rows iteration error: %v\n", err)
+		respondWithError(w, http.StatusInternalServerError, "Error iterating business dev records")
+		return
+	}
+
+	// Empty array is valid (no records found)
+	if businessDevs == nil {
+		businessDevs = []models.BusinessDev{}
 	}
 
 	// Return response

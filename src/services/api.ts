@@ -134,13 +134,13 @@ export const dailyJobService = {
   deleteDailyJob: (id: number) => api.delete(`/daily-jobs/${id}`),
 };
 
-// Business development services - ensure consistency by using /api/business-dev
+// Business development services
 export const businessDevService = {
-  getAllBusinessDevs: () => api.get('/api/business-dev'),
-  getBusinessDevById: (id: number) => api.get(`/api/business-dev/${id}`),
-  createBusinessDev: (businessDevData: any) => api.post('/api/business-dev', businessDevData),
-  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/api/business-dev/${id}`, businessDevData),
-  deleteBusinessDev: (id: number) => api.delete(`/api/business-dev/${id}`),
+  getAllBusinessDevs: () => api.get('/business-dev'), // Changed from '/api/business-dev' to '/business-dev'
+  getBusinessDevById: (id: number) => api.get(`/business-dev/${id}`),
+  createBusinessDev: (businessDevData: any) => api.post('/business-dev', businessDevData),
+  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/business-dev/${id}`, businessDevData),
+  deleteBusinessDev: (id: number) => api.delete(`/business-dev/${id}`),
 };
 
 // Interviews services
