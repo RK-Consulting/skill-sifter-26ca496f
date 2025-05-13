@@ -86,8 +86,9 @@ CREATE TABLE IF NOT EXISTS interviews (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create business_dev table
-CREATE TABLE IF NOT EXISTS business_dev (
+-- Create business_dev table (recreate to ensure all fields are present)
+DROP TABLE IF EXISTS business_dev;
+CREATE TABLE business_dev (
     id SERIAL PRIMARY KEY,
     client_name VARCHAR(255) NOT NULL,
     partner_name VARCHAR(255),

@@ -3,6 +3,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -24,13 +25,33 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 	// Query database with error handling
 	query := "SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE company_name = $1 ORDER BY created_at DESC"
 	
-	// Log the query for debugging
-	// fmt.Printf("Executing query: %s with company name: %s\n", query, companyName)
+	// Debug logging
+	fmt.Printf("Executing business_dev query: %s with company name: %s\n", query, companyName)
+	
+	// Check if table exists
+	var tableExists bool
+	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	if tableCheckErr != nil {
+		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
+		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
+		return
+	}
+
+	if !tableExists {
+		fmt.Println("business_dev table does not exist!")
+		// Return empty array instead of error
+		respondWithJSON(w, http.StatusOK, models.ApiResponse{
+			Success: true,
+			Message: "Business development records fetched (table doesn't exist yet)",
+			Data:    []models.BusinessDev{},
+		})
+		return
+	}
 	
 	rows, err := db.DB.Query(query, companyName)
 	if err != nil {
 		// Log the specific error
-		// fmt.Printf("Database error: %v\n", err)
+		fmt.Printf("Database error in GetBusinessDevs: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error querying business development records")
 		return
 	}
@@ -42,7 +63,7 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 		var b models.BusinessDev
 		if err := rows.Scan(&b.ID, &b.ClientName, &b.PartnerName, &b.ContactPerson, &b.ContactNumber, &b.ContactEmail, &b.CreatedAt, &b.LastModified); err != nil {
 			// Log the specific scan error
-			// fmt.Printf("Row scan error: %v\n", err)
+			fmt.Printf("Row scan error in GetBusinessDevs: %v\n", err)
 			respondWithError(w, http.StatusInternalServerError, "Error scanning business dev record")
 			return
 		}
@@ -52,7 +73,7 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 
 	// Check for any errors during iteration
 	if err = rows.Err(); err != nil {
-		// fmt.Printf("Rows iteration error: %v\n", err)
+		fmt.Printf("Rows iteration error in GetBusinessDevs: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error iterating business dev records")
 		return
 	}
@@ -61,6 +82,8 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 	if businessDevs == nil {
 		businessDevs = []models.BusinessDev{}
 	}
+
+	fmt.Printf("Returning %d business dev records\n", len(businessDevs))
 
 	// Return response
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
@@ -87,11 +110,26 @@ func GetBusinessDevByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if table exists
+	var tableExists bool
+	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	if tableCheckErr != nil {
+		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
+		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
+		return
+	}
+
+	if !tableExists {
+		respondWithError(w, http.StatusNotFound, "Business dev record not found (table doesn't exist)")
+		return
+	}
+
 	// Query database
 	var b models.BusinessDev
 	err = db.DB.QueryRow("SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE id = $1 AND company_name = $2", id, companyName).
 		Scan(&b.ID, &b.ClientName, &b.PartnerName, &b.ContactPerson, &b.ContactNumber, &b.ContactEmail, &b.CreatedAt, &b.LastModified)
 	if err != nil {
+		fmt.Printf("Error fetching business dev record by ID: %v\n", err)
 		respondWithError(w, http.StatusNotFound, "Business dev record not found")
 		return
 	}
@@ -124,6 +162,44 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	// Check if table exists
+	var tableExists bool
+	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	if tableCheckErr != nil {
+		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
+		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
+		return
+	}
+
+	if !tableExists {
+		// Create table if it doesn't exist
+		_, err := db.DB.Exec(`
+			CREATE TABLE IF NOT EXISTS business_dev (
+				id SERIAL PRIMARY KEY,
+				client_name VARCHAR(255) NOT NULL,
+				partner_name VARCHAR(255),
+				contact_person VARCHAR(255) NOT NULL,
+				contact_number VARCHAR(50),
+				contact_email VARCHAR(255) NOT NULL,
+				created_at TIMESTAMP DEFAULT NOW(),
+				last_modified TIMESTAMP DEFAULT NOW(),
+				company_name VARCHAR(255) NOT NULL
+			)
+		`)
+		if err != nil {
+			fmt.Printf("Error creating business_dev table: %v\n", err)
+			respondWithError(w, http.StatusInternalServerError, "Error creating business_dev table")
+			return
+		}
+		
+		// Create index
+		_, err = db.DB.Exec("CREATE INDEX IF NOT EXISTS idx_business_dev_company ON business_dev(company_name)")
+		if err != nil {
+			fmt.Printf("Error creating business_dev index: %v\n", err)
+			// Continue anyway, index is not critical
+		}
+	}
+
 	// Set company name from context
 	b.CompanyName = companyName
 	b.CreatedAt = time.Now()
@@ -136,6 +212,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 		b.ClientName, b.PartnerName, b.ContactPerson, b.ContactNumber, b.ContactEmail, b.CompanyName, b.CreatedAt, b.LastModified,
 	).Scan(&id)
 	if err != nil {
+		fmt.Printf("Error creating business dev record: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error creating business dev record")
 		return
 	}
@@ -167,6 +244,20 @@ func UpdateBusinessDev(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if table exists
+	var tableExists bool
+	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	if tableCheckErr != nil {
+		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
+		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
+		return
+	}
+
+	if !tableExists {
+		respondWithError(w, http.StatusNotFound, "Business dev record not found (table doesn't exist)")
+		return
+	}
+
 	// Decode request body
 	var b models.BusinessDev
 	decoder := json.NewDecoder(r.Body)
@@ -187,6 +278,7 @@ func UpdateBusinessDev(w http.ResponseWriter, r *http.Request) {
 		b.ClientName, b.PartnerName, b.ContactPerson, b.ContactNumber, b.ContactEmail, b.LastModified, b.ID, b.CompanyName,
 	)
 	if err != nil {
+		fmt.Printf("Error updating business dev record: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error updating business dev record")
 		return
 	}
@@ -227,9 +319,24 @@ func DeleteBusinessDev(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if table exists
+	var tableExists bool
+	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	if tableCheckErr != nil {
+		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
+		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
+		return
+	}
+
+	if !tableExists {
+		respondWithError(w, http.StatusNotFound, "Business dev record not found (table doesn't exist)")
+		return
+	}
+
 	// Delete from database
 	result, err := db.DB.Exec("DELETE FROM business_dev WHERE id = $1 AND company_name = $2", id, companyName)
 	if err != nil {
+		fmt.Printf("Error deleting business dev record: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error deleting business dev record")
 		return
 	}
