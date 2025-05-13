@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -99,12 +100,30 @@ const AddJob = () => {
     console.log("Submitting job:", values);
     
     try {
-      // Format job data for API
+      // Format job data according to what the API expects based on the Job model
+      // The backend expects: title, department, location, status, description, requirements
       const jobData = {
-        ...values,
-        // Ensure we're using proper field names expected by the API
+        title: values.title,
+        department: values.department,
+        location: values.location,
         status: 'open',
-        datePosted: new Date().toISOString()
+        description: `
+Position: ${values.position}
+JD Number: ${values.jdNo}
+Client: ${values.clientName}
+Experience Required: ${values.experience}
+Salary Range: ${values.salary}
+${values.budget ? `Budget: ${values.budget}` : ''}
+${values.language ? `Language Requirements: ${values.language}` : ''}
+${values.certification ? `Certifications: ${values.certification}` : ''}
+${values.noticePeriod ? `Notice Period: ${values.noticePeriod}` : ''}
+${values.isRemote ? 'This is a remote position.' : ''}
+Job Type: ${values.type}
+
+Job Description:
+${values.description}
+`,
+        requirements: values.requirements,
       };
       
       console.log("Calling API with job data:", jobData);
