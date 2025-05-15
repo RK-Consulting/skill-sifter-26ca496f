@@ -23,7 +23,7 @@ api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      setAuthToken(token);
+      config.headers.Authorization = `Bearer ${token}`;
     }
     
     // Ensure all requests include /api/ prefix
@@ -54,7 +54,7 @@ api.interceptors.response.use(
       if (error.response.status === 401) {
         console.log('Unauthorized access, redirecting to login');
         // Only redirect to login page for persistent unauthorized errors
-        // Commented out to prevent immediate redirects during testing
+        // We'll just log it but not immediately redirect to prevent disrupting user experience
         // localStorage.removeItem('token');
         // localStorage.removeItem('user');
         // window.location.href = '/login';
@@ -176,9 +176,14 @@ export const interviewService = {
 };
 
 export const businessDevService = {
-  // Get all business developments
+  // Get all business developments - fixing the API endpoint
   getAllBusinessDevs: async () => {
-    return api.get('/business-dev');
+    try {
+      return await api.get('/business-dev/list');
+    } catch (error) {
+      console.error('Error fetching business dev contacts:', error);
+      throw error;
+    }
   },
 
   // Get a business development by ID
@@ -257,9 +262,14 @@ export const roleService = {
 };
 
 export const userService = {
-  // Get all users for a company
+  // Get all users for a company - fixing the API endpoint
   getAllUsers: async () => {
-    return api.get('/company-users');
+    try {
+      return await api.get('/company-users/list');
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw error;
+    }
   },
 };
 

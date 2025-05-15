@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -28,6 +28,18 @@ interface Job {
 const Jobs = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(true);
+  
+  // Check authentication status
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsAuthenticated(false);
+      navigate('/login', { replace: true });
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [navigate]);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value);
@@ -52,10 +64,16 @@ const Jobs = () => {
         return response.data.data || [];
       } catch (error) {
         console.error('Error fetching jobs:', error);
-        toast.error('Failed to fetch jobs. Please try again later.');
+        
+        // Show toast only if we're still authenticated
+        if (isAuthenticated) {
+          toast.error('Failed to fetch jobs. Please try again later.');
+        }
         return [];
       }
-    }
+    },
+    // Only enable the query if we're authenticated
+    enabled: isAuthenticated
   });
 
   // Filter jobs based on search term
@@ -68,6 +86,11 @@ const Jobs = () => {
       job.location.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, jobsData]);
+
+  // If we're not authenticated, don't render anything
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
