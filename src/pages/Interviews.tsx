@@ -23,50 +23,6 @@ interface Interview {
   feedback: string;
 }
 
-// Mock data for fallback if API fails
-const mockInterviews: Interview[] = [
-  {
-    id: 1,
-    candidateName: 'John Smith',
-    position: 'Senior Java Developer',
-    interviewDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Scheduled',
-    feedback: 'Pending'
-  },
-  {
-    id: 2,
-    candidateName: 'Jane Doe',
-    position: 'Frontend Developer',
-    interviewDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Completed',
-    feedback: 'Selected'
-  },
-  {
-    id: 3,
-    candidateName: 'Michael Johnson',
-    position: 'DevOps Engineer',
-    interviewDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Completed',
-    feedback: 'Rejected'
-  },
-  {
-    id: 4,
-    candidateName: 'Emily Williams',
-    position: 'UX Designer',
-    interviewDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    status: 'Scheduled',
-    feedback: 'Pending'
-  },
-  {
-    id: 5,
-    candidateName: 'Robert Brown',
-    position: 'Product Manager',
-    interviewDate: new Date().toISOString(),
-    status: 'Scheduled',
-    feedback: 'Pending'
-  }
-];
-
 const Interviews = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -82,8 +38,7 @@ const Interviews = () => {
       } catch (error) {
         console.error('Error fetching interviews:', error);
         toast.error('Failed to load interviews');
-        // Return mock data on error
-        return mockInterviews;
+        return [];
       }
     }
   });
@@ -118,7 +73,7 @@ const Interviews = () => {
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
         <main className="pt-24 pb-10 flex-grow">
-          <Container>
+          <Container className="px-4 md:px-6 mx-auto max-w-7xl">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold tracking-tight mb-3">Interviews</h1>
               <p className="text-ats-gray-500">Manage and track all candidate interviews.</p>
@@ -150,7 +105,7 @@ const Interviews = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="pt-24 pb-10 flex-grow">
-        <Container>
+        <Container className="px-4 md:px-6 mx-auto max-w-7xl">
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Interviews</h1>
             <p className="text-ats-gray-500">Manage and track all candidate interviews.</p>
@@ -189,7 +144,7 @@ const Interviews = () => {
               {isError && (
                 <div className="px-4 py-3 mb-4 bg-red-50 border border-red-200 rounded-md">
                   <p className="text-red-600 text-sm">
-                    Error loading data from server. Showing fallback data.
+                    Error loading data from server. Please try refreshing the page.
                   </p>
                 </div>
               )}
@@ -209,12 +164,12 @@ const Interviews = () => {
                   {filteredInterviews.length > 0 ? (
                     filteredInterviews.map((interview: Interview) => {
                       // Format the date string
-                      const formattedDate = new Date(interview.interviewDate).toLocaleString();
+                      const formattedDate = interview.interviewDate ? new Date(interview.interviewDate).toLocaleString() : 'Not set';
                       
                       return (
                         <TableRow key={interview.id} className="hover:bg-ats-gray-50 transition-colors cursor-pointer" onClick={() => viewInterviewDetails(interview.id)}>
-                          <TableCell className="font-medium">{interview.candidateName}</TableCell>
-                          <TableCell>{interview.position}</TableCell>
+                          <TableCell className="font-medium">{interview.candidateName || 'Not specified'}</TableCell>
+                          <TableCell>{interview.position || 'Not specified'}</TableCell>
                           <TableCell>
                             <div className="flex items-center">
                               <Calendar className="w-4 h-4 mr-2 text-ats-gray-400" />
@@ -227,7 +182,7 @@ const Interviews = () => {
                               ${interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' : ''}
                               ${interview.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
                             `}>
-                              {interview.status}
+                              {interview.status || 'Unspecified'}
                             </span>
                           </TableCell>
                           <TableCell>
@@ -236,7 +191,7 @@ const Interviews = () => {
                               ${interview.feedback === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
                               ${interview.feedback === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
                             `}>
-                              {interview.feedback}
+                              {interview.feedback || 'No feedback'}
                             </span>
                           </TableCell>
                           <TableCell className="text-right">

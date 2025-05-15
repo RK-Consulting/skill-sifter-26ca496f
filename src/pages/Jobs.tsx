@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { toast } from "sonner";
 import { jobService } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Job {
   id: number;
@@ -23,60 +24,6 @@ interface Job {
   description: string;
   requirements: string;
 }
-
-// Mock data for fallback if API fails
-const mockJobs: Job[] = [
-  {
-    id: 1,
-    title: 'Senior Java Developer',
-    department: 'Engineering',
-    location: 'New York',
-    status: 'open',
-    datePosted: '2023-01-01',
-    description: 'Experienced Java developer needed for backend development.',
-    requirements: '5+ years of Java experience'
-  },
-  {
-    id: 2,
-    title: 'Frontend Developer',
-    department: 'Engineering',
-    location: 'San Francisco',
-    status: 'active',
-    datePosted: '2023-02-15',
-    description: 'Passionate frontend developer to build user interfaces.',
-    requirements: '3+ years of React experience'
-  },
-  {
-    id: 3,
-    title: 'Data Scientist',
-    department: 'Data Science',
-    location: 'Chicago',
-    status: 'closed',
-    datePosted: '2023-03-10',
-    description: 'Data scientist to analyze and interpret complex data.',
-    requirements: 'Master\'s in Statistics or related field'
-  },
-  {
-    id: 4,
-    title: 'UX Designer',
-    department: 'Design',
-    location: 'Los Angeles',
-    status: 'open',
-    datePosted: '2023-04-01',
-    description: 'Creative UX designer to enhance user experience.',
-    requirements: '3+ years of UX design experience'
-  },
-  {
-    id: 5,
-    title: 'Product Manager',
-    department: 'Product',
-    location: 'Seattle',
-    status: 'active',
-    datePosted: '2023-05-01',
-    description: 'Experienced product manager to lead product development.',
-    requirements: '5+ years of product management experience'
-  }
-];
 
 const Jobs = () => {
   const navigate = useNavigate();
@@ -105,9 +52,8 @@ const Jobs = () => {
         return response.data.data || [];
       } catch (error) {
         console.error('Error fetching jobs:', error);
-        // Show toast but still return mock data to avoid UI breaks
-        toast.error('Failed to fetch jobs. Using sample data instead.');
-        return mockJobs;
+        toast.error('Failed to fetch jobs. Please try again later.');
+        return [];
       }
     }
   });
@@ -127,7 +73,7 @@ const Jobs = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <Navbar />
       <main className="pt-24 pb-10 flex-grow">
-        <Container>
+        <Container className="px-4 md:px-6 mx-auto max-w-7xl">
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Jobs</h1>
             <p className="text-ats-gray-500">Manage job postings and track applications.</p>
@@ -164,7 +110,11 @@ const Jobs = () => {
               </div>
 
               {isLoading ? (
-                <div className="py-8 text-center text-ats-gray-500">Loading jobs...</div>
+                <div className="space-y-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
               ) : (
                 <Table>
                   <TableHeader>
@@ -178,7 +128,13 @@ const Jobs = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredJobs.length > 0 ? (
+                    {isError ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8 text-red-600">
+                          Error loading jobs. Please try refreshing the page.
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredJobs.length > 0 ? (
                       filteredJobs.map((job: Job) => (
                         <TableRow key={job.id}>
                           <TableCell className="font-medium">{job.title}</TableCell>

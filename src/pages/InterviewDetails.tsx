@@ -1,6 +1,7 @@
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
@@ -8,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import { Calendar, Clock, User, Briefcase, MessageSquare, ArrowLeft, CheckCircle, XCircle } from 'lucide-react';
 import Button from '@/components/ui-custom/Button';
 import { toast } from "sonner";
+import { interviewService } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface Interview {
   id: number;
@@ -24,25 +27,42 @@ const InterviewDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Sample data - in a real app, this would be fetched from a database
-  const interview: Interview = {
-    id: Number(id),
-    candidateName: 'Sarah Wilson',
-    position: 'Senior UI Designer',
-    interviewDate: '2023-05-15 10:00 AM',
-    status: 'Completed',
-    feedback: 'Selected',
-    notes: 'Sarah demonstrated excellent UI design skills and a solid understanding of user experience principles. Her portfolio showcased a range of impressive projects, and she communicated her design decisions clearly.',
-    interviewer: 'Alex Johnson'
-  };
+  // Fetch interview data with React Query
+  const { data: interview, isLoading, isError, error } = useQuery({
+    queryKey: ['interview', id],
+    queryFn: async () => {
+      try {
+        const response = await interviewService.getInterviewById(Number(id));
+        console.log('Interview details response:', response.data);
+        return response.data.data;
+      } catch (error) {
+        console.error('Error fetching interview details:', error);
+        toast.error('Failed to load interview details');
+        throw error;
+      }
+    }
+  });
 
   const goBack = () => {
     navigate('/interviews');
   };
 
-  const updateStatus = (status: string) => {
-    // In a real app, this would update the database
-    toast.success(`Interview status updated to ${status}`);
+  const updateStatus = async (status: string) => {
+    if (!interview) return;
+    
+    try {
+      const updatedInterview = { ...interview, status };
+      const response = await interviewService.updateInterview(Number(id), updatedInterview);
+      
+      if (response.data.success) {
+        toast.success(`Interview status updated to ${status}`);
+      } else {
+        toast.error('Failed to update interview status');
+      }
+    } catch (error) {
+      console.error('Error updating interview:', error);
+      toast.error('Error updating interview status');
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -62,6 +82,74 @@ const InterviewDetails = () => {
       default: return 'bg-gray-100 text-gray-800';
     }
   };
+
+  // Format date if it exists
+  const formatDate = (dateString: string) => {
+    if (!dateString) return { date: 'N/A', time: 'N/A' };
+    
+    try {
+      const date = new Date(dateString);
+      return { 
+        date: date.toLocaleDateString(), 
+        time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+    } catch (e) {
+      return { date: dateString, time: '' };
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="pt-24 pb-10 flex-grow">
+          <Container>
+            <div className="mb-6 flex items-center">
+              <Skeleton className="h-10 w-40 mr-4" />
+              <Skeleton className="h-10 w-60" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+              <Skeleton className="h-80 col-span-1 md:col-span-2" />
+              <Skeleton className="h-60" />
+            </div>
+          </Container>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  if (isError || !interview) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <Navbar />
+        <main className="pt-24 pb-10 flex-grow">
+          <Container>
+            <div className="mb-6 flex items-center">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="mr-4"
+                onClick={goBack}
+                icon={<ArrowLeft size={16} />}
+              >
+                Back to Interviews
+              </Button>
+              <h1 className="text-3xl font-semibold tracking-tight">Interview Details</h1>
+            </div>
+            <Card className="mb-8 p-8 text-center">
+              <h2 className="text-xl text-red-600 mb-2">Error loading interview details</h2>
+              <p className="text-gray-600 mb-4">There was a problem loading the details for this interview.</p>
+              <Button variant="primary" onClick={goBack}>Return to Interviews</Button>
+            </Card>
+          </Container>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
+
+  const { date: formattedDate, time: formattedTime } = formatDate(interview.interviewDate);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -99,7 +187,7 @@ const InterviewDetails = () => {
                         <User className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
                           <h3 className="text-sm font-medium text-ats-gray-500">Candidate</h3>
-                          <p className="text-lg font-medium">{interview.candidateName}</p>
+                          <p className="text-lg font-medium">{interview.candidateName || 'Not specified'}</p>
                         </div>
                       </div>
                       
@@ -107,7 +195,7 @@ const InterviewDetails = () => {
                         <Briefcase className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
                           <h3 className="text-sm font-medium text-ats-gray-500">Position</h3>
-                          <p className="text-lg font-medium">{interview.position}</p>
+                          <p className="text-lg font-medium">{interview.position || 'Not specified'}</p>
                         </div>
                       </div>
                       
@@ -125,7 +213,7 @@ const InterviewDetails = () => {
                         <Calendar className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
                           <h3 className="text-sm font-medium text-ats-gray-500">Date</h3>
-                          <p className="text-lg font-medium">{interview.interviewDate.split(' ')[0]}</p>
+                          <p className="text-lg font-medium">{formattedDate}</p>
                         </div>
                       </div>
                       
@@ -133,7 +221,7 @@ const InterviewDetails = () => {
                         <Clock className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
                           <h3 className="text-sm font-medium text-ats-gray-500">Time</h3>
-                          <p className="text-lg font-medium">{interview.interviewDate.split(' ')[1]} {interview.interviewDate.split(' ')[2]}</p>
+                          <p className="text-lg font-medium">{formattedTime}</p>
                         </div>
                       </div>
                       
@@ -142,7 +230,7 @@ const InterviewDetails = () => {
                         <div>
                           <h3 className="text-sm font-medium text-ats-gray-500">Feedback</h3>
                           <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getFeedbackColor(interview.feedback)}`}>
-                            {interview.feedback}
+                            {interview.feedback || 'No feedback'}
                           </p>
                         </div>
                       </div>

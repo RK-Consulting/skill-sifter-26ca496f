@@ -72,6 +72,7 @@ type FormData = z.infer<typeof formSchema>;
 const AddJob = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -97,16 +98,17 @@ const AddJob = () => {
 
   const onSubmit = async (values: FormData) => {
     setIsSubmitting(true);
+    setFormError(null);
+    
     console.log("Submitting job:", values);
     
     try {
-      // Format job data according to what the API expects based on the Job model
-      // The backend expects: title, department, location, status, description, requirements
+      // Format job data according to what the backend expects
       const jobData = {
         title: values.title,
         department: values.department,
         location: values.location,
-        status: 'open',
+        status: 'open', // Default status
         description: `
 Position: ${values.position}
 JD Number: ${values.jdNo}
@@ -137,13 +139,16 @@ ${values.description}
         toast.success("Job posted successfully");
         navigate('/jobs');
       } else {
-        toast.error(response.data?.message || "Failed to post job");
+        const errorMsg = response.data?.message || "Failed to post job";
+        setFormError(errorMsg);
+        toast.error(errorMsg);
       }
     } catch (error: any) {
       console.error('Error posting job:', error);
       const errorMessage = error.response?.data?.message || 
                           (error.response?.status === 405 ? "Method not allowed. Please check API configuration." : 
                            "Failed to post job. Server error.");
+      setFormError(errorMessage);
       toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -154,7 +159,7 @@ ${values.description}
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-24 pb-10">
-        <Container>
+        <Container className="px-4 md:px-6 mx-auto max-w-7xl">
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Post New Job</h1>
             <p className="text-ats-gray-500">Create a new job posting for your organization.</p>
@@ -162,6 +167,12 @@ ${values.description}
 
           <Card className="max-w-3xl mx-auto">
             <CardContent className="p-6">
+              {formError && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md text-red-600">
+                  <p className="font-medium">Error</p>
+                  <p>{formError}</p>
+                </div>
+              )}
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -191,6 +202,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="department"
@@ -217,6 +231,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="position"
@@ -243,6 +260,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="type"
@@ -269,6 +289,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="salary"
@@ -295,6 +318,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="language"
@@ -321,6 +347,9 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
                       name="noticePeriod"
@@ -334,27 +363,26 @@ ${values.description}
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name="isRemote"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 mt-8">
+                          <FormControl>
+                            <Checkbox
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                          <div className="space-y-1 leading-none">
+                            <FormLabel>
+                              This is a remote position
+                            </FormLabel>
+                          </div>
+                        </FormItem>
+                      )}
+                    />
                   </div>
-                  
-                  <FormField
-                    control={form.control}
-                    name="isRemote"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                        <FormControl>
-                          <Checkbox
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                        <div className="space-y-1 leading-none">
-                          <FormLabel>
-                            This is a remote position
-                          </FormLabel>
-                        </div>
-                      </FormItem>
-                    )}
-                  />
                   
                   <FormField
                     control={form.control}
@@ -414,6 +442,7 @@ ${values.description}
           </Card>
         </Container>
       </main>
+      <Footer />
     </div>
   );
 };

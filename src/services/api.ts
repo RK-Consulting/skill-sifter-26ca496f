@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 
 const api = axios.create({
@@ -49,9 +50,11 @@ api.interceptors.response.use(
       console.error('Status:', error.response.status, 'URL:', error.config?.url);
       console.error('Response data:', error.response.data);
       
-      // If unauthorized, clear token and redirect to login
+      // If unauthorized, handle authentication errors
       if (error.response.status === 401) {
         console.log('Unauthorized access, redirecting to login');
+        // Only redirect to login page for persistent unauthorized errors
+        // Commented out to prevent immediate redirects during testing
         // localStorage.removeItem('token');
         // localStorage.removeItem('user');
         // window.location.href = '/login';
@@ -128,6 +131,8 @@ export const jobService = {
 
   // Create a new job
   createJob: async (job: any) => {
+    // Log job data format
+    console.log('Sending job data to API:', job);
     return api.post('/jobs', job);
   },
 
@@ -155,6 +160,7 @@ export const interviewService = {
 
    // Create a new interview
    createInterview: async (interview: any) => {
+    console.log('Interview scheduled:', interview);
     return api.post('/interviews', interview);
   },
 
