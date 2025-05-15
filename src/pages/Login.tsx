@@ -43,6 +43,7 @@ const Login = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check if user is already logged in
@@ -71,6 +72,7 @@ const Login = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      setLoginError(null);
       
       console.log('Login submission:', { email: values.email, companyId: values.companyId });
       
@@ -124,11 +126,14 @@ const Login = () => {
         console.log('Login successful via API, redirecting to dashboard');
         navigate('/', { replace: true });
       } else {
+        setLoginError(response.data?.message || "Login failed");
         toast.error(response.data?.message || "Login failed");
       }
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.response?.data?.message || "Invalid credentials. Please try again.");
+      const errorMessage = error.response?.data?.message || "Invalid credentials. Please try again.";
+      setLoginError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -162,6 +167,12 @@ const Login = () => {
               <CardTitle className="text-2xl text-center">Login</CardTitle>
             </CardHeader>
             <CardContent>
+              {loginError && (
+                <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-md">
+                  {loginError}
+                </div>
+              )}
+              
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <FormField

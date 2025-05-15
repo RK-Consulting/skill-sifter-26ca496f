@@ -24,6 +24,13 @@ api.interceptors.request.use(
     if (token) {
       setAuthToken(token);
     }
+    
+    // Ensure all requests include /api/ prefix
+    if (config.url && !config.url.startsWith('/api/') && !config.url.startsWith('api/')) {
+      config.url = `/api${config.url.startsWith('/') ? config.url : `/${config.url}`}`;
+    }
+    
+    console.log(`Sending request to: ${config.baseURL}${config.url}`);
     return config;
   },
   (error) => {
@@ -31,30 +38,53 @@ api.interceptors.request.use(
   }
 );
 
+// Add a response interceptor for better error handling
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error.message);
+    if (error.response) {
+      console.error('Status:', error.response.status, 'URL:', error.config?.url);
+      console.error('Response data:', error.response.data);
+      
+      // If unauthorized, clear token and redirect to login
+      if (error.response.status === 401) {
+        console.log('Unauthorized access, redirecting to login');
+        // localStorage.removeItem('token');
+        // localStorage.removeItem('user');
+        // window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authService = {
   // Login
   login: async (credentials: any) => {
-    return api.post('/login', credentials);
+    return api.post('/auth/login', credentials);
   },
 
   // Register
   register: async (credentials: any) => {
-    return api.post('/register', credentials);
+    return api.post('/auth/register', credentials);
   },
 
   // Logout
   logout: async () => {
-    return api.post('/logout');
+    return api.post('/auth/logout');
   },
 
   // Forgot Password
   forgotPassword: async (email: string) => {
-    return api.post('/forgot-password', { email });
+    return api.post('/auth/forgot-password', { email });
   },
 
   // Reset Password
   resetPassword: async (token: string, newPassword: string) => {
-    return api.post(`/reset-password/${token}`, { newPassword });
+    return api.post(`/auth/reset-password/${token}`, { newPassword });
   },
 };
 
