@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import Navbar from '@/components/layout/Navbar';
@@ -27,20 +27,30 @@ const InterviewDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   
-  // Fetch interview data with React Query
-  const { data: interview, isLoading, isError, error } = useQuery({
+  // Fetch interview data with React Query and better error handling
+  const { data: interview, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['interview', id],
     queryFn: async () => {
       try {
+        console.log(`Fetching interview details for ID: ${id}`);
         const response = await interviewService.getInterviewById(Number(id));
         console.log('Interview details response:', response.data);
-        return response.data.data;
+        
+        // Check if we got valid data
+        if (response.data && response.data.data) {
+          return response.data.data;
+        } else {
+          console.error('Invalid interview data format:', response.data);
+          throw new Error('Invalid interview data format');
+        }
       } catch (error) {
         console.error('Error fetching interview details:', error);
         toast.error('Failed to load interview details');
         throw error;
       }
-    }
+    },
+    retry: 1,
+    retryDelay: 1000,
   });
 
   const goBack = () => {
@@ -48,18 +58,27 @@ const InterviewDetails = () => {
   };
 
   const updateStatus = async (status: string) => {
-    if (!interview) return;
+    if (!interview) {
+      toast.error('No interview data available to update');
+      return;
+    }
     
     try {
+      toast.loading('Updating interview status...');
       const updatedInterview = { ...interview, status };
       const response = await interviewService.updateInterview(Number(id), updatedInterview);
       
       if (response.data.success) {
+        toast.dismiss();
         toast.success(`Interview status updated to ${status}`);
+        // Refresh the interview data
+        refetch();
       } else {
+        toast.dismiss();
         toast.error('Failed to update interview status');
       }
     } catch (error) {
+      toast.dismiss();
       console.error('Error updating interview:', error);
       toast.error('Error updating interview status');
     }
@@ -120,6 +139,8 @@ const InterviewDetails = () => {
   }
 
   if (isError || !interview) {
+    console.error('Interview details error:', error);
+    
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <Navbar />
@@ -131,8 +152,8 @@ const InterviewDetails = () => {
                 size="sm"
                 className="mr-4"
                 onClick={goBack}
-                icon={<ArrowLeft size={16} />}
               >
+                <ArrowLeft size={16} className="mr-2" />
                 Back to Interviews
               </Button>
               <h1 className="text-3xl font-semibold tracking-tight">Interview Details</h1>
@@ -162,8 +183,8 @@ const InterviewDetails = () => {
               size="sm"
               className="mr-4"
               onClick={goBack}
-              icon={<ArrowLeft size={16} />}
             >
+              <ArrowLeft size={16} className="mr-2" />
               Back to Interviews
             </Button>
             <h1 className="text-3xl font-semibold tracking-tight">Interview Details</h1>
@@ -253,18 +274,18 @@ const InterviewDetails = () => {
                 <div className="space-y-4">
                   <Button 
                     variant="primary" 
-                    className="w-full mb-2"
-                    icon={<CheckCircle size={16} />}
+                    className="w-full mb-2 flex items-center justify-center gap-2"
                     onClick={() => updateStatus('Completed')}
                   >
+                    <CheckCircle size={16} />
                     Mark as Completed
                   </Button>
                   <Button 
                     variant="outline" 
-                    className="w-full mb-2"
-                    icon={<XCircle size={16} />}
+                    className="w-full mb-2 flex items-center justify-center gap-2"
                     onClick={() => updateStatus('Cancelled')}
                   >
+                    <XCircle size={16} />
                     Cancel Interview
                   </Button>
                   <Button 

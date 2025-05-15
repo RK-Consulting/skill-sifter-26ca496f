@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 const api = axios.create({
@@ -53,7 +52,6 @@ api.interceptors.response.use(
       // If unauthorized, handle authentication errors
       if (error.response.status === 401) {
         console.log('Unauthorized access, redirecting to login');
-        // Only redirect to login page for persistent unauthorized errors
         // We'll just log it but not immediately redirect to prevent disrupting user experience
         // localStorage.removeItem('token');
         // localStorage.removeItem('user');
@@ -176,10 +174,10 @@ export const interviewService = {
 };
 
 export const businessDevService = {
-  // Get all business developments - fixing the API endpoint
+  // Fix business-dev endpoint - removed /list which was causing 400 Bad Request
   getAllBusinessDevs: async () => {
     try {
-      return await api.get('/business-dev/list');
+      return await api.get('/business-dev');
     } catch (error) {
       console.error('Error fetching business dev contacts:', error);
       throw error;
@@ -262,10 +260,10 @@ export const roleService = {
 };
 
 export const userService = {
-  // Get all users for a company - fixing the API endpoint
+  // Fix company-users endpoint - removed /list which was causing issues
   getAllUsers: async () => {
     try {
-      return await api.get('/company-users/list');
+      return await api.get('/company-users');
     } catch (error) {
       console.error('Error fetching users:', error);
       throw error;

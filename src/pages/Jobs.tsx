@@ -50,7 +50,14 @@ const Jobs = () => {
   };
 
   const viewJobDetails = (id: number) => {
-    navigate(`/jobs/${id}`);
+    // Added a try-catch block and toast notification for job navigation
+    try {
+      console.log(`Navigating to job details page for job ID: ${id}`);
+      navigate(`/jobs/${id}`);
+    } catch (error) {
+      console.error('Error navigating to job details:', error);
+      toast.error('Failed to open job details. Please try again.');
+    }
   };
   
   // Fetch jobs using React Query with proper error handling
