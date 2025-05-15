@@ -18,6 +18,7 @@ interface DailyJob {
   jdNo: number;
   instructions: string;
   assignedUser: number;
+  assignedUsername?: string; 
   assignedDate: string;
   lastModified?: string;
   companyName?: string;
@@ -56,7 +57,8 @@ const DailyJobs = () => {
     
     return dailyJobsData.filter((job: DailyJob) => 
       job.instructions.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      String(job.jdNo).includes(searchTerm)
+      String(job.jdNo).includes(searchTerm) ||
+      (job.assignedUsername && job.assignedUsername.toLowerCase().includes(searchTerm.toLowerCase()))
     );
   }, [searchTerm, dailyJobsData]);
 
@@ -150,7 +152,7 @@ const DailyJobs = () => {
                     <TableRow>
                       <TableHead>JD No</TableHead>
                       <TableHead>Instructions</TableHead>
-                      <TableHead>Assigned User</TableHead>
+                      <TableHead>Assigned To</TableHead>
                       <TableHead>Assigned Date</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -161,7 +163,7 @@ const DailyJobs = () => {
                         <TableRow key={job.id}>
                           <TableCell className="font-medium">{job.jdNo}</TableCell>
                           <TableCell>{job.instructions}</TableCell>
-                          <TableCell>User #{job.assignedUser}</TableCell>
+                          <TableCell>{job.assignedUsername || `User #${job.assignedUser}`}</TableCell>
                           <TableCell>{formatDate(job.assignedDate)}</TableCell>
                           <TableCell className="text-right">
                             <Button 

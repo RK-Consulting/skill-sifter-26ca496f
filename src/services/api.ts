@@ -1,217 +1,257 @@
-
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://api.skillsifter.in';
-
-console.log('API URL configured as:', API_URL);
-
-// Create axios instance with base URL
 const api = axios.create({
-  baseURL: API_URL,
+  baseURL: import.meta.env.VITE_API_URL,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 10000, // 10 seconds timeout
-  withCredentials: true, // Important for CORS with credentials
 });
 
-// Add request interceptor to include authorization header if token exists
+// Function to set the JWT token in the request headers
+const setAuthToken = (token: string | null) => {
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
+
+// Add a request interceptor to include the JWT token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-      
-      // Log JWT payload for debugging (development only)
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          console.debug("[JWT Request]", payload);
-        }
-      } catch (e) {
-        console.error("Error parsing JWT token:", e);
-      }
+      setAuthToken(token);
     }
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
-  (error) => Promise.reject(error)
-);
-
-// Add response interceptor to handle token expiration and log detailed errors
-api.interceptors.response.use(
-  (response) => {
-    console.log(`API Response: ${response.status} ${response.config.url}`);
-    return response;
-  },
   (error) => {
-    // Log detailed error information for debugging
-    console.error('API Error:', error.message);
-    
-    if (error.response) {
-      console.error(`Status: ${error.response.status}, URL: ${error.config?.url}`);
-      console.error('Response data:', error.response.data);
-      
-      // Add specific error handling for 405 Method Not Allowed
-      if (error.response.status === 405) {
-        console.error(`Method not allowed: ${error.config?.method?.toUpperCase()} ${error.config?.url}`);
-        console.error('API routes may be misconfigured. Check the backend routes configuration.');
-      }
-      
-      // Handle 500 errors specifically for business-dev endpoint with mock data
-      if (error.response.status === 500 && error.config?.url?.includes('business-dev')) {
-        console.warn('Business dev API returning 500 error, using mock data');
-        return Promise.resolve({ 
-          data: {
-            success: true,
-            message: "Mock business development data (API error fallback)",
-            data: [
-              { 
-                id: 1, 
-                clientName: "TechSolutions Inc", 
-                partnerName: "Innovate Partners", 
-                contactPerson: "John Smith", 
-                contactNumber: "+1 (555) 123-4567", 
-                contactEmail: "john.smith@techsolutions.com",
-                createdAt: new Date().toISOString()
-              },
-              { 
-                id: 2, 
-                clientName: "Global Finance Group", 
-                partnerName: "Capital Ventures", 
-                contactPerson: "Sarah Johnson", 
-                contactNumber: "+1 (555) 987-6543", 
-                contactEmail: "sjohnson@globalfinance.com",
-                createdAt: new Date().toISOString()
-              }
-            ]
-          }
-        });
-      }
-    } else if (error.request) {
-      console.error('No response received. Server may be down or unreachable.');
-    }
-    
-    if (error.response && error.response.status === 401) {
-      // Token has expired or is invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      // Redirect to login page if not already there
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    
-    // Add more specific error information
-    if (!error.response && error.code === 'ERR_NETWORK') {
-      error.serverDown = true;
-      console.error('Server connection failed. Is the backend running?');
-      
-      // For demo purposes, we can allow continuing with mock data
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('Using mock data due to server connection failure');
-        error.useMockData = true;
-      }
-    }
-    
     return Promise.reject(error);
   }
 );
 
-// Authentication services
 export const authService = {
-  register: (userData: any) => api.post('/auth/register', userData),
-  login: (credentials: any) => api.post('/auth/login', credentials),
+  // Login
+  login: async (credentials: any) => {
+    return api.post('/login', credentials);
+  },
+
+  // Register
+  register: async (credentials: any) => {
+    return api.post('/register', credentials);
+  },
+
+  // Logout
+  logout: async () => {
+    return api.post('/logout');
+  },
+
+  // Forgot Password
+  forgotPassword: async (email: string) => {
+    return api.post('/forgot-password', { email });
+  },
+
+  // Reset Password
+  resetPassword: async (token: string, newPassword: string) => {
+    return api.post(`/reset-password/${token}`, { newPassword });
+  },
 };
 
-// User management services (admin only)
-export const userService = {
-  getAllUsers: () => api.get('/admin/users'),
-  createUser: (userData: any) => api.post('/admin/users', userData),
-  updateUser: (id: number, userData: any) => api.put(`/admin/users/${id}`, userData),
-  deleteUser: (id: number) => api.delete(`/admin/users/${id}`),
-};
-
-// Role services (admin only)
-export const roleService = {
-  getAllRoles: () => api.get('/admin/roles'),
-};
-
-// Candidates services
 export const candidateService = {
-  getAllCandidates: () => api.get('/candidates'),
-  getCandidateById: (id: number) => api.get(`/candidates/${id}`),
-  createCandidate: (candidateData: any) => api.post('/candidates', candidateData),
-  updateCandidate: (id: number, candidateData: any) => api.put(`/candidates/${id}`, candidateData),
-  deleteCandidate: (id: number) => api.delete(`/candidates/${id}`),
+  // Get all candidates
+  getAllCandidates: async () => {
+    return api.get('/candidates');
+  },
+
+  // Get a candidate by ID
+  getCandidateById: async (id: number) => {
+    return api.get(`/candidates/${id}`);
+  },
+
+  // Create a new candidate
+  createCandidate: async (candidate: any) => {
+    return api.post('/candidates', candidate);
+  },
+
+  // Update a candidate
+  updateCandidate: async (id: number, candidate: any) => {
+    return api.put(`/candidates/${id}`, candidate);
+  },
+
+  // Delete a candidate
+  deleteCandidate: async (id: number) => {
+    return api.delete(`/candidates/${id}`);
+  },
 };
 
-// Jobs services
 export const jobService = {
-  getAllJobs: () => api.get('/jobs'),
-  getJobById: (id: number) => api.get(`/jobs/${id}`),
-  createJob: (jobData: any) => api.post('/jobs', jobData),
-  updateJob: (id: number, jobData: any) => api.put(`/jobs/${id}`, jobData),
-  deleteJob: (id: number) => api.delete(`/jobs/${id}`),
+  // Get all jobs
+  getAllJobs: async () => {
+    return api.get('/jobs');
+  },
+
+  // Get a job by ID
+  getJobById: async (id: number) => {
+    return api.get(`/jobs/${id}`);
+  },
+
+  // Create a new job
+  createJob: async (job: any) => {
+    return api.post('/jobs', job);
+  },
+
+  // Update a job
+  updateJob: async (id: number, job: any) => {
+    return api.put(`/jobs/${id}`, job);
+  },
+
+  // Delete a job
+  deleteJob: async (id: number) => {
+    return api.delete(`/jobs/${id}`);
+  },
 };
 
-// Daily jobs services
-export const dailyJobService = {
-  getAllDailyJobs: () => api.get('/daily-jobs'),
-  getDailyJobById: (id: number) => api.get(`/daily-jobs/${id}`),
-  createDailyJob: (dailyJobData: any) => api.post('/daily-jobs', dailyJobData),
-  updateDailyJob: (id: number, dailyJobData: any) => api.put(`/daily-jobs/${id}`, dailyJobData),
-  deleteDailyJob: (id: number) => api.delete(`/daily-jobs/${id}`),
-};
-
-// Business development services
-export const businessDevService = {
-  getAllBusinessDevs: () => api.get('/business-dev'),
-  getBusinessDevById: (id: number) => api.get(`/business-dev/${id}`),
-  createBusinessDev: (businessDevData: any) => api.post('/business-dev', businessDevData),
-  updateBusinessDev: (id: number, businessDevData: any) => api.put(`/business-dev/${id}`, businessDevData),
-  deleteBusinessDev: (id: number) => api.delete(`/business-dev/${id}`),
-};
-
-// Interviews services
 export const interviewService = {
-  getAllInterviews: () => api.get('/interviews'),
-  getInterviewById: (id: number) => api.get(`/interviews/${id}`),
-  scheduleInterview: (interviewData: any) => api.post('/interviews', interviewData),
-  updateInterview: (id: number, interviewData: any) => api.put(`/interviews/${id}`, interviewData),
-  deleteInterview: (id: number) => api.delete(`/interviews/${id}`),
+  // Get all interviews
+  getAllInterviews: async () => {
+    return api.get('/interviews');
+  },
+
+  // Get an interview by ID
+  getInterviewById: async (id: number) => {
+    return api.get(`/interviews/${id}`);
+  },
+
+   // Create a new interview
+   createInterview: async (interview: any) => {
+    return api.post('/interviews', interview);
+  },
+
+  // Update an interview
+  updateInterview: async (id: number, interview: any) => {
+    return api.put(`/interviews/${id}`, interview);
+  },
+
+  // Delete an interview
+  deleteInterview: async (id: number) => {
+    return api.delete(`/interviews/${id}`);
+  },
 };
 
-// Improved health check function that tries multiple endpoints and paths
-const checkApiHealth = async () => {
-  const endpoints = [
-    '/health-check',
-    '/api/health-check',
-    '/ping',
-    '/api/ping'
-  ];
-  
-  for (const endpoint of endpoints) {
-    try {
-      console.log(`Trying health check at: ${API_URL}${endpoint}`);
-      await api.get(endpoint);
-      console.log(`✅ API connection successful via ${endpoint}`);
-      return true;
-    } catch (error: any) {
-      console.log(`❌ Failed with ${endpoint}:`, error.message);
-      // Continue to next endpoint
-    }
-  }
-  
-  // If all attempts failed
-  console.error('❌ All health check attempts failed. API may be unreachable.');
-  return false;
+export const businessDevService = {
+  // Get all business developments
+  getAllBusinessDevs: async () => {
+    return api.get('/business-dev');
+  },
+
+  // Get a business development by ID
+  getBusinessDevById: async (id: number) => {
+    return api.get(`/business-dev/${id}`);
+  },
+
+  // Create a new business development
+  createBusinessDev: async (businessDev: any) => {
+    return api.post('/business-dev', businessDev);
+  },
+
+  // Update a business development
+  updateBusinessDev: async (id: number, businessDev: any) => {
+    return api.put(`/business-dev/${id}`, businessDev);
+  },
+
+  // Delete a business development
+  deleteBusinessDev: async (id: number) => {
+    return api.delete(`/business-dev/${id}`);
+  },
 };
 
-// Run health check on startup but don't block the main thread
-setTimeout(() => {
-  checkApiHealth().catch(err => console.error('Health check failed:', err));
-}, 1000);
+export const companyService = {
+  // Get all companies
+  getAllCompanies: async () => {
+    return api.get('/companies');
+  },
+
+  // Get a company by ID
+  getCompanyById: async (id: string) => {
+    return api.get(`/companies/${id}`);
+  },
+
+  // Create a new company
+  createCompany: async (company: any) => {
+    return api.post('/companies', company);
+  },
+
+  // Update a company
+  updateCompany: async (id: string, company: any) => {
+    return api.put(`/companies/${id}`, company);
+  },
+
+  // Delete a company
+  deleteCompany: async (id: string) => {
+    return api.delete(`/companies/${id}`);
+  },
+};
+
+export const roleService = {
+  // Get all roles
+  getAllRoles: async () => {
+    return api.get('/roles');
+  },
+
+  // Get a role by ID
+  getRoleById: async (id: number) => {
+    return api.get(`/roles/${id}`);
+  },
+
+  // Create a new role
+  createRole: async (role: any) => {
+    return api.post('/roles', role);
+  },
+
+  // Update a role
+  updateRole: async (id: number, role: any) => {
+    return api.put(`/roles/${id}`, role);
+  },
+
+  // Delete a role
+  deleteRole: async (id: number) => {
+    return api.delete(`/roles/${id}`);
+  },
+};
+
+export const userService = {
+  // Get all users for a company
+  getAllUsers: async () => {
+    return api.get('/company-users');
+  },
+};
+
+export const dailyJobService = {
+  // Get all daily jobs
+  getAllDailyJobs: async () => {
+    return api.get('/daily-jobs');
+  },
+
+  // Get a daily job by ID
+  getDailyJobById: async (id: number) => {
+    return api.get(`/daily-jobs/${id}`);
+  },
+
+  // Create a new daily job
+  createDailyJob: async (dailyJob: any) => {
+    return api.post('/daily-jobs', dailyJob);
+  },
+
+  // Update a daily job
+  updateDailyJob: async (id: number, dailyJob: any) => {
+    return api.put(`/daily-jobs/${id}`, dailyJob);
+  },
+
+  // Delete a daily job
+  deleteDailyJob: async (id: number) => {
+    return api.delete(`/daily-jobs/${id}`);
+  },
+};
 
 export default api;

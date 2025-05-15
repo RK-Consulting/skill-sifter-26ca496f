@@ -1,4 +1,3 @@
-
 package handlers
 
 import (
@@ -11,28 +10,79 @@ import (
 	"github.com/gorilla/mux"
 )
 
+// GetCompanyUsers retrieves all users for a company for dropdown selection
+func GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
+	// Get company name from context
+	companyName := r.Context().Value("companyName").(string)
+	
+	users := []models.User{}
+	rows, err := db.DB.Query("SELECT id, username FROM users WHERE company_name = $1", companyName)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching company users")
+		return
+	}
+	defer rows.Close()
+	
+	// Scan rows into users slice
+	for rows.Next() {
+		var user struct {
+			ID       int    `json:"id"`
+			Username string `json:"username"`
+		}
+		err := rows.Scan(&user.ID, &user.Username)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning user row")
+			return
+		}
+		users = append(users, models.User{ID: user.ID, Username: user.Username})
+	}
+	
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Company users retrieved successfully",
+		Data:    users,
+	})
+}
+
 // GetDailyJobs retrieves all daily jobs for a company
 func GetDailyJobs(w http.ResponseWriter, r *http.Request) {
 	// Get company name from context
 	companyName := r.Context().Value("companyName").(string)
 	
-	dailyJobs := []models.DailyJob{}
-	rows, err := db.DB.Query("SELECT * FROM daily_jobs WHERE company_name = $1", companyName)
+	// Modify the query to JOIN with users table to get usernames
+	rows, err := db.DB.Query(`
+		SELECT dj.id, dj.jd_no, dj.instructions, dj.assigned_user, 
+			u.username as assigned_username, dj.assigned_date, dj.last_modified, dj.company_name
+		FROM daily_jobs dj
+		LEFT JOIN users u ON dj.assigned_user = u.id
+		WHERE dj.company_name = $1
+	`, companyName)
+	
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching daily jobs")
 		return
 	}
 	defer rows.Close()
 	
-	// Scan rows into dailyJobs slice
+	dailyJobs := []models.DailyJob{}
+	// Scan rows into dailyJobs slice with username
 	for rows.Next() {
 		var dj models.DailyJob
+		var username *string // Use pointer to handle NULL values
+		
 		err := rows.Scan(&dj.ID, &dj.JdNo, &dj.Instructions, &dj.AssignedUser,
-			&dj.AssignedDate, &dj.LastModified, &dj.CompanyName)
+			&username, &dj.AssignedDate, &dj.LastModified, &dj.CompanyName)
+		
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning daily job row")
 			return
 		}
+		
+		// Set the username if available
+		if username != nil {
+			dj.AssignedUsername = *username
+		}
+		
 		dailyJobs = append(dailyJobs, dj)
 	}
 	
@@ -56,15 +106,26 @@ func GetDailyJobByID(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 	
 	var dailyJob models.DailyJob
-	err = db.DB.QueryRow(
-		"SELECT * FROM daily_jobs WHERE id = $1 AND company_name = $2", 
-		id, companyName,
-	).Scan(&dailyJob.ID, &dailyJob.JdNo, &dailyJob.Instructions, &dailyJob.AssignedUser,
-		&dailyJob.AssignedDate, &dailyJob.LastModified, &dailyJob.CompanyName)
+	var username *string // Use pointer to handle NULL values
+	
+	err = db.DB.QueryRow(`
+		SELECT dj.id, dj.jd_no, dj.instructions, dj.assigned_user, 
+			u.username as assigned_username, dj.assigned_date, dj.last_modified, dj.company_name
+		FROM daily_jobs dj
+		LEFT JOIN users u ON dj.assigned_user = u.id
+		WHERE dj.id = $1 AND dj.company_name = $2
+	`, id, companyName).Scan(&dailyJob.ID, &dailyJob.JdNo, &dailyJob.Instructions, 
+		&dailyJob.AssignedUser, &username, &dailyJob.AssignedDate, 
+		&dailyJob.LastModified, &dailyJob.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Daily job not found")
 		return
+	}
+	
+	// Set the username if available
+	if username != nil {
+		dailyJob.AssignedUsername = *username
 	}
 	
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
@@ -102,6 +163,17 @@ func AddDailyJob(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	dailyJob.ID = id
+	
+	// Get the assigned username
+	var username string
+	err = db.DB.QueryRow(
+		"SELECT username FROM users WHERE id = $1 AND company_name = $2", 
+		dailyJob.AssignedUser, dailyJob.CompanyName,
+	).Scan(&username)
+	
+	if err == nil {
+		dailyJob.AssignedUsername = username
+	}
 	
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
 		Success: true,
@@ -143,6 +215,17 @@ func UpdateDailyJob(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating daily job")
 		return
+	}
+	
+	// Get the assigned username
+	var username string
+	err = db.DB.QueryRow(
+		"SELECT username FROM users WHERE id = $1 AND company_name = $2", 
+		dailyJob.AssignedUser, dailyJob.CompanyName,
+	).Scan(&username)
+	
+	if err == nil {
+		dailyJob.AssignedUsername = username
 	}
 	
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{

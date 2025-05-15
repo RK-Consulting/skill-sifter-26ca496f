@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -6,6 +7,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
@@ -13,26 +15,56 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
-import { dailyJobService } from '@/services/api';
+import { dailyJobService, userService } from '@/services/api';
+import { Skeleton } from '@/components/ui/skeleton';
 
+// Updated schema to use string for assignedUser (will be converted to number when submitting)
 const formSchema = z.object({
   jdNo: z.coerce.number().positive('JD Number must be positive'),
   instructions: z.string().min(5, 'Instructions must be at least 5 characters'),
-  assignedUser: z.coerce.number().positive('User ID must be positive'),
+  assignedUser: z.string().min(1, 'Please select a user'),
 });
 
 type FormData = z.infer<typeof formSchema>;
 
+interface User {
+  id: number;
+  username: string;
+}
+
 const AddDailyJob = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+
+  // Fetch company users for the dropdown
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await userService.getAllUsers();
+        if (response.data.success) {
+          setUsers(response.data.data);
+        } else {
+          toast.error('Failed to load users');
+        }
+      } catch (error) {
+        console.error('Error fetching users:', error);
+        toast.error('Failed to load users');
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       jdNo: undefined,
       instructions: '',
-      assignedUser: undefined,
+      assignedUser: '',
     },
   });
 
@@ -41,11 +73,11 @@ const AddDailyJob = () => {
     console.log("Submitting daily job:", data);
     
     try {
-      // Prepare data for API
+      // Convert assignedUser to number
       const dailyJobData = {
         jdNo: data.jdNo,
         instructions: data.instructions,
-        assignedUser: data.assignedUser,
+        assignedUser: parseInt(data.assignedUser), // Convert string ID to number
         assignedDate: new Date().toISOString()
       };
       
@@ -109,9 +141,27 @@ const AddDailyJob = () => {
                       name="assignedUser"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Assigned User ID</FormLabel>
+                          <FormLabel>Assign To</FormLabel>
                           <FormControl>
-                            <Input type="number" placeholder="Enter user ID" {...field} />
+                            {isLoadingUsers ? (
+                              <Skeleton className="h-10 w-full" />
+                            ) : (
+                              <Select 
+                                onValueChange={field.onChange} 
+                                defaultValue={field.value}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a user" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {users.map((user) => (
+                                    <SelectItem key={user.id} value={user.id.toString()}>
+                                      {user.username}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            )}
                           </FormControl>
                           <FormMessage />
                         </FormItem>

@@ -36,13 +36,14 @@ type Job struct {
 
 // DailyJob model
 type DailyJob struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	JdNo         int       `json:"jdNo" db:"jd_no,notnull"`
-	Instructions string    `json:"instructions" db:"instructions"`
-	AssignedUser int       `json:"assignedUser" db:"assigned_user"`
-	AssignedDate time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
-	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
+	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
+	JdNo            int       `json:"jdNo" db:"jd_no,notnull"`
+	Instructions    string    `json:"instructions" db:"instructions"`
+	AssignedUser    int       `json:"assignedUser" db:"assigned_user"`
+	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
+	AssignedDate    time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
+	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Interview model
