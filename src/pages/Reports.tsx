@@ -17,11 +17,11 @@ const Reports = () => {
     queryKey: ['hiringStats'],
     queryFn: reportsService.getHiringStats,
     staleTime: 300000, // 5 minutes
-    onSuccess: () => {
-      // Handle success if needed
-    },
-    onError: () => {
-      toast.error('Failed to load hiring statistics');
+    gcTime: 600000, // 10 minutes
+    meta: {
+      onError: () => {
+        toast.error('Failed to load hiring statistics');
+      }
     }
   });
 
@@ -30,11 +30,11 @@ const Reports = () => {
     queryKey: ['sourceStats'],
     queryFn: reportsService.getSourceStats,
     staleTime: 300000, // 5 minutes
-    onSuccess: () => {
-      // Handle success if needed
-    },
-    onError: () => {
-      toast.error('Failed to load source statistics');
+    gcTime: 600000, // 10 minutes
+    meta: {
+      onError: () => {
+        toast.error('Failed to load source statistics');
+      }
     }
   });
 
