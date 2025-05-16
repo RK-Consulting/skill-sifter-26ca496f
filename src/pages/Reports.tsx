@@ -17,8 +17,10 @@ const Reports = () => {
     queryKey: ['hiringStats'],
     queryFn: reportsService.getHiringStats,
     staleTime: 300000, // 5 minutes
-    onError: () => {
-      toast.error('Failed to load hiring statistics');
+    onSettled: (data, error) => {
+      if (error) {
+        toast.error('Failed to load hiring statistics');
+      }
     }
   });
 
@@ -27,8 +29,10 @@ const Reports = () => {
     queryKey: ['sourceStats'],
     queryFn: reportsService.getSourceStats,
     staleTime: 300000, // 5 minutes
-    onError: () => {
-      toast.error('Failed to load source statistics');
+    onSettled: (data, error) => {
+      if (error) {
+        toast.error('Failed to load source statistics');
+      }
     }
   });
 
