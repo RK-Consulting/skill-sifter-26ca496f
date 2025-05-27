@@ -142,6 +142,9 @@ func setupProtectedRoutes(r *mux.Router) {
         // Add business-dev routes without the /api prefix
         setupResourceRoutes(nonApi, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev,
                 handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
+
+        r.HandleFunc("/api/reports/hiring", handlers.GetHiringStats).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/reports/sources", handlers.GetSourceStats).Methods("GET", "OPTIONS")
 }
 
 // ----------- Resource Router Helper -----------
