@@ -28,7 +28,7 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var i models.Interview
 		err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position,
-			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.companyName)
+			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
 			return
@@ -61,7 +61,7 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 		id, companyName,
 	).Scan(&interview.ID, &interview.CandidateID, &interview.CandidateName, &interview.Position,
 		&interview.InterviewDate, &interview.Status, &interview.Feedback, 
-		&interview.LastModified, &interview.companyName)
+		&interview.LastModified, &interview.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Interview not found")
@@ -95,7 +95,7 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7) 
 		RETURNING id`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
-		interview.InterviewDate, interview.Status, interview.Feedback, interview.companyName,
+		interview.InterviewDate, interview.Status, interview.Feedback, interview.CompanyName,
 	).Scan(&id)
 	
 	if err != nil {
@@ -141,7 +141,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		WHERE id = $7 AND company_name = $8`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
 		interview.InterviewDate, interview.Status, interview.Feedback, 
-		interview.ID, interview.companyName,
+		interview.ID, interview.CompanyName,
 	)
 	
 	if err != nil {
