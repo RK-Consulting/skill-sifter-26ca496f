@@ -143,8 +143,9 @@ func setupProtectedRoutes(r *mux.Router) {
         setupResourceRoutes(nonApi, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev,
                 handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 
-        r.HandleFunc("/api/reports/hiring", handlers.GetHiringrReport).Methods("GET", "OPTIONS")
-	r.HandleFunc("/api/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
+        apiRouter.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
+        apiRouter.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
+    
 }
 
 // ----------- Resource Router Helper -----------
