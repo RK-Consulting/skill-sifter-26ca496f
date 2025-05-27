@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     phone VARCHAR(20),
     position VARCHAR(100),
     status VARCHAR(50) DEFAULT 'applied',
+    source VARCHAR(100),
     date_applied TIMESTAMP DEFAULT NOW(),
     resume_url TEXT,
     cover_letter TEXT,
