@@ -132,9 +132,9 @@ type TokenResponse struct {
 // @Success 200 {object} HiringReportResponse
 // @Router /api/reports/hiring [get]
 type HiringReportResponse struct {
-	TotalInterviews int json:"totalInterviews"
-	TotalCandidates int json:"totalCandidates"
-	TotalHires      int json:"totalHires"
+	TotalInterviews int `json:"totalInterviews"`
+	TotalCandidates int `json:"totalCandidates"`
+	TotalHires      int `json:"totalHires"`
 }
 
 // SourceReportResponse represents candidate source distribution for reporting
@@ -142,6 +142,6 @@ type HiringReportResponse struct {
 // @Success 200 {object} SourceReportResponse
 // @Router /api/reports/sources [get]
 type SourceReportResponse struct {
-	Source string json:"source"
-	Count  int    json:"count"
+	Source string `json:"source"`
+	Count  int    `json:"count"`
 }
