@@ -125,3 +125,17 @@ type TokenResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
 }
+
+// Reports
+// HiringReportResponse represents aggregated hiring stats for the reports endpoint
+type HiringReportResponse struct {
+TotalInterviews int json:"totalInterviews"
+TotalCandidates int json:"totalCandidates"
+TotalHires      int json:"totalHires"
+}
+
+// SourceReportResponse represents candidate source distribution for reporting
+type SourceReportResponse struct {
+Source string json:"source"
+Count  int    json:"count"
+}
