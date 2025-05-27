@@ -127,14 +127,26 @@ type TokenResponse struct {
 }
 
 // Reports
+type HiringReportEntry struct {
+	Date            string `json:"date"`
+	TotalInterviews int    `json:"totalInterviews"`
+	TotalCandidates int    `json:"totalCandidates"`
+	TotalHires      int    `json:"totalHires"`
+}
+
+type SourceReportEntry struct {
+	Source string `json:"source"`
+	Count  int    `json:"count"`
+}
+
 // HiringReportResponse represents aggregated hiring stats for the reports endpoint
 // @Description Aggregated report of interviews by status
 // @Success 200 {object} HiringReportResponse
 // @Router /api/reports/hiring [get]
 type HiringReportResponse struct {
-	TotalInterviews int `json:"totalInterviews"`
-	TotalCandidates int `json:"totalCandidates"`
-	TotalHires      int `json:"totalHires"`
+	Success bool                `json:"success"`
+	Message string              `json:"message"`
+	Data    []HiringReportEntry `json:"data"`
 }
 
 // SourceReportResponse represents candidate source distribution for reporting
@@ -142,6 +154,7 @@ type HiringReportResponse struct {
 // @Success 200 {object} SourceReportResponse
 // @Router /api/reports/sources [get]
 type SourceReportResponse struct {
-	Source string `json:"source"`
-	Count  int    `json:"count"`
+	Success bool                `json:"success"`
+	Message string              `json:"message"`
+	Data    []SourceReportEntry `json:"data"`
 }
