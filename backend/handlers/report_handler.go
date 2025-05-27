@@ -1,0 +1,1 @@
+// (Implemented GetHiringReport and GetSourceReport functions)
