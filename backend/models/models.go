@@ -13,6 +13,7 @@ type Candidate struct {
 	Phone        string    `json:"phone" db:"phone"`
 	Position     string    `json:"position" db:"position"`
 	Status       string    `json:"status" db:"status,default:'applied'"`
+	Source 	     string    `json:"source" db:"source"`
 	DateApplied  time.Time `json:"dateApplied" db:"date_applied,default:CURRENT_TIMESTAMP"`
 	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
 	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
