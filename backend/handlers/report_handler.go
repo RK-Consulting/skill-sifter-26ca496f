@@ -33,12 +33,11 @@ func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var entry models.HiringReportEntry
 		var month time.Time
-		if err := rows.Scan(&month, &entry.Total); err != nil {
+		if err := rows.Scan(&month, &entry.TotalInterviews); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning hiring report")
 			return
 		}
 		entry.Date = month.Format("2006-01")
-		entry.TotalInterviews = total 
 		report = append(report, entry)
 	}
 
