@@ -17,7 +17,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 	
 	candidates := []models.Candidate{}
-	rows, err := db.DB.Query("SELECT * FROM candidates WHERE id = $1 AND company_name = $2", id, companyName)
+	rows, err := db.DB.Query("SELECT * FROM candidates WHERE company_name = $2", companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching candidates")
 		return
@@ -100,7 +100,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		RETURNING id`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
 		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
-		candidate.CompanyName, candidate.Source
+		candidate.CompanyName, candidate.Source,
 	).Scan(&id)
 	
 	if err != nil {
