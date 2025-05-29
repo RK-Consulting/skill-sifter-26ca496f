@@ -17,7 +17,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 	
 	candidates := []models.Candidate{}
-	rows, err := db.DB.Query("SELECT * FROM candidates WHERE company_name = $1", companyName)
+	rows, err := db.DB.Query("SELECT * FROM candidates WHERE id = $1 AND company_name = $2", id, companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching candidates")
 		return
@@ -30,7 +30,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 		// Scan all fields from the row into the candidate struct
 		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, 
 			&c.Status, &c.DateApplied, &c.ResumeURL, &c.CoverLetter, 
-			&c.LastModified, &c.CompanyName)
+			&c.LastModified, &c.CompanyName, &c.Source)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning candidate row")
 			return
@@ -64,7 +64,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 	).Scan(&candidate.ID, &candidate.Name, &candidate.Email, &candidate.Phone, 
 		&candidate.Position, &candidate.Status, &candidate.DateApplied, 
 		&candidate.ResumeURL, &candidate.CoverLetter, &candidate.LastModified, 
-		&candidate.CompanyName)
+		&candidate.CompanyName, &candidate.Source)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
@@ -95,12 +95,12 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	var id int
 	err = db.DB.QueryRow(
 		`INSERT INTO candidates (name, email, phone, position, status, 
-			resume_url, cover_letter, company_name) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+			resume_url, cover_letter, company_name, source) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
 		RETURNING id`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
 		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
-		candidate.CompanyName,
+		candidate.CompanyName, candidate.Source
 	).Scan(&id)
 	
 	if err != nil {
@@ -142,10 +142,10 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 	_, err = db.DB.Exec(
 		`UPDATE candidates 
 		SET name = $1, email = $2, phone = $3, position = $4, status = $5, 
-			resume_url = $6, cover_letter = $7, last_modified = NOW() 
-		WHERE id = $8 AND company_name = $9`,
+			resume_url = $6, cover_letter = $7, source = $8, last_modified = NOW() 
+		WHERE id = $9 AND company_name = $10`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
-		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
+		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, candidate.Source,
 		candidate.ID, candidate.CompanyName,
 	)
 	
