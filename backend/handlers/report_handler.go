@@ -70,6 +70,7 @@ func GetSourceReport(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var entry models.SourceReportEntry
 		if err := rows.Scan(&entry.Source, &entry.Count); err != nil {
+			fmt.Printf("Error scanning row: %v\n", err)
 			respondWithError(w, http.StatusInternalServerError, "Error scanning source report")
 			return
 		}
