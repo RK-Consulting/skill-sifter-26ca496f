@@ -53,7 +53,7 @@ func GetSourceReport(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 
 	query := `
-		SELECT source, COUNT(*)
+		SELECT COALESCE(source, 'unknown') AS source, COUNT(*)
 		FROM candidates
 		WHERE company_name = $1
 		GROUP BY source
