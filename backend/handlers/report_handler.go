@@ -37,7 +37,8 @@ func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning hiring report")
 			return
 		}
-		entry.Month = month.Format("2006-01")
+		entry.Date = month.Format("2006-01")
+		entry.TotalInterviews = total 
 		report = append(report, entry)
 	}
 
