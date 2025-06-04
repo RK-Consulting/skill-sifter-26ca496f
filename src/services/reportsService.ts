@@ -1,4 +1,3 @@
-
 import { reportService } from './api';
 
 export interface HiringReportEntry {
@@ -12,7 +11,7 @@ export interface SourceReportEntry {
 }
 
 export const reportsService = {
-  async getHiringStatistics(): Promise<HiringReportEntry[]> {
+  async getHiringStats(): Promise<HiringReportEntry[]> {
     try {
       const response = await reportService.getHiringReport();
       return response.data?.data || [];
@@ -22,7 +21,7 @@ export const reportsService = {
     }
   },
 
-  async getCandidateSources(): Promise<SourceReportEntry[]> {
+  async getSourceStats(): Promise<SourceReportEntry[]> {
     try {
       const response = await reportService.getSourceReport();
       return response.data?.data || [];
@@ -30,5 +29,14 @@ export const reportsService = {
       console.error('Error fetching candidate sources:', error);
       return [];
     }
+  },
+
+  // Keep the old method names for backward compatibility
+  async getHiringStatistics(): Promise<HiringReportEntry[]> {
+    return this.getHiringStats();
+  },
+
+  async getCandidateSources(): Promise<SourceReportEntry[]> {
+    return this.getSourceStats();
   },
 };

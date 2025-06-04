@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import { TrendingUp, Activity, Users, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
-import { reportsService } from '@/services/reportsService';
+import { reportsService, HiringReportEntry, SourceReportEntry } from '@/services/reportsService';
 
 const Reports = () => {
   // Fetch hiring statistics
@@ -31,22 +31,41 @@ const Reports = () => {
   // Colors for the pie chart
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042'];
 
-  // Use fallback data if API returns an error
-  const hiringStats = hiringData || [
-    { name: 'Jan', candidates: 4 },
-    { name: 'Feb', candidates: 7 },
-    { name: 'Mar', candidates: 5 },
-    { name: 'Apr', candidates: 10 },
-    { name: 'May', candidates: 8 },
-    { name: 'Jun', candidates: 12 },
-  ];
+  // Transform hiring data for chart display
+  const hiringStats = React.useMemo(() => {
+    if (hiringData && Array.isArray(hiringData)) {
+      return hiringData.map((entry: HiringReportEntry) => ({
+        name: entry.date,
+        candidates: entry.totalInterviews
+      }));
+    }
+    // Fallback data
+    return [
+      { name: 'Jan', candidates: 4 },
+      { name: 'Feb', candidates: 7 },
+      { name: 'Mar', candidates: 5 },
+      { name: 'Apr', candidates: 10 },
+      { name: 'May', candidates: 8 },
+      { name: 'Jun', candidates: 12 },
+    ];
+  }, [hiringData]);
 
-  const sourceStats = sourceData || [
-    { name: 'LinkedIn', value: 40 },
-    { name: 'Referrals', value: 25 },
-    { name: 'Job Boards', value: 20 },
-    { name: 'Direct', value: 15 },
-  ];
+  // Transform source data for chart display
+  const sourceStats = React.useMemo(() => {
+    if (sourceData && Array.isArray(sourceData)) {
+      return sourceData.map((entry: SourceReportEntry) => ({
+        name: entry.source,
+        value: entry.count
+      }));
+    }
+    // Fallback data
+    return [
+      { name: 'LinkedIn', value: 40 },
+      { name: 'Referrals', value: 25 },
+      { name: 'Job Boards', value: 20 },
+      { name: 'Direct', value: 15 },
+    ];
+  }, [sourceData]);
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -71,7 +90,7 @@ const Reports = () => {
                   {isHiringLoading ? (
                     <Skeleton className="h-10 w-24" />
                   ) : (
-                    hiringStats.reduce((total, month) => total + month.candidates, 0) || 0
+                    hiringStats.reduce((total, month) => total + month.candidates, 0)
                   )}
                 </div>
                 <div className="text-sm text-ats-gray-500 mt-1">
