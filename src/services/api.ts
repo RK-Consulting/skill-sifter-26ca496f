@@ -156,8 +156,8 @@ export const interviewService = {
     return api.get(`/interviews/${id}`);
   },
 
-   // Create a new interview
-   createInterview: async (interview: any) => {
+  // Create a new interview
+  createInterview: async (interview: any) => {
     console.log('Interview scheduled:', interview);
     return api.post('/interviews', interview);
   },
@@ -295,6 +295,19 @@ export const dailyJobService = {
   // Delete a daily job
   deleteDailyJob: async (id: number) => {
     return api.delete(`/daily-jobs/${id}`);
+  },
+};
+
+// Add report services to match backend handlers
+export const reportService = {
+  // Get hiring report data
+  getHiringReport: async () => {
+    return api.get('/reports/hiring');
+  },
+
+  // Get source report data
+  getSourceReport: async () => {
+    return api.get('/reports/sources');
   },
 };
 

@@ -45,24 +45,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { interviewService } from '@/services/api';
 
-// Define the schema for form validation
+// Define the schema for form validation matching backend Interview model
 const formSchema = z.object({
-  interviewNumber: z.string().min(1, { message: 'Interview number is required' }),
-  jdNo: z.string().min(1, { message: 'JD No. is required' }),
   candidateName: z.string().min(1, { message: 'Candidate name is required' }),
-  mobile: z.string().min(10, { message: 'Valid mobile number is required' }),
-  email: z.string().email({ message: 'Valid email is required' }),
-  status: z.string(),
+  position: z.string().min(1, { message: 'Position is required' }),
   interviewDate: z.date({
     required_error: 'Interview date and time is required',
   }),
+  status: z.string().default('scheduled'),
   feedback: z.string().optional(),
-  bill: z.string().optional(),
-  followupClient: z.boolean().default(false),
-  followupCandidate: z.boolean().default(false),
-  joiningDate: z.boolean().default(false),
-  confirmationEmail: z.boolean().default(false),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -74,23 +67,37 @@ const ScheduleInterview = () => {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      status: 'Partner screening round',
-      feedback: 'Pending from Client',
-      bill: 'No',
-      followupClient: false,
-      followupCandidate: false,
-      joiningDate: false,
-      confirmationEmail: false,
+      status: 'scheduled',
+      feedback: '',
     },
   });
 
   // Handle form submission
-  const onSubmit = (data: FormValues) => {
-    console.log('Interview scheduled:', data);
-    toast.success('Interview successfully scheduled!');
-    // In a real application, you would save the data to a database here
-    form.reset();
-    navigate('/interviews');
+  const onSubmit = async (data: FormValues) => {
+    try {
+      console.log('Interview data to submit:', data);
+      
+      // Create interview object matching backend Interview model
+      const interviewData = {
+        candidateName: data.candidateName,
+        position: data.position,
+        interviewDate: data.interviewDate.toISOString(),
+        status: data.status,
+        feedback: data.feedback || '',
+      };
+
+      console.log('Sending interview data:', interviewData);
+      
+      const response = await interviewService.createInterview(interviewData);
+      console.log('Interview created successfully:', response);
+      
+      toast.success('Interview successfully scheduled!');
+      form.reset();
+      navigate('/interviews');
+    } catch (error) {
+      console.error('Error scheduling interview:', error);
+      toast.error('Failed to schedule interview. Please try again.');
+    }
   };
 
   return (
@@ -119,36 +126,6 @@ const ScheduleInterview = () => {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Interview Number */}
-                    <FormField
-                      control={form.control}
-                      name="interviewNumber"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Interview Number</FormLabel>
-                          <FormControl>
-                            <Input placeholder="INT-0001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* JD No */}
-                    <FormField
-                      control={form.control}
-                      name="jdNo"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>JD No.</FormLabel>
-                          <FormControl>
-                            <Input placeholder="JD-0001" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     {/* Candidate Name */}
                     <FormField
                       control={form.control}
@@ -167,36 +144,15 @@ const ScheduleInterview = () => {
                       )}
                     />
 
-                    {/* Mobile Number */}
+                    {/* Position */}
                     <FormField
                       control={form.control}
-                      name="mobile"
+                      name="position"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Mobile Number</FormLabel>
+                          <FormLabel>Position</FormLabel>
                           <FormControl>
-                            <div className="flex">
-                              <Phone className="w-4 h-4 absolute mt-3 ml-3 text-ats-gray-500" />
-                              <Input className="pl-10" placeholder="+1 123 456 7890" {...field} />
-                            </div>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Email */}
-                    <FormField
-                      control={form.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Email ID</FormLabel>
-                          <FormControl>
-                            <div className="flex">
-                              <Mail className="w-4 h-4 absolute mt-3 ml-3 text-ats-gray-500" />
-                              <Input className="pl-10" placeholder="john.doe@example.com" {...field} />
-                            </div>
+                            <Input placeholder="Software Engineer" {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -217,10 +173,10 @@ const ScheduleInterview = () => {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="Partner screening round">Partner screening round</SelectItem>
-                              <SelectItem value="Round 1">Round 1</SelectItem>
-                              <SelectItem value="Round 2">Round 2</SelectItem>
-                              <SelectItem value="Round 3">Round 3</SelectItem>
+                              <SelectItem value="scheduled">Scheduled</SelectItem>
+                              <SelectItem value="completed">Completed</SelectItem>
+                              <SelectItem value="cancelled">Cancelled</SelectItem>
+                              <SelectItem value="rescheduled">Rescheduled</SelectItem>
                             </SelectContent>
                           </Select>
                           <FormMessage />
@@ -234,7 +190,7 @@ const ScheduleInterview = () => {
                       name="interviewDate"
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
-                          <FormLabel>Candidate Interview Date & Time</FormLabel>
+                          <FormLabel>Interview Date & Time</FormLabel>
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
@@ -265,7 +221,6 @@ const ScheduleInterview = () => {
                                   selected={field.value}
                                   onSelect={(date) => {
                                     if (date) {
-                                      // Keep the time from the current value or set it to noon
                                       const currentTime = field.value ? field.value : new Date();
                                       date.setHours(currentTime.getHours());
                                       date.setMinutes(currentTime.getMinutes());
@@ -301,134 +256,22 @@ const ScheduleInterview = () => {
                         </FormItem>
                       )}
                     />
-
-                    {/* Feedback */}
-                    <FormField
-                      control={form.control}
-                      name="feedback"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Feedback</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select feedback" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Selected">Selected</SelectItem>
-                              <SelectItem value="Failed/Rejected">Failed/Rejected</SelectItem>
-                              <SelectItem value="Selected but rejected by Candidate">Selected but rejected by Candidate</SelectItem>
-                              <SelectItem value="Pending from Client">Pending from Client</SelectItem>
-                              <SelectItem value="Pending from Candidate">Pending from Candidate</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    {/* Bill */}
-                    <FormField
-                      control={form.control}
-                      name="bill"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Bill</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select option" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="Yes">Yes</SelectItem>
-                              <SelectItem value="No">No</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                   </div>
 
-                  {/* Completion Checklist */}
-                  <div className="mt-6">
-                    <h3 className="text-lg font-medium mb-4">Completion</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <FormField
-                        control={form.control}
-                        name="followupClient"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Follow-up Client for Offer Letter</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="followupCandidate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Follow-up Candidate for Offer Acceptance</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="joiningDate"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Joining Date Confirmation</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="confirmationEmail"
-                        render={({ field }) => (
-                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
-                            <FormControl>
-                              <Checkbox
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                            <div className="space-y-1 leading-none">
-                              <FormLabel>Confirmation Email from Client for Onboarding</FormLabel>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
+                  {/* Feedback */}
+                  <FormField
+                    control={form.control}
+                    name="feedback"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Feedback (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Enter feedback..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
 
                   <div className="flex justify-end gap-3">
                     <Button 

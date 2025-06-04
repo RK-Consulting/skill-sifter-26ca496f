@@ -96,10 +96,10 @@ export const useDashboardStats = (): DashboardStats => {
   // Business contacts count from backend
   const businessContacts = businessArray.length;
 
-  // Interview statistics
+  // Interview statistics with correct status matching
   const totalInterviews = interviewsArray.length;
-  const scheduledInterviews = interviewsArray.filter((interview: any) => interview.status === 'Scheduled').length;
-  const completedInterviews = interviewsArray.filter((interview: any) => interview.status === 'Completed').length;
+  const scheduledInterviews = interviewsArray.filter((interview: any) => interview.status === 'scheduled').length;
+  const completedInterviews = interviewsArray.filter((interview: any) => interview.status === 'completed').length;
 
   // Determine overall loading state
   const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading || interviewsLoading;

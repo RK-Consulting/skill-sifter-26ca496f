@@ -1,8 +1,8 @@
-// (Implemented GetHiringReport and GetSourceReport functions)
+
 package handlers
 
 import (
-	//"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
