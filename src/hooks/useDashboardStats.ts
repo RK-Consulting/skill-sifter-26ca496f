@@ -23,6 +23,7 @@ export const useDashboardStats = (): DashboardStats => {
   } = useQuery({
     queryKey: ['candidates'],
     queryFn: candidateService.getAllCandidates,
+    retry: false, // Don't retry failed requests
   });
 
   // Fetch jobs
@@ -33,6 +34,7 @@ export const useDashboardStats = (): DashboardStats => {
   } = useQuery({
     queryKey: ['jobs'],
     queryFn: jobService.getAllJobs,
+    retry: false,
   });
 
   // Fetch daily jobs
@@ -43,6 +45,7 @@ export const useDashboardStats = (): DashboardStats => {
   } = useQuery({
     queryKey: ['dailyJobs'],
     queryFn: dailyJobService.getAllDailyJobs,
+    retry: false,
   });
 
   // Fetch business contacts
@@ -53,6 +56,7 @@ export const useDashboardStats = (): DashboardStats => {
   } = useQuery({
     queryKey: ['businessContacts'],
     queryFn: businessDevService.getAllBusinessDevs,
+    retry: false,
   });
 
   // Fetch interviews
@@ -63,6 +67,7 @@ export const useDashboardStats = (): DashboardStats => {
   } = useQuery({
     queryKey: ['interviews'],
     queryFn: interviewService.getAllInterviews,
+    retry: false,
   });
 
   // Safely extract data with array check
@@ -101,11 +106,19 @@ export const useDashboardStats = (): DashboardStats => {
   const scheduledInterviews = interviewsArray.filter((interview: any) => interview.status === 'scheduled').length;
   const completedInterviews = interviewsArray.filter((interview: any) => interview.status === 'completed').length;
 
-  // Determine overall loading state
-  const isLoading = candidatesLoading || jobsLoading || dailyJobsLoading || businessLoading || interviewsLoading;
+  // Determine overall loading state - only if ALL are loading
+  const isLoading = candidatesLoading && jobsLoading && dailyJobsLoading && businessLoading && interviewsLoading;
   
-  // Determine if there's any error
-  const error = candidatesError || jobsError || dailyJobsError || businessError || interviewsError || null;
+  // Only show error if ALL APIs failed, not just some
+  const allFailed = candidatesError && jobsError && dailyJobsError && businessError && interviewsError;
+  const error = allFailed ? (candidatesError || jobsError || dailyJobsError || businessError || interviewsError) : null;
+
+  // Log individual errors for debugging without failing the entire dashboard
+  if (candidatesError) console.warn('Candidates API failed:', candidatesError.message);
+  if (jobsError) console.warn('Jobs API failed:', jobsError.message);
+  if (dailyJobsError) console.warn('Daily Jobs API failed:', dailyJobsError.message);
+  if (businessError) console.warn('Business Dev API failed:', businessError.message);
+  if (interviewsError) console.warn('Interviews API failed:', interviewsError.message);
 
   return {
     totalCandidates,
