@@ -10,10 +10,11 @@ import { TrendingUp, Activity, Users, BarChart2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
 import { reportsService, HiringReportEntry, SourceReportEntry } from '@/services/reportsService';
+import { candidateService, interviewService } from '@/services/api';
 
 const Reports = () => {
   // Fetch hiring statistics
-  const { data: hiringData, isLoading: isHiringLoading } = useQuery({
+  const { data: hiringData, isLoading: isHiringLoading, error: hiringError } = useQuery({
     queryKey: ['hiringStats'],
     queryFn: reportsService.getHiringStats,
     staleTime: 300000, // 5 minutes
@@ -21,11 +22,25 @@ const Reports = () => {
   });
 
   // Fetch source statistics
-  const { data: sourceData, isLoading: isSourceLoading } = useQuery({
+  const { data: sourceData, isLoading: isSourceLoading, error: sourceError } = useQuery({
     queryKey: ['sourceStats'],
     queryFn: reportsService.getSourceStats,
     staleTime: 300000, // 5 minutes
     gcTime: 600000 // 10 minutes
+  });
+
+  // Fetch candidates for total count
+  const { data: candidatesData, isLoading: isCandidatesLoading } = useQuery({
+    queryKey: ['candidatesReport'],
+    queryFn: candidateService.getAllCandidates,
+    staleTime: 300000
+  });
+
+  // Fetch interviews for total count
+  const { data: interviewsData, isLoading: isInterviewsLoading } = useQuery({
+    queryKey: ['interviewsReport'],
+    queryFn: interviewService.getAllInterviews,
+    staleTime: 300000
   });
 
   // Colors for the pie chart
@@ -33,39 +48,61 @@ const Reports = () => {
 
   // Transform hiring data for chart display
   const hiringStats = React.useMemo(() => {
-    if (hiringData && Array.isArray(hiringData)) {
+    if (hiringData && Array.isArray(hiringData) && hiringData.length > 0) {
       return hiringData.map((entry: HiringReportEntry) => ({
         name: entry.date,
         candidates: entry.totalInterviews
       }));
     }
-    // Fallback data
-    return [
-      { name: 'Jan', candidates: 4 },
-      { name: 'Feb', candidates: 7 },
-      { name: 'Mar', candidates: 5 },
-      { name: 'Apr', candidates: 10 },
-      { name: 'May', candidates: 8 },
-      { name: 'Jun', candidates: 12 },
-    ];
+    return [];
   }, [hiringData]);
 
   // Transform source data for chart display
   const sourceStats = React.useMemo(() => {
-    if (sourceData && Array.isArray(sourceData)) {
+    if (sourceData && Array.isArray(sourceData) && sourceData.length > 0) {
       return sourceData.map((entry: SourceReportEntry) => ({
         name: entry.source,
         value: entry.count
       }));
     }
-    // Fallback data
-    return [
-      { name: 'LinkedIn', value: 40 },
-      { name: 'Referrals', value: 25 },
-      { name: 'Job Boards', value: 20 },
-      { name: 'Direct', value: 15 },
-    ];
+    return [];
   }, [sourceData]);
+
+  // Calculate total candidates from database
+  const totalCandidatesCount = React.useMemo(() => {
+    if (candidatesData?.data?.data && Array.isArray(candidatesData.data.data)) {
+      return candidatesData.data.data.length;
+    }
+    return 0;
+  }, [candidatesData]);
+
+  // Calculate total interviews from database
+  const totalInterviewsCount = React.useMemo(() => {
+    if (interviewsData?.data?.data && Array.isArray(interviewsData.data.data)) {
+      return interviewsData.data.data.length;
+    }
+    return 0;
+  }, [interviewsData]);
+
+  // Calculate total from hiring trend
+  const totalFromHiringTrend = React.useMemo(() => {
+    if (hiringStats.length > 0) {
+      return hiringStats.reduce((total, month) => total + month.candidates, 0);
+    }
+    return totalInterviewsCount;
+  }, [hiringStats, totalInterviewsCount]);
+
+  // Calculate conversion rate from real data
+  const conversionRate = React.useMemo(() => {
+    if (totalCandidatesCount > 0 && totalInterviewsCount > 0) {
+      const rate = (totalInterviewsCount / totalCandidatesCount * 100).toFixed(1);
+      return `${rate}%`;
+    }
+    return "0%";
+  }, [totalCandidatesCount, totalInterviewsCount]);
+
+  const isAnyLoading = isHiringLoading || isSourceLoading || isCandidatesLoading || isInterviewsLoading;
+  const hasErrors = hiringError || sourceError;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -74,27 +111,35 @@ const Reports = () => {
         <Container>
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Reports & Analytics</h1>
-            <p className="text-ats-gray-500">View recruitment insights and metrics.</p>
+            <p className="text-ats-gray-500">View recruitment insights and metrics from database.</p>
           </div>
+
+          {hasErrors && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-red-600">
+                Error loading some report data. Please check your connection to the database.
+              </p>
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <Card>
               <CardHeader className="p-6">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5 text-ats-blue" />
-                  Candidates
+                  Total Candidates
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 pt-0">
                 <div className="text-4xl font-bold">
-                  {isHiringLoading ? (
+                  {isCandidatesLoading ? (
                     <Skeleton className="h-10 w-24" />
                   ) : (
-                    hiringStats.reduce((total, month) => total + month.candidates, 0)
+                    totalCandidatesCount
                   )}
                 </div>
                 <div className="text-sm text-ats-gray-500 mt-1">
-                  Total candidates this year
+                  From database records
                 </div>
               </CardContent>
             </Card>
@@ -103,19 +148,19 @@ const Reports = () => {
               <CardHeader className="p-6">
                 <CardTitle className="flex items-center gap-2">
                   <TrendingUp className="w-5 h-5 text-ats-blue" />
-                  Growth Rate
+                  Total Interviews
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 pt-0">
                 <div className="text-4xl font-bold text-green-600">
-                  {isHiringLoading ? (
+                  {isInterviewsLoading ? (
                     <Skeleton className="h-10 w-24" />
                   ) : (
-                    "+24%"
+                    totalFromHiringTrend
                   )}
                 </div>
                 <div className="text-sm text-ats-gray-500 mt-1">
-                  Year over year increase
+                  Scheduled and completed
                 </div>
               </CardContent>
             </Card>
@@ -124,19 +169,19 @@ const Reports = () => {
               <CardHeader className="p-6">
                 <CardTitle className="flex items-center gap-2">
                   <Activity className="w-5 h-5 text-ats-blue" />
-                  Conversion Rate
+                  Interview Rate
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 pt-0">
                 <div className="text-4xl font-bold text-ats-blue">
-                  {isSourceLoading ? (
+                  {isAnyLoading ? (
                     <Skeleton className="h-10 w-24" />
                   ) : (
-                    "18%"
+                    conversionRate
                   )}
                 </div>
                 <div className="text-sm text-ats-gray-500 mt-1">
-                  Applications to hires
+                  Candidates to interviews
                 </div>
               </CardContent>
             </Card>
@@ -154,6 +199,13 @@ const Reports = () => {
                 {isHiringLoading ? (
                   <div className="h-64 flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
+                  </div>
+                ) : hiringStats.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <p className="mb-2">No hiring data available</p>
+                      <p className="text-sm">Data will appear here once interviews are scheduled</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="h-64">
@@ -192,6 +244,13 @@ const Reports = () => {
                 {isSourceLoading ? (
                   <div className="h-64 flex items-center justify-center">
                     <Skeleton className="h-full w-full" />
+                  </div>
+                ) : sourceStats.length === 0 ? (
+                  <div className="h-64 flex items-center justify-center">
+                    <div className="text-center text-gray-500">
+                      <p className="mb-2">No source data available</p>
+                      <p className="text-sm">Data will appear here once candidates with sources are added</p>
+                    </div>
                   </div>
                 ) : (
                   <div className="h-64 flex items-center justify-center">

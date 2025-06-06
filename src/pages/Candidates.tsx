@@ -26,6 +26,10 @@ interface Candidate {
   location: string;
   status: string;
   date: string;
+  email: string;
+  phone?: string;
+  position?: string;
+  source?: string;
 }
 
 const Candidates = () => {
@@ -35,43 +39,40 @@ const Candidates = () => {
   const [filteredCandidates, setFilteredCandidates] = useState<Candidate[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchCandidates = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // First try to fetch from API
+      console.log('Fetching candidates from API...');
       const response = await candidateService.getAllCandidates();
+      console.log('API response:', response);
+      
       if (response.data && response.data.data) {
         // Transform API data to match our Candidate interface
         const apiCandidates = response.data.data.map((candidate: any) => ({
           id: candidate.id,
           name: candidate.name,
+          email: candidate.email,
+          phone: candidate.phone,
           role: candidate.position || 'No Position',
-          location: candidate.location || 'Remote',
-          status: candidate.status || 'Screening',
-          date: candidate.date_applied ? new Date(candidate.date_applied).toLocaleDateString() : 'Recently'
+          location: 'Remote', // Default since not in backend model
+          status: candidate.status || 'applied',
+          date: candidate.dateApplied ? new Date(candidate.dateApplied).toLocaleDateString() : 'Recently',
+          position: candidate.position,
+          source: candidate.source
         }));
+        console.log('Transformed candidates:', apiCandidates);
         setCandidates(apiCandidates);
-        localStorage.setItem('candidates', JSON.stringify(apiCandidates));
+      } else {
+        console.warn('No candidate data received from API');
+        setCandidates([]);
       }
     } catch (error) {
-      console.log('Error fetching from API, falling back to localStorage', error);
-      // Fall back to localStorage if API fails
-      const storedCandidates = localStorage.getItem('candidates');
-      const defaultCandidates = [
-        { id: 1, name: 'Sarah Wilson', role: 'Senior UI Designer', location: 'New York', status: 'Screening', date: '2 days ago' },
-        { id: 2, name: 'John Doe', role: 'Software Engineer', location: 'San Francisco', status: 'Interview', date: '3 days ago' },
-        { id: 3, name: 'Emma Thompson', role: 'Product Manager', location: 'Boston', status: 'Offer', date: '1 week ago' },
-        { id: 4, name: 'Michael Brown', role: 'Data Scientist', location: 'Austin', status: 'Rejected', date: '1 week ago' },
-        { id: 5, name: 'Jessica Lee', role: 'Frontend Developer', location: 'Chicago', status: 'Screening', date: '2 weeks ago' },
-      ];
-      
-      if (storedCandidates) {
-        setCandidates(JSON.parse(storedCandidates));
-      } else {
-        setCandidates(defaultCandidates);
-        localStorage.setItem('candidates', JSON.stringify(defaultCandidates));
-      }
+      console.error('Error fetching candidates from API:', error);
+      setError('Failed to load candidates from database. Please check your connection.');
+      setCandidates([]);
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +87,7 @@ const Candidates = () => {
       const filtered = candidates.filter(candidate => 
         candidate.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         candidate.role.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        candidate.location.toLowerCase().includes(searchTerm.toLowerCase())
+        candidate.email.toLowerCase().includes(searchTerm.toLowerCase())
       );
       setFilteredCandidates(filtered);
     } else {
@@ -102,33 +103,47 @@ const Candidates = () => {
     navigate('/candidates/add');
   };
 
-  const updateCandidateStatus = (id: number, status: string) => {
-    const updatedCandidates = candidates.map(candidate => 
-      candidate.id === id ? { ...candidate, status } : candidate
-    );
-    setCandidates(updatedCandidates);
-    localStorage.setItem('candidates', JSON.stringify(updatedCandidates));
-    toast.success(`Candidate marked as ${status}`);
+  const updateCandidateStatus = async (id: number, status: string) => {
+    try {
+      const candidateToUpdate = candidates.find(c => c.id === id);
+      if (!candidateToUpdate) return;
+
+      // Update in backend
+      await candidateService.updateCandidate(id, {
+        ...candidateToUpdate,
+        status: status
+      });
+
+      // Update local state
+      const updatedCandidates = candidates.map(candidate => 
+        candidate.id === id ? { ...candidate, status } : candidate
+      );
+      setCandidates(updatedCandidates);
+      toast.success(`Candidate status updated to ${status}`);
+    } catch (error) {
+      console.error('Error updating candidate status:', error);
+      toast.error('Failed to update candidate status');
+    }
   };
 
   const viewCandidateDetails = (id: number) => {
-    // In a real application, this would navigate to a candidate details page
     console.log(`View candidate ${id}`);
+    // TODO: Navigate to candidate details page when implemented
   };
 
   const renderCandidateRow = (candidate: Candidate) => (
     <TableRow key={candidate.id}>
       <TableCell className="font-medium">{candidate.name}</TableCell>
       {!isMobile && <TableCell>{candidate.role}</TableCell>}
-      {!isMobile && <TableCell>{candidate.location}</TableCell>}
+      {!isMobile && <TableCell>{candidate.email}</TableCell>}
       <TableCell>
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-          ${candidate.status === 'Screening' ? 'bg-blue-100 text-blue-800' : ''}
-          ${candidate.status === 'Interview' ? 'bg-yellow-100 text-yellow-800' : ''}
-          ${candidate.status === 'Offer' ? 'bg-green-100 text-green-800' : ''}
-          ${candidate.status === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
-          ${candidate.status === 'Actively Looking' ? 'bg-purple-100 text-purple-800' : ''}
-          ${candidate.status === 'Not Interested' ? 'bg-gray-100 text-gray-800' : ''}
+          ${candidate.status === 'applied' ? 'bg-blue-100 text-blue-800' : ''}
+          ${candidate.status === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
+          ${candidate.status === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
+          ${candidate.status === 'offer' ? 'bg-green-100 text-green-800' : ''}
+          ${candidate.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+          ${candidate.status === 'hired' ? 'bg-green-100 text-green-800' : ''}
         `}>
           {candidate.status}
         </span>
@@ -145,11 +160,14 @@ const Candidates = () => {
             <DropdownMenuItem onClick={() => viewCandidateDetails(candidate.id)}>
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Actively Looking')}>
-              Mark Actively Looking
+            <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'screening')}>
+              Mark Screening
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Not Interested')}>
-              Mark Not Interested
+            <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'interview')}>
+              Mark Interview
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'rejected')}>
+              Mark Rejected
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -165,18 +183,18 @@ const Candidates = () => {
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium">{candidate.name}</h3>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                ${candidate.status === 'Screening' ? 'bg-blue-100 text-blue-800' : ''}
-                ${candidate.status === 'Interview' ? 'bg-yellow-100 text-yellow-800' : ''}
-                ${candidate.status === 'Offer' ? 'bg-green-100 text-green-800' : ''}
-                ${candidate.status === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
-                ${candidate.status === 'Actively Looking' ? 'bg-purple-100 text-purple-800' : ''}
-                ${candidate.status === 'Not Interested' ? 'bg-gray-100 text-gray-800' : ''}
+                ${candidate.status === 'applied' ? 'bg-blue-100 text-blue-800' : ''}
+                ${candidate.status === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
+                ${candidate.status === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
+                ${candidate.status === 'offer' ? 'bg-green-100 text-green-800' : ''}
+                ${candidate.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+                ${candidate.status === 'hired' ? 'bg-green-100 text-green-800' : ''}
               `}>
                 {candidate.status}
               </span>
             </div>
             <div className="text-sm text-gray-500 mb-1">{candidate.role}</div>
-            <div className="text-sm text-gray-500 mb-3">{candidate.location} • {candidate.date}</div>
+            <div className="text-sm text-gray-500 mb-3">{candidate.email} • {candidate.date}</div>
             <div className="flex justify-end">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -188,11 +206,14 @@ const Candidates = () => {
                   <DropdownMenuItem onClick={() => viewCandidateDetails(candidate.id)}>
                     View Details
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Actively Looking')}>
-                    Mark Actively Looking
+                  <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'screening')}>
+                    Mark Screening
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'Not Interested')}>
-                    Mark Not Interested
+                  <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'interview')}>
+                    Mark Interview
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'rejected')}>
+                    Mark Rejected
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -201,7 +222,7 @@ const Candidates = () => {
         ))
       ) : (
         <div className="text-center py-8 text-gray-500">
-          {searchTerm ? 'No candidates found matching your search.' : 'No candidates found.'}
+          {searchTerm ? 'No candidates found matching your search.' : 'No candidates found in database.'}
         </div>
       )}
     </div>
@@ -247,9 +268,16 @@ const Candidates = () => {
                 </div>
               </div>
 
-              {isLoading ? (
+              {error ? (
                 <div className="py-12 text-center">
-                  <p>Loading candidates...</p>
+                  <p className="text-red-600 mb-4">{error}</p>
+                  <Button onClick={fetchCandidates} variant="outline">
+                    Retry
+                  </Button>
+                </div>
+              ) : isLoading ? (
+                <div className="py-12 text-center">
+                  <p>Loading candidates from database...</p>
                 </div>
               ) : isMobile ? (
                 renderMobileCandidateList()
@@ -259,7 +287,7 @@ const Candidates = () => {
                     <TableRow>
                       <TableHead>Name</TableHead>
                       <TableHead>Role</TableHead>
-                      <TableHead>Location</TableHead>
+                      <TableHead>Email</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Applied</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -271,7 +299,7 @@ const Candidates = () => {
                     ) : (
                       <TableRow>
                         <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                          {searchTerm ? 'No candidates found matching your search.' : 'No candidates found.'}
+                          {searchTerm ? 'No candidates found matching your search.' : 'No candidates found in database.'}
                         </TableCell>
                       </TableRow>
                     )}
