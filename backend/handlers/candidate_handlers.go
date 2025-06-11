@@ -99,7 +99,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
 		RETURNING id`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
-		candidate.Status, candidate.Source, candidate.Date, candidate.ResumeURL, candidate.CoverLetter, 
+		candidate.Status, candidate.Source, candidate.DateApplied, candidate.ResumeURL, candidate.CoverLetter, 
 		candidate.LastModified, candidate.CompanyName,
 	).Scan(&id)
 	
