@@ -29,8 +29,8 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 		var c models.Candidate
 		// Scan all fields from the row into the candidate struct
 		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, 
-			&c.Status, &c.DateApplied, &c.ResumeURL, &c.CoverLetter, 
-			&c.LastModified, &c.CompanyName, &c.Source)
+			&c.Status, &c.Source, &c.DateApplied, &c.ResumeURL, &c.CoverLetter, 
+			&c.LastModified, &c.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning candidate row")
 			return
@@ -62,9 +62,9 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		"SELECT * FROM candidates WHERE id = $1 AND company_name = $2", 
 		id, companyName,
 	).Scan(&candidate.ID, &candidate.Name, &candidate.Email, &candidate.Phone, 
-		&candidate.Position, &candidate.Status, &candidate.DateApplied, 
+		&candidate.Position, &candidate.Status, &candidate.Source, &candidate.DateApplied, 
 		&candidate.ResumeURL, &candidate.CoverLetter, &candidate.LastModified, 
-		&candidate.CompanyName, &candidate.Source)
+		&candidate.CompanyName)
 	
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
@@ -95,12 +95,12 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	var id int
 	err = db.DB.QueryRow(
 		`INSERT INTO candidates (name, email, phone, position, status, 
-			resume_url, cover_letter, company_name, source) 
+			source, resume_url, cover_letter, company_name) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
 		RETURNING id`,
 		candidate.Name, candidate.Email, candidate.Phone, candidate.Position, 
-		candidate.Status, candidate.ResumeURL, candidate.CoverLetter, 
-		candidate.CompanyName, candidate.Source,
+		candidate.Status, candidate.Source, candidate.Date, candidate.ResumeURL, candidate.CoverLetter, 
+		candidate.LastModified, candidate.CompanyName,
 	).Scan(&id)
 	
 	if err != nil {
