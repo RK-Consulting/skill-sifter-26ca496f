@@ -40,13 +40,14 @@ CREATE TABLE IF NOT EXISTS candidates (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     position VARCHAR(100),
-    status VARCHAR(50) DEFAULT 'applied',
-    source VARCHAR(100),
-    date_applied TIMESTAMP DEFAULT NOW(),
-    resume_url TEXT,
-    cover_letter TEXT,
-    last_modified TIMESTAMP DEFAULT NOW(),
-    company_name VARCHAR(255) NOT NULL
+    location VARCHAR(50), 
+    experience VARCHAR(100),
+    currrentctc VARCHAR(100),
+    expectedctc VARCHAR(100),
+    noticeperiod VARCHAR(100),
+    jlptlanguage VARCHAR(100),
+    skills VARCHAR(100),
+    jobdescription VARCHAR(500),
 );
 
 -- Create jobs table
