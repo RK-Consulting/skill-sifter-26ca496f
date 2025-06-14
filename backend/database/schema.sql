@@ -1,4 +1,3 @@
-
 -- Create companies/tenants table
 CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(255) PRIMARY KEY,
@@ -40,14 +39,15 @@ CREATE TABLE IF NOT EXISTS candidates (
     email VARCHAR(255) NOT NULL,
     phone VARCHAR(20),
     position VARCHAR(100),
-    location VARCHAR(50), 
+    location VARCHAR(50),
     experience VARCHAR(100),
-    currrentctc VARCHAR(100),
+    currentctc VARCHAR(100),
     expectedctc VARCHAR(100),
     noticeperiod VARCHAR(100),
     jlptlanguage VARCHAR(100),
     skills VARCHAR(100),
     jobdescription VARCHAR(500),
+    company_name VARCHAR(255) NOT NULL
 );
 
 -- Create jobs table
