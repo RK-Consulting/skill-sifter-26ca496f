@@ -187,6 +187,29 @@ The long-term shape for per-application specialization is a shared base LLM with
 
 However, fine-tuning (even efficient LoRA fine-tuning) requires (a) a real labeled training corpus, which can only come from observing real usage and real mistakes in production, and (b) GPU compute budget, which isn't justified pre-revenue. Decision: **launch the AI feature using RAG + prompting against AstraMind's existing capabilities first**, let real usage generate the training data and reveal actual failure modes, and treat LoRA fine-tuning as a deliberate v2+ optimization once both real usage data and GPU budget exist — not a prerequisite to shipping.
 
+### Decision 5 — v1 AI scope: two use cases, classified by what actually needs AI
+
+A broad review of SkillSifter's feature set shows most of it is structured, database-oriented CRUD (Candidates, Jobs, Daily Tasks, Business Dev, Interviews) — plain SQL and filter forms are the right tool there, not AI. Only two genuine AI use cases were identified:
+
+**Use Case 1 — Resume Extraction.** Input: unstructured files (PDF/.docx), from a local folder initially, Google Drive later. Output: a structured candidate record (Name, Email, Phone, Skills) written to the `candidates` table. Nature: unstructured → structured. This is AstraMind's ingestion/RAG territory. Note: the candidate's primary key (auto-generated ID) is **not** an AI concern — plain database auto-increment/UUID logic, generated at insert time by ordinary application code, not by AstraMind.
+
+**Use Case 2 — Candidate-to-Job Matching / Ranking.** Input: an open job's required skills/description, plus the pool of already-extracted candidate records. Output: candidates ranked by relevance to that job. Nature: structured ↔ structured semantic similarity, reusing the same embeddings generated during Use Case 1 rather than requiring a separate system. This is considered high enough value — arguably the core value proposition of a recruiter's actual job (best-fit matching, not exact keyword matching) — to include in the **same v1 AI milestone** as extraction, not deferred to a later release.
+
+**Decision: v1 AI milestone scope = Use Case 1 (extraction) + Use Case 2 (matching/ranking), built together**, since ranking is a natural, low-incremental-cost extension of the extraction pipeline rather than a separate system to design later.
+
+### Decision 6 — Ideas considered and explicitly deferred or rejected for v1
+
+| Idea | Disposition | Reasoning |
+|---|---|---|
+| Skill-set search box on Candidates page | **Not an AI feature at MVP** | If skills are stored as structured tags/array from extraction, a plain `WHERE skills @> ARRAY[...]` or `ILIKE` query is fast, cheap, predictable. Semantic search (e.g. "React" matching "frontend developer") is a plausible later upgrade, not a v1 requirement — no evidence yet that plain filtering is insufficient |
+| Natural-language DB queries (e.g. "how many candidates from Bangalore applied last month") | **Deferred, not v1** | Genuine AI use case (text-to-SQL) but a power-user convenience feature, ranked below matching/ranking in priority |
+| Duplicate candidate detection | **Deferred, and likely non-AI when built** | Simple fuzzy-matching (edit distance on email/phone) gets most of the value without needing AI at all |
+| Google Drive ingestion | **Not a new AI capability** | Same extraction pipeline as Use Case 1, just a different file source — a new input adapter, not new AI logic |
+
+### Open question — skill taxonomy normalization (unresolved, must be settled before writing the extraction prompt)
+
+Freeform extracted skills (e.g. `"React"`, `"ReactJS"`, `"React.js"` treated as three distinct strings) will quietly degrade both search and matching quality later. Not yet decided: whether extraction should normalize against a fixed skill taxonomy from day one, or whether that's an acceptable v2 refinement. This affects the design of the extraction prompt itself, so it needs to be settled **before** implementation begins, not after.
+
 ### Explicitly out of scope right now
 
 - No AstraMind integration code, API contracts, or infrastructure should be built as part of v0.2.0.
