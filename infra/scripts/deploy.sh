@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# Repeatable deploy. Run by GitHub Actions on every push to main.
-# Can also be run by hand on the server: bash infra/scripts/deploy.sh
+# Repeatable deploy. Run by hand on the server whenever you want to test:
+#   bash infra/scripts/deploy.sh
+# Deploys whichever branch is currently checked out on this server —
+# does NOT force-switch branches. Check out the branch you want first.
 set -euo pipefail
 
 APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$APP_DIR"
 
-echo "==> Pulling latest main"
+CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
-git checkout main
-git reset --hard origin/main
+git reset --hard "origin/${CURRENT_BRANCH}"
 
 echo "==> Building backend"
 cd "$APP_DIR/backend"
