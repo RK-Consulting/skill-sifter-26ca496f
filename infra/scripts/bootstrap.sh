@@ -25,16 +25,16 @@ if [ -z "${JWT_SECRET:-}" ]; then
   exit 1
 fi
 
-echo "==> Creating database and user (idempotent)"
-sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
-DO \$\$
-BEGIN
-  IF NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}') THEN
-    CREATE DATABASE ${DB_NAME};
-  END IF;
-END
-\$\$;
+echo "==> Creating database (idempotent)"
+DB_EXISTS=$(sudo -u postgres psql -tAc "SELECT 1 FROM pg_database WHERE datname = '${DB_NAME}'")
+if [ "$DB_EXISTS" != "1" ]; then
+  sudo -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE DATABASE ${DB_NAME};"
+else
+  echo "  database ${DB_NAME} already exists, skipping"
+fi
 
+echo "==> Creating user and granting privileges (idempotent)"
+sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 DO \$\$
 BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = '${DB_USER}') THEN
