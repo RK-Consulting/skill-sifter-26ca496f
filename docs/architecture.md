@@ -206,9 +206,21 @@ A broad review of SkillSifter's feature set shows most of it is structured, data
 | Duplicate candidate detection | **Deferred, and likely non-AI when built** | Simple fuzzy-matching (edit distance on email/phone) gets most of the value without needing AI at all |
 | Google Drive ingestion | **Not a new AI capability** | Same extraction pipeline as Use Case 1, just a different file source — a new input adapter, not new AI logic |
 
-### Open question — skill taxonomy normalization (unresolved, must be settled before writing the extraction prompt)
+### Open question — skill taxonomy normalization (resolved — see Decision 7 below)
 
 Freeform extracted skills (e.g. `"React"`, `"ReactJS"`, `"React.js"` treated as three distinct strings) will quietly degrade both search and matching quality later. Not yet decided: whether extraction should normalize against a fixed skill taxonomy from day one, or whether that's an acceptable v2 refinement. This affects the design of the extraction prompt itself, so it needs to be settled **before** implementation begins, not after.
+
+### Decision 7 — Skill matching resolved at query time, not extraction time (closes the open question above)
+
+**Resolution to the open question above: freeform extraction stands. Matching quality is handled at query time via two independent, complementary layers, rather than by normalizing at extraction.**
+
+1. **Surface-form variants** (`React` / `ReactJS` / `React.js`) — handled via fuzzy/prefix matching (Postgres `pg_trgm` extension, or plain `ILIKE '%term%'` wildcard matching as a simpler starting point) directly against the freeform `skills` array. No lookup table needed — general-purpose, catches capitalization/suffix/pluralization differences automatically.
+
+2. **True abbreviation/full-form pairs** (`ML` / `Machine Learning`, `K8s` / `Kubernetes`, `CI/CD` / `Continuous Integration/Continuous Deployment`) — these don't share enough characters for fuzzy matching to bridge, so they're handled via a small, curated **`skill_aliases` reference table**, expanded at query time before matching against candidates. The tech-abbreviation vocabulary is bounded and slow-growing (roughly 150-300 entries covers the large majority of resume terminology across languages, infra/cloud, AI/ML, databases, practices, and frameworks) — not an open-ended taxonomy problem. The table can be extended over time as new terms enter common usage (e.g. "RAG," "LLM" in recent years), the same way any other schema change ships — via the existing migrations workflow (`backend/database/migrations/`, tracked under issue #11), not a special mechanism.
+
+Neither layer touches the extraction prompt, and neither requires re-processing already-extracted resumes if the alias list grows later — both operate purely at query time. This was chosen over extraction-time normalization because it avoids adding complexity to the extraction prompt (Decision 5/Use Case 1) and keeps the reference vocabulary independently upgradable without touching AstraMind or re-running extraction.
+
+**Explicitly accepted limitation**: this does not build a comprehensive taxonomy or ontology of skills (e.g. no attempt to model that "React" is a subset of "Frontend Development"). It solves lexical variation (same concept, different spelling/abbreviation), not conceptual hierarchy. Revisit only if real usage shows this is an actual gap, not preemptively.
 
 ### Explicitly out of scope right now
 
