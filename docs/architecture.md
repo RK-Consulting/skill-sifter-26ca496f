@@ -152,3 +152,42 @@ Not implemented today, but natural next steps if the system grows:
 - Add integration tests around the auth and multi-tenancy boundaries specifically, since those are the highest-risk areas.
 - Introduce structured logging and request tracing if the system will run at meaningful scale or need multi-instance debugging.
 - Consider a proper migrations tool (e.g. `golang-migrate`) in place of the current idempotent-`CREATE TABLE`-on-boot approach, to support safer schema evolution over time.
+
+## 11. Design Decisions Log — Future AI Integration (AstraMind)
+
+**Status: vision-level, not in scope for v0.2.0 or any near-term release. Captured here so the reasoning isn't lost, not as a build spec.**
+
+### Context
+
+SkillSifter's product vision extends beyond CRUD candidate/job tracking into AI-assisted recruitment: searching unstructured resume files (`.docx`/`.pdf`) by skill set, extracting structured candidate data (name, phone, email) from them, digging information out of connected sources like Google Drive, and answering natural-language questions over both document content and SkillSifter's own database. This would be a headline differentiating feature (USP), targeted at a **future release (tentatively v1.5+)**, not the current hardening milestone.
+
+The AI capability is being built as a **separate project, AstraMind** (github.com/harishnagaraju/astramind) — an existing, mature, modular Go RAG engine with document ingestion, chunking, semantic search, retrieval-augmented Q&A, and multi-provider LLM support (OpenAI-compatible APIs, local Ollama). AstraMind predates and is independent of SkillSifter.
+
+### Decision 1 — AstraMind is a platform; SkillSifter is one of its consumers, not a fork of it
+
+AstraMind is intended to serve as generic, reusable AI infrastructure for multiple future applications (SkillSifter today; potentially unrelated verticals, e.g. a law-firm document tool, later). It runs as its **own separately deployed service**, callable over HTTPS, rather than being merged into SkillSifter's Go backend or any other consumer's codebase. This keeps AstraMind independently deployable, scalable, and — eventually — separately resourced (AI inference workloads have very different hardware needs than a CRUD API).
+
+### Decision 2 — AstraMind stays domain-agnostic ("Option B" boundary)
+
+AstraMind's core must never contain domain-specific concepts borrowed from any one consumer (no notion of "candidate," "resume," or "company" inside AstraMind itself). It exposes only generic primitives — ingest a document, embed, semantic search, ask a question of a knowledge base. All domain interpretation (e.g. recognizing a chunk as a candidate's resume, extracting name/phone/email) happens in the **calling application's** own code, using AstraMind's primitives as building blocks.
+
+Rejected alternative: a true in-process "plugin" system where SkillSifter-specific code loads and runs inside AstraMind's own process. Rejected because it would make AstraMind's "stable platform" claim false in practice — any domain-specific branch in AstraMind's core is domain-specific code with extra steps, and would need rework for every new consumer rather than staying stable.
+
+### Decision 3 — Two-level tenancy is a real risk to design around, not an afterthought
+
+Once multiple applications call a shared AstraMind, and each application (like SkillSifter) has its own internal multi-tenancy (multiple companies), there are two nested scoping boundaries to get right:
+1. **Application-level**: AstraMind must know *which calling application* it's serving (e.g. API-key-per-application), but should never need to know about that application's internal tenants.
+2. **Tenant-level**: SkillSifter must enforce *which company* a request is scoped to **before** calling AstraMind — AstraMind should only ever receive an already-scoped payload, never raw access to "all of SkillSifter's data" with a company filter it's trusted to apply correctly itself.
+
+Getting this backwards (trusting AstraMind to understand and enforce company-level scoping) would reproduce the same class of cross-tenant leak risk already flagged for SkillSifter's own database layer (§9.2) — except spanning two systems, which is harder to catch in review or testing.
+
+### Decision 4 — Ship RAG + prompting first; defer fine-tuned adapters (LoRA) to a later phase
+
+The long-term shape for per-application specialization is a shared base LLM with small, swappable **LoRA adapters** per domain (e.g. a "resume extraction" adapter for SkillSifter) — this is an established production pattern (similar to how vLLM/S-LoRA serve many adapters off one base model), not a novel idea, and it's compatible with the Decision 2 boundary since an adapter is a trained-weights artifact, not application code living inside AstraMind.
+
+However, fine-tuning (even efficient LoRA fine-tuning) requires (a) a real labeled training corpus, which can only come from observing real usage and real mistakes in production, and (b) GPU compute budget, which isn't justified pre-revenue. Decision: **launch the AI feature using RAG + prompting against AstraMind's existing capabilities first**, let real usage generate the training data and reveal actual failure modes, and treat LoRA fine-tuning as a deliberate v2+ optimization once both real usage data and GPU budget exist — not a prerequisite to shipping.
+
+### Explicitly out of scope right now
+
+- No AstraMind integration code, API contracts, or infrastructure should be built as part of v0.2.0.
+- Tenant-isolation hardening (§9.2) should still be prioritized for its own sake in the near term — independent of the AI roadmap — but its importance is reinforced by Decision 3 above.
