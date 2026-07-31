@@ -309,9 +309,52 @@ Each requirement is traced to its source flow/step. This is a **draft baseline p
 | CON-01 | No resume version history is required — a conscious exclusion, not an oversight (see REQ-F-10). |
 | CON-02 | The AstraMind↔SkillSifter HTTPS API and auth work (§11, Decision 5-6) is not required to satisfy this use case. Flow A (backfill) can run as a local one-time job against the resume folder directly; the HTTPS API remains scoped to a separate, future live/ongoing ingestion capability. |
 
-### 12.4 Open Items (unresolved, pending further use-case clarification before requirements are finalized)
+### 12.4 Open Items — Resolved
 
-- Exception handling for candidates assessed as unqualified during backfill/screening — log and discard, or log and retain for future roles? Not yet answered.
-- Exception handling for unreadable/unusual files (corrupted, scanned-image-only, non-English, unusual formatting) during backfill — not yet answered.
-- Whether "most recent job title" (mentioned in the manual baseline, §12.1 Step 4) is a distinct data need from the existing `position` field (which the current schema treats as the role being considered for, not the candidate's current/prior title) — not yet resolved; risk of field-meaning conflation if left unaddressed.
-- Matching mechanism for "is this an update to an existing candidate" (Flow B, Step 6) — not yet confirmed whether this relies on the recruiter's own recognition, or a concrete key such as matching email address.
+All items originally flagged as open have been resolved through further use-case clarification:
+
+| Item | Resolution |
+|---|---|
+| Unreadable/unusual files during backfill (corrupted, scanned-image-only, non-English, unusual formatting) | Logged to a report list (filename + reason) at the end of the backfill run. Not inserted into the database. |
+| `position` vs. "most recent job title" | Same field, not two. No schema split needed. |
+| Duplicate/update detection (is this an update to an existing candidate, or a new one?) | Match on **name AND email** together, not either alone. |
+| Exception handling for "unqualified" candidates during backfill | **Not applicable to Flow A.** "Qualified" is only meaningful relative to a specific job description, and Flow A (backfill) has no JD attached — it is a blind bulk import. Every candidate that is *readable* (see above) is stored, regardless of fit for any particular role. Qualification is evaluated dynamically in Flow B, at search time, against whichever JD the recruiter is currently working — it is a property of a search, not a property of a stored candidate record. |
+
+### 12.5 Data Structure Design
+
+Traces to REQ-D-01 and REQ-D-02.
+
+**Status field (REQ-D-01, REQ-F-07).** REQ-F-07 calls for an open/extensible set of values, not a fixed list. A plain free-text column would satisfy "extensible" but permits inconsistent values over time (`"Not Interested"` vs `"not interested"` vs `"NI"`, silently fragmenting later reporting). Following the same reference-table pattern already established by the existing `roles` table:
+
+```sql
+CREATE TABLE candidate_statuses (
+    id SERIAL PRIMARY KEY,
+    label VARCHAR(100) NOT NULL UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO candidate_statuses (label) VALUES
+    ('Interested'),
+    ('Not Interested'),
+    ('Wait 2 Months'),
+    ('On Notice Period');
+
+ALTER TABLE candidates ADD COLUMN status_id INTEGER REFERENCES candidate_statuses(id);
+```
+
+Extensible by inserting new rows, no migration required for new status values; consistent values, no free-text drift. Nullable — a freshly backfilled or newly added candidate has no status until the recruiter engages with them (Flow B).
+
+**Resume file reference (REQ-D-02, supports REQ-F-04/09/10).** Resume files reside in exactly two possible locations, never on SkillSifter's own infrastructure: the recruiter's local drive, or Google Drive. The schema stores only a reference to the file's location, never the file itself — no server-side storage, no disk footprint on the droplet.
+
+```sql
+ALTER TABLE candidates ADD COLUMN resumesource VARCHAR(20);        -- 'local' or 'gdrive'
+ALTER TABLE candidates ADD COLUMN resumereference VARCHAR(500);    -- Google Drive file ID (local: not stored here — see below)
+ALTER TABLE candidates ADD COLUMN resumefilename VARCHAR(255);     -- original filename, for display
+ALTER TABLE candidates ADD COLUMN resumeupdatedat TIMESTAMP;
+```
+
+Since CON-01 explicitly excludes resume version history (latest-resume-only model), this is intentionally a 1:1 relationship on `candidates` directly — not a separate history table, which would over-build against an explicitly excluded requirement.
+
+**Local folder access — frontend-only, not schema.** Local file access from a web application is governed by the browser's File System Access API. A folder handle, once granted via a native Browse dialog, can be persisted client-side (in the browser's IndexedDB) and remembered across sessions — but the underlying read/write *permission* is re-confirmed on each new session as a browser security measure, not assumed indefinitely. Design decision: **on each login, if a remembered folder handle exists, prompt the recruiter with a Yes/No confirmation to re-grant access**; "No" allows Browsing to a different folder instead. This is entirely frontend application state — the local folder path is never sent to or stored by the backend. Only the Google Drive reference is a database concern, since Drive is itself a cloud service the backend can address directly (`resumesource = 'gdrive'`, `resumereference` = Drive file ID).
+
+**Requirements baseline status: complete.** No open items remain pending as of this section.
