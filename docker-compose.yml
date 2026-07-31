@@ -1,4 +1,3 @@
-
 version: '3.8'
 
 services:
@@ -32,6 +31,7 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=skillsifter
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set — see .env.example}
     ports:
       - "8080:8080"
     depends_on:
@@ -41,7 +41,7 @@ services:
   
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile
     container_name: skillsifter-client
     ports:
