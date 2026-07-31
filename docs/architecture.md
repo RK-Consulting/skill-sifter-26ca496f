@@ -226,3 +226,92 @@ Neither layer touches the extraction prompt, and neither requires re-processing 
 
 - No AstraMind integration code, API contracts, or infrastructure should be built as part of v0.2.0.
 - Tenant-isolation hardening (§9.2) should still be prioritized for its own sake in the near term — independent of the AI roadmap — but its importance is reinforced by Decision 3 above.
+
+## 12. Use Case & Requirements Baseline — Candidate Resume Backfill & Recruiter Workflow
+
+**Status: requirements baseline for the AI resume-extraction feature (§11, Decisions 5-7), derived from a validated use case walkthrough with the actual end user's real workflow (R K Consulting). Precedes any architecture or design work for this feature — captured here first, per SE process discipline (Use Case → Requirements → Architecture → Design), before any interface or system-boundary decisions are made.**
+
+### 12.1 Use Case: Manual Recruitment Screening and Data Entry
+
+- **Actor**: Recruiter / Talent Acquisition Specialist (R K Consulting)
+- **Goal**: Identify qualified candidates from a batch of received applications and log their professional profiles into the tracking repository for hiring manager review.
+- **Trigger**: A new job requisition closes, or a batch of unorganized application files accumulates in the local sourcing folder.
+- **Preconditions**: A local folder exists containing unprocessed resume files (PDF, DOCX); the tracking system is accessible; the job description and hiring criteria are defined.
+
+**Main flow, as currently performed manually (pre-automation baseline):**
+1. Open the folder containing new resumes.
+2. Open a resume file, scan it.
+3. Assess the candidate against job requirements.
+4. Extract name, email, phone, primary skills, most recent job title.
+5. Manually log the extracted details into the tracking system.
+6. Move the processed file into a "Processed" subfolder (this is the actor's mechanism for avoiding duplicate work across sessions — not incidental).
+7. Repeat for every file in the folder.
+
+**Postcondition / done-state**: the input folder is empty, all candidate profiles are visible in the tracking system, and the recruiter can begin scheduling interviews without needing to reopen raw resume files. (Note: the bar is "the database is trustworthy enough to never need to return to source," not merely "extraction happened.")
+
+### 12.2 Validated Flows (target automated behavior)
+
+**Flow A — One-time backfill.** Approximately 3,000 existing resumes (mixed PDF/DOCX) in a local folder are scanned and loaded into the database as a one-time batch operation, not per-candidate interaction.
+
+**Flow B — Ongoing recruiter workflow, database-first.** After Flow A, the recruiter works against the database, not raw files:
+1. A job description arrives; the recruiter searches/matches against candidate database records, not resume files.
+2. On a match, the recruiter notes phone/email and calls the candidate.
+3. **If not interested** — the recruiter marks a status against that candidate record (open/extensible set: interested, not interested, wait period, on notice period, etc.).
+4. **If interested** — the recruiter requests and receives an updated resume.
+5. The recruiter goes to the candidate's record (keyed by `candidate_id`), marks the old resume for deletion, and uploads/replaces it with the new one. **This entire flow happens within the existing Candidates section of the application** — no separate upload area.
+
+Clarified rule: "latest resume wins" — no version history is expected or wanted; the old resume is discarded once a newer one is confirmed, not archived.
+
+**Flow C — Brand new candidate**, not sourced from backfill or an existing record: uses the existing **Add Candidate** button/form. Already implemented, no gap identified.
+
+### 12.3 Requirements Baseline
+
+Each requirement is traced to its source flow/step. This is a **draft baseline pending review and correction** — not yet finalized.
+
+**Functional — Backfill (traces to Flow A)**
+
+| ID | Requirement | Trace |
+|---|---|---|
+| REQ-F-01 | The system shall accept a local folder of resume files (PDF, DOCX) as input for one-time batch processing. | Flow A |
+| REQ-F-02 | The system shall extract, per resume: candidate name, email, phone number, and skills. | Flow A |
+| REQ-F-03 | The system shall create one candidate record per successfully processed resume, tagged to the correct tenant (`company_name`). | Flow A |
+| REQ-F-04 | The system shall retain a reference to the source resume file for each candidate record created via backfill. | Flow A → supports Flow B Step 6 |
+
+**Functional — Recruiter Workflow (traces to Flow B)**
+
+| ID | Requirement | Trace |
+|---|---|---|
+| REQ-F-05 | The system shall allow the recruiter to search/match candidates against a job description using database records only, without requiring access to source resume files. | Flow B, Steps 1-2 |
+| REQ-F-06 | The system shall allow the recruiter to view a matched candidate's phone number and email. | Flow B, Step 3 |
+| REQ-F-07 | The system shall provide a status field on each candidate record, supporting an open/extensible set of values (e.g. interested, not interested, wait period, on notice period). | Flow B, Step 4 |
+| REQ-F-08 | The system shall allow the recruiter to update a candidate's status independent of any other field change. | Flow B, Step 4 |
+| REQ-F-09 | The system shall allow the recruiter to replace a candidate's resume file, keyed by `candidate_id`, removing the prior resume. | Flow B, Step 6 |
+| REQ-F-10 | The system shall NOT retain the prior resume file after a successful replacement (latest-resume-only model, no version history). | Flow B, Step 6 |
+| REQ-F-11 | Resume replacement and status updates shall occur within the existing Candidates section of the application. | Flow B, Step 6 (explicit) |
+
+**Functional — New Candidate (traces to Flow C)**
+
+| ID | Requirement | Trace | Status |
+|---|---|---|---|
+| REQ-F-12 | The system shall allow a recruiter to manually add a new candidate not sourced from backfill or resume upload. | Flow C | **Already satisfied by existing Add Candidate feature — no new work required** |
+
+**Data Requirements (schema gaps identified during use-case walkthrough, not present in current `candidates` table per §6/§9.5)**
+
+| ID | Requirement | Trace |
+|---|---|---|
+| REQ-D-01 | The `candidates` data model shall include a `status` field, distinct from any existing field. | Supports REQ-F-07 |
+| REQ-D-02 | The `candidates` data model shall include a reference to a stored resume file, not merely extracted text fields. | Supports REQ-F-04, REQ-F-09 |
+
+**Constraints / Explicitly Out of Scope**
+
+| ID | Statement |
+|---|---|
+| CON-01 | No resume version history is required — a conscious exclusion, not an oversight (see REQ-F-10). |
+| CON-02 | The AstraMind↔SkillSifter HTTPS API and auth work (§11, Decision 5-6) is not required to satisfy this use case. Flow A (backfill) can run as a local one-time job against the resume folder directly; the HTTPS API remains scoped to a separate, future live/ongoing ingestion capability. |
+
+### 12.4 Open Items (unresolved, pending further use-case clarification before requirements are finalized)
+
+- Exception handling for candidates assessed as unqualified during backfill/screening — log and discard, or log and retain for future roles? Not yet answered.
+- Exception handling for unreadable/unusual files (corrupted, scanned-image-only, non-English, unusual formatting) during backfill — not yet answered.
+- Whether "most recent job title" (mentioned in the manual baseline, §12.1 Step 4) is a distinct data need from the existing `position` field (which the current schema treats as the role being considered for, not the candidate's current/prior title) — not yet resolved; risk of field-meaning conflation if left unaddressed.
+- Matching mechanism for "is this an update to an existing candidate" (Flow B, Step 6) — not yet confirmed whether this relies on the recruiter's own recognition, or a concrete key such as matching email address.
