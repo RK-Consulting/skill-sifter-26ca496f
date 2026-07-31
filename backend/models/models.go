@@ -1,4 +1,3 @@
-
 package models
 
 import (
@@ -13,7 +12,7 @@ type Candidate struct {
 	Phone        string    `json:"phone" db:"phone"`
 	Position     string    `json:"position" db:"position"`
 	Status       string    `json:"status" db:"status,default:'applied'"`
-	Source 	     string    `json:"source" db:"source"`
+	Source       string    `json:"source" db:"source"`
 	DateApplied  time.Time `json:"dateApplied" db:"date_applied,default:CURRENT_TIMESTAMP"`
 	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
 	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
@@ -23,28 +22,29 @@ type Candidate struct {
 
 // Job model
 type Job struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	Title        string    `json:"title" db:"title,notnull"`
-	Department   string    `json:"department" db:"department"`
-	Location     string    `json:"location" db:"location"`
-	Status       string    `json:"status" db:"status,default:'open'"`
-	DatePosted   time.Time `json:"datePosted" db:"date_posted,default:CURRENT_TIMESTAMP"`
-	Description  string    `json:"description,omitempty" db:"description"`
-	Requirements string    `json:"requirements,omitempty" db:"requirements"`
-	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
+	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
+	Title           string    `json:"title" db:"title,notnull"`
+	Department      string    `json:"department" db:"department"`
+	Location        string    `json:"location" db:"location"`
+	Status          string    `json:"status" db:"status,default:'open'"`
+	DatePosted      time.Time `json:"datePosted" db:"date_posted,default:CURRENT_TIMESTAMP"`
+	Description     string    `json:"description,omitempty" db:"description"`
+	Requirements    string    `json:"requirements,omitempty" db:"requirements"`
+	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
+	CreatedByUserID int       `json:"createdByUserId,omitempty" db:"created_by_user_id"`
 }
 
 // DailyJob model
 type DailyJob struct {
-	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
-	JdNo            int       `json:"jdNo" db:"jd_no,notnull"`
-	Instructions    string    `json:"instructions" db:"instructions"`
-	AssignedUser    int       `json:"assignedUser" db:"assigned_user"`
+	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
+	JdNo             int       `json:"jdNo" db:"jd_no,notnull"`
+	Instructions     string    `json:"instructions" db:"instructions"`
+	AssignedUser     int       `json:"assignedUser" db:"assigned_user"`
 	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
-	AssignedDate    time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
-	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
+	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
+	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Interview model
@@ -90,13 +90,13 @@ type Role struct {
 
 // User model
 type User struct {
-	ID         int       `json:"id" db:"id,primarykey,autoincrement"`
-	Username   string    `json:"username" db:"username,notnull"`
-	Email      string    `json:"email" db:"email,notnull,unique"`
-	Password   string    `json:"password,omitempty" db:"password,notnull"`
-	Role       string    `json:"role" db:"role,notnull"`
+	ID          int       `json:"id" db:"id,primarykey,autoincrement"`
+	Username    string    `json:"username" db:"username,notnull"`
+	Email       string    `json:"email" db:"email,notnull,unique"`
+	Password    string    `json:"password,omitempty" db:"password,notnull"`
+	Role        string    `json:"role" db:"role,notnull"`
 	CompanyName string    `json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
-	CreatedAt  time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // SchemaVersion for tracking db schema version

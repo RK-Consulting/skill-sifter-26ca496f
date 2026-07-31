@@ -358,3 +358,87 @@ Since CON-01 explicitly excludes resume version history (latest-resume-only mode
 **Local folder access — frontend-only, not schema.** Local file access from a web application is governed by the browser's File System Access API. A folder handle, once granted via a native Browse dialog, can be persisted client-side (in the browser's IndexedDB) and remembered across sessions — but the underlying read/write *permission* is re-confirmed on each new session as a browser security measure, not assumed indefinitely. Design decision: **on each login, if a remembered folder handle exists, prompt the recruiter with a Yes/No confirmation to re-grant access**; "No" allows Browsing to a different folder instead. This is entirely frontend application state — the local folder path is never sent to or stored by the backend. Only the Google Drive reference is a database concern, since Drive is itself a cloud service the backend can address directly (`resumesource = 'gdrive'`, `resumereference` = Drive file ID).
 
 **Requirements baseline status: complete.** No open items remain pending as of this section.
+
+## 13. RBAC, Licensing & Payment Infrastructure
+
+**Status: design-level decisions for a future commercial/multi-tenant licensing capability. Not in scope for the current v0.2.0 milestone — captured here to preserve the reasoning, following the same discipline as §11/§12.**
+
+### 13.1 Current RBAC state (as verified against the actual codebase, not assumed)
+
+The `roles` table defines four roles (admin, manager, recruiter, team_leader) each with a `permissions` JSONB array — but this data is **not currently enforced anywhere in the code**. `RoleMiddleware` only checks the role *name* string against a per-route allow-list; the `permissions` column is read nowhere. Only two route groups are gated at all (`/api/admin/*`, `/api/manager/*`), and `/api/manager/*` has zero routes registered under it. Every other resource (candidates, jobs, interviews, daily_jobs, business_dev) is accessible to any authenticated user regardless of role. No resource-ownership concept exists (e.g. no `created_by_user_id` on `jobs`).
+
+### 13.2 Commercial licensing model
+
+- **Single-user license**: one seat, role = `admin` (already a strict superset of all other role permissions — no new role needed).
+- **Multi-seat license**: `admin`, `manager`, `recruiter`, `team_leader` as distinct seats. **Every company, at any seat count, must always include at least one admin or manager.**
+- This floor is satisfied structurally, not by an active check: **Admin is permanently non-deletable, by any role, under any circumstance** (see 13.3), which guarantees a company can never reach zero admins.
+
+### 13.3 Delete/role hierarchy
+
+| Role | Can delete | Can be deleted by |
+|---|---|---|
+| Admin | Manager, Recruiter, Team Leader | No one |
+| Manager | Recruiter, Team Leader | Admin only |
+| Recruiter, Team Leader | Nothing | Admin or Manager |
+
+**Gap against current code**: `/api/manager/*` has no delete routes implemented at all today — this capability needs to be built, not just re-gated.
+
+### 13.4 Job ownership, derived from RBAC permissions (not a separate assumption)
+
+The `manage_jobs` permission belongs to `manager` (and `admin`, via `["all"]`); `recruiter`/`team_leader` hold only `view_jobs`. This means **jobs are a manager-owned artifact by design** — directly resolving who Flow E's (§13.6) per-user auto-matching settings and cleanup should be scoped to.
+
+```sql
+ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id);
+```
+
+**Gap against current code**: `/api/jobs` POST is not currently restricted to `manager`/`admin` — this needs to be enforced to match the RBAC design's own intent, not treated as optional.
+
+### 13.5 License/subscription state
+
+```sql
+ALTER TABLE companies ADD COLUMN seat_limit INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE companies ADD COLUMN license_expires_at TIMESTAMP;
+ALTER TABLE companies ADD COLUMN license_active BOOLEAN NOT NULL DEFAULT TRUE;
+```
+
+State machine: T-7 days before `license_expires_at` → warning popup (informational only). At `license_expires_at`, if unrenewed → `license_active` set to `FALSE`, all active sessions for that company terminated, 30-day retrieval window begins (retrieval requires payment — see 13.7). At T+30 days unretrieved → permanent deletion of the company's data.
+
+**Decision: the boolean is stored and explicitly transitioned by a scheduled process, not computed live on each check.** A purely computed value (`expires_at > NOW()`) has no natural point to hang the warning/deletion *events* off of — those require an actual state transition, not a continuously re-derived fact. A lightweight sanity check against `expires_at` at login (log-only, not blocking) is recommended as a defensive layer in case the scheduled process ever fails to run.
+
+**Explicit, deliberate exception to the "nothing runs automatically" principle (§13.8)**: license expiry warning, lock, and deletion are time-triggered and must fire whether or not any user takes an action — this is the one case in the whole design where a scheduled background process is required, not optional.
+
+### 13.6 Auto-update settings (resume scan, JD matching) — per-user, not global
+
+Both are token-costing AI operations, default OFF, user-controlled via Settings:
+- `auto_resume_update_enabled` — scoped to whichever recruiter/manager/admin enables it (governs Flow A incremental folder scan)
+- `auto_jd_matching_enabled` — scoped via `jobs.created_by_user_id` (§13.4), since only managers/admins own jobs
+
+```sql
+CREATE TABLE user_settings (
+    user_id INTEGER PRIMARY KEY REFERENCES users(id),
+    auto_resume_update_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_jd_matching_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+    auto_cleanup_enabled BOOLEAN NOT NULL DEFAULT FALSE
+);
+```
+
+A third, independent toggle — `auto_cleanup_enabled` — governs the token-free `job_candidate_matches` expiry cleanup (§12/§13.4). Although this operation costs no tokens, the same "don't run anything without a reason" principle applies: even free background work is wasted during genuinely idle periods (holidays, slow stretches), so this remains user-controlled rather than unconditionally scheduled.
+
+### 13.7 Payment infrastructure — do not build custom
+
+**Decision: do not hand-build payment processing, subscription state machines, or invoicing logic from scratch.** This class of problem carries asymmetric risk — failure modes (tax non-compliance, silent over/undercharging) are invisible until they surface as legal or financial liabilities, not caught by ordinary code review. This is explicitly the same category of mistake as building a custom RTOS when the customer only wanted the Bluetooth stack on top of it — solving an already-solved problem nobody is asking for, at the cost of the actual differentiated product.
+
+**Selected approach: self-hosted, license-fee-free open source over hosted vendor SaaS**, driven by the constraint that this product must compete in a tough pricing market — any vendor cost structured as a percentage of revenue (Kinde's 0.7%, Stripe's ~3.6%+30¢) scales against SkillSifter forever as it grows, while self-hosted infrastructure is a bounded, mostly-fixed cost.
+
+- **RBAC**: extend the existing `roles`/`RoleMiddleware` foundation directly (§13.1 gaps) — **selected approach, in progress**. Casdoor (Apache 2.0, Go-based, self-hosted, Casbin-backed) remains a documented fallback if a more complete IAM feature set is needed later, but is not currently being adopted.
+- **Billing/subscription/invoicing — selected: Zoho Books/Billing**, not self-hosted Lago. Reasoning: GST compliance is native to the product, not something to configure correctly ourselves — recurring invoices are generated as full GST-compliant tax invoices with automatic CGST/SGST vs IGST breakup, removing the domain-knowledge risk flagged below as otherwise unavoidable. Zoho is India-headquartered (Chennai); paying in INR to a domestic supplier is a domestic procurement (CGST/SGST) rather than an import of services, avoiding the added compliance layer (equalisation levy, RBI remittance forms) that comes with a foreign vendor. Zoho Billing already integrates UPI directly, pairing cleanly with the UPI-as-primary-rail decision below. A genuinely free tier exists (Zoho Books, businesses under ₹25 lakh annual revenue, no time limit) covering R K Consulting's current stage; paid tiers beyond that are flat fees, not revenue-scaling percentages, consistent with the pricing-competitiveness goal.
+
+  Trade-off acknowledged: this is a hosted vendor, not self-hosted/owned source — a departure from the "borrow the code, run it ourselves" pattern used elsewhere (AstraMind, Casdoor). Accepted specifically because GST/tax correctness carries asymmetric risk (see below) that outweighs the self-hosting preference in this one case.
+- **Payment rail — UPI as primary, not a card gateway**: bank-to-bank UPI carries **government-mandated zero MDR** (RBI/NPCI policy, in place since 2020) — no percentage transaction cut, a materially better cost structure than any card-based gateway (Stripe, or card-based Razorpay) for a price-competitive product. A small MDR (under 0.5%) for *large* merchants (~₹1-1.5 crore+ annual turnover) was under government discussion as of March 2026 but not enacted as of the most recent budget cycle, and would not apply to SkillSifter at its current or near-term scale regardless. A gateway (Razorpay or similar) would still typically sit alongside UPI for settlement/reconciliation and to support non-UPI paying customers, but the underlying transaction cost drops close to zero.
+- **GST/tax compliance**: with Zoho selected specifically for its native GST handling, this risk is substantially mitigated rather than left as an open domain-knowledge burden — though a short accountant/CA review of the actual configuration (correct GSTIN setup, invoice series, applicable rates) remains sensible before real invoicing begins, as final validation rather than as the primary compliance mechanism.
+
+**Infrastructure constraint, verified, not assumed — now narrowed in scope**: the earlier concern that Lago's self-hosted stack (Postgres + Redis + API + frontend, ~1-2GB+ RAM minimum) would not fit the current 512MB droplet no longer applies to billing, since Zoho is hosted by Zoho, not self-hosted. It remains a relevant constraint if Casdoor or any other self-hosted component is adopted later — the droplet's headroom should be reassessed against whatever is actually chosen to self-host, not assumed sufficient.
+
+### 13.8 Explicit operating principle carried through this entire section
+
+**Nothing runs automatically unless the user explicitly asks for it, with one deliberate, named exception**: license expiry warning/lock/deletion (§13.5), which must be time-triggered regardless of user action. Every other automation discussed (resume folder update, JD auto-matching, match-data cleanup) is opt-in via per-user Settings, default OFF, precisely because these operations carry either a token cost or a resource cost that should not be incurred without a clear reason to.

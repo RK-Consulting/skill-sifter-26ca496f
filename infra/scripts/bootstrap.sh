@@ -46,6 +46,9 @@ END
 GRANT ALL PRIVILEGES ON DATABASE ${DB_NAME} TO ${DB_USER};
 SQL
 
+echo "==> Granting schema privileges (PG15+ restricts public schema by default)"
+sudo -u postgres psql -d "${DB_NAME}" -v ON_ERROR_STOP=1 -c "GRANT ALL ON SCHEMA public TO ${DB_USER};"
+
 echo "==> Writing backend/.env (not committed to git)"
 cat > "$APP_DIR/backend/.env" <<EOF
 PORT=8081
