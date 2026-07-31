@@ -107,6 +107,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	// — enforced inside DeleteUser itself based on the target's actual role, per
 	// docs/architecture.md section 13.3).
 	managerRouter.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
+	managerRouter.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT", "OPTIONS")
 	managerRouter.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
 
 	// General API Resources

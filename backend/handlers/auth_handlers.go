@@ -296,16 +296,93 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUser updates an existing user (admin only)
+// UpdateUser updates a user's username, email, and/or role.
+// Reuses the exact same access rule as DeleteUser (docs/architecture.md
+// section 13.3), since both are "can this caller touch this user record"
+// questions: admin's own record can never be edited via this endpoint,
+// manager's record can only be edited by admin, recruiter/team_leader can
+// be edited by admin or manager.
+// Additionally guards against privilege escalation: only an admin may set
+// a target user's role to "admin" (a manager could otherwise create a
+// second admin, or edit their own downstream reports upward, bypassing the
+// hierarchy this endpoint is meant to protect).
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// Implementation omitted for brevity
-	// This would extract the user ID from the URL path and update the user
+	vars := mux.Vars(r)
+	targetID := vars["id"]
+
+	companyName := r.Context().Value("companyName").(string)
+	requesterRole := r.Context().Value("role").(string)
+
+	var currentRole string
+	err := db.DB.QueryRow(
+		`SELECT role FROM users WHERE id = $1 AND company_name = $2`,
+		targetID, companyName,
+	).Scan(&currentRole)
+
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
+		return
+	}
+
+	if currentRole == "admin" {
+		respondWithError(w, http.StatusForbidden, "Admin users cannot be edited via this endpoint")
+		return
+	}
+	if currentRole == "manager" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can edit a manager")
+		return
+	}
+
+	var update struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	if update.Role == "admin" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can promote a user to admin")
+		return
+	}
+
+	validRoles := map[string]bool{"admin": true, "manager": true, "recruiter": true, "team_leader": true}
+	if update.Role != "" && !validRoles[update.Role] {
+		respondWithError(w, http.StatusBadRequest, "Invalid role")
+		return
+	}
+
+	result, err := db.DB.Exec(
+		`UPDATE users SET
+			username = COALESCE(NULLIF($1, ''), username),
+			email = COALESCE(NULLIF($2, ''), email),
+			role = COALESCE(NULLIF($3, ''), role)
+		WHERE id = $4 AND company_name = $5`,
+		update.Username, update.Email, update.Role, targetID, companyName,
+	)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating user")
+		return
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "User updated successfully",
 	})
 }
 
-// DeleteUser deletes a user (admin only)
 // DeleteUser deletes a user, enforcing the role hierarchy defined in
 // docs/architecture.md section 13.3:
 //   - Admin can never be deleted, by anyone, under any circumstance.
