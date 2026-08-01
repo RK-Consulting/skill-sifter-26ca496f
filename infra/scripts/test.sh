@@ -17,11 +17,20 @@ echo "  BACKEND"
 echo "=================================================="
 cd "$REPO_ROOT/backend"
 
-echo "--> go build ./..."
-go build ./...
+echo "--> gofmt check (fails if any file is not gofmt-formatted)"
+UNFORMATTED=$(gofmt -l .)
+if [ -n "$UNFORMATTED" ]; then
+  echo "The following files are not gofmt-formatted:"
+  echo "$UNFORMATTED"
+  echo "Run: gofmt -w <file> to fix, then commit."
+  exit 1
+fi
 
 echo "--> go vet ./..."
 go vet ./...
+
+echo "--> go build ./..."
+go build ./...
 
 echo "--> go test ./... -v"
 go test ./... -v
