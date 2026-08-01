@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Dashboard from '@/components/dashboard/Dashboard';
@@ -25,9 +24,6 @@ const Index = () => {
     
     // Set loading to false after checking user data
     setIsLoading(false);
-    
-    // Log for debugging
-    console.log('Index page loaded, username:', username);
   }, []);
 
   if (isLoading) {

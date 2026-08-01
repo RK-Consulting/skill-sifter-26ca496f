@@ -733,6 +733,7 @@ const SidebarMenuSubButton = React.forwardRef<
 })
 SidebarMenuSubButton.displayName = "SidebarMenuSubButton"
 
+/* eslint-disable react-refresh/only-export-components -- shadcn/ui convention: hook + components exported together */
 export {
   Sidebar,
   SidebarContent,
