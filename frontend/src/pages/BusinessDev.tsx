@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -68,14 +67,20 @@ const BusinessDev = () => {
   ];
 
   // Safely extract data with array check
-  const safeGetData = (response: any): BusinessDev[] => {
+  const safeGetData = (response: unknown): BusinessDev[] => {
     if (!response) return mockBusinessDevs;
-    
+
     // Check different response structures
-    if (Array.isArray(response)) return response;
-    if (response.data && Array.isArray(response.data)) return response.data;
-    if (response.data && response.data.data && Array.isArray(response.data.data)) return response.data.data;
-    
+    if (Array.isArray(response)) return response as BusinessDev[];
+    if (typeof response === 'object' && response !== null && 'data' in response) {
+      const inner = (response as { data: unknown }).data;
+      if (Array.isArray(inner)) return inner as BusinessDev[];
+      if (typeof inner === 'object' && inner !== null && 'data' in inner) {
+        const innerInner = (inner as { data: unknown }).data;
+        if (Array.isArray(innerInner)) return innerInner as BusinessDev[];
+      }
+    }
+
     console.warn('Expected array data but received:', response);
     return mockBusinessDevs;
   };

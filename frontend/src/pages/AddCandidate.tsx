@@ -20,6 +20,7 @@ import { Textarea } from '@/components/ui/textarea';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent } from '@/components/ui-custom/Card';
 import { candidateService } from '@/services/api';
+import { getErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -94,9 +95,9 @@ const AddCandidate = () => {
       // Success!
       toast.success("Candidate added successfully");
       navigate('/candidates');
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Show error message from backend if available
-      const message = error?.response?.data?.message || "Failed to add candidate. Please try again.";
+      const message = getErrorMessage(error, "Failed to add candidate. Please try again.");
       toast.error(message);
     }
   };

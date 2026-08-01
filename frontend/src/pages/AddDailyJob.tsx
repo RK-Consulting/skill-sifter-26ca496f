@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -16,6 +15,7 @@ import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { dailyJobService, userService } from '@/services/api';
+import { getErrorMessage } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
 // Updated schema to use string for assignedUser (will be converted to number when submitting)
@@ -91,9 +91,9 @@ const AddDailyJob = () => {
       } else {
         toast.error(response.data.message || 'Failed to add daily job assignment');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving daily job:', error);
-      toast.error(error.response?.data?.message || 'Failed to add daily job assignment');
+      toast.error(getErrorMessage(error, 'Failed to add daily job assignment'));
     } finally {
       setIsSubmitting(false);
     }

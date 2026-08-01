@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -23,6 +22,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import Button from '@/components/ui-custom/Button';
 import { Card, CardContent } from '@/components/ui-custom/Card';
 import { jobService } from '@/services/api';
+import { isAxiosError } from 'axios';
 
 const formSchema = z.object({
   title: z.string().min(3, {
@@ -143,11 +143,15 @@ ${values.description}
         setFormError(errorMsg);
         toast.error(errorMsg);
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error posting job:', error);
-      const errorMessage = error.response?.data?.message || 
-                          (error.response?.status === 405 ? "Method not allowed. Please check API configuration." : 
-                           "Failed to post job. Server error.");
+      let errorMessage = "Failed to post job. Server error.";
+      if (isAxiosError(error)) {
+        const data = error.response?.data as { message?: string } | undefined;
+        errorMessage = data?.message ||
+          (error.response?.status === 405 ? "Method not allowed. Please check API configuration." :
+           errorMessage);
+      }
       setFormError(errorMessage);
       toast.error(errorMessage);
     } finally {

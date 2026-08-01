@@ -64,12 +64,12 @@ api.interceptors.response.use(
 
 export const authService = {
   // Login
-  login: async (credentials: any) => {
+  login: async (credentials: Record<string, unknown>) => {
     return api.post('/auth/login', credentials);
   },
 
   // Register
-  register: async (credentials: any) => {
+  register: async (credentials: Record<string, unknown>) => {
     return api.post('/auth/register', credentials);
   },
 
@@ -101,12 +101,12 @@ export const candidateService = {
   },
 
   // Create a new candidate
-  createCandidate: async (candidate: any) => {
+  createCandidate: async (candidate: Record<string, unknown>) => {
     return api.post('/candidates', candidate);
   },
 
   // Update a candidate
-  updateCandidate: async (id: number, candidate: any) => {
+  updateCandidate: async (id: number, candidate: Record<string, unknown>) => {
     return api.put(`/candidates/${id}`, candidate);
   },
 
@@ -128,14 +128,14 @@ export const jobService = {
   },
 
   // Create a new job
-  createJob: async (job: any) => {
+  createJob: async (job: Record<string, unknown>) => {
     // Log job data format
     console.log('Sending job data to API:', job);
     return api.post('/jobs', job);
   },
 
   // Update a job
-  updateJob: async (id: number, job: any) => {
+  updateJob: async (id: number, job: Record<string, unknown>) => {
     return api.put(`/jobs/${id}`, job);
   },
 
@@ -157,13 +157,13 @@ export const interviewService = {
   },
 
   // Create a new interview
-  createInterview: async (interview: any) => {
+  createInterview: async (interview: Record<string, unknown>) => {
     console.log('Interview scheduled:', interview);
     return api.post('/interviews', interview);
   },
 
   // Update an interview
-  updateInterview: async (id: number, interview: any) => {
+  updateInterview: async (id: number, interview: Record<string, unknown>) => {
     return api.put(`/interviews/${id}`, interview);
   },
 
@@ -190,12 +190,12 @@ export const businessDevService = {
   },
 
   // Create a new business development
-  createBusinessDev: async (businessDev: any) => {
+  createBusinessDev: async (businessDev: Record<string, unknown>) => {
     return api.post('/business-dev', businessDev);
   },
 
   // Update a business development
-  updateBusinessDev: async (id: number, businessDev: any) => {
+  updateBusinessDev: async (id: number, businessDev: Record<string, unknown>) => {
     return api.put(`/business-dev/${id}`, businessDev);
   },
 
@@ -217,12 +217,12 @@ export const companyService = {
   },
 
   // Create a new company
-  createCompany: async (company: any) => {
+  createCompany: async (company: Record<string, unknown>) => {
     return api.post('/companies', company);
   },
 
   // Update a company
-  updateCompany: async (id: string, company: any) => {
+  updateCompany: async (id: string, company: Record<string, unknown>) => {
     return api.put(`/companies/${id}`, company);
   },
 
@@ -244,12 +244,12 @@ export const roleService = {
   },
 
   // Create a new role
-  createRole: async (role: any) => {
+  createRole: async (role: Record<string, unknown>) => {
     return api.post('/roles', role);
   },
 
   // Update a role
-  updateRole: async (id: number, role: any) => {
+  updateRole: async (id: number, role: Record<string, unknown>) => {
     return api.put(`/roles/${id}`, role);
   },
 
@@ -283,12 +283,12 @@ export const dailyJobService = {
   },
 
   // Create a new daily job
-  createDailyJob: async (dailyJob: any) => {
+  createDailyJob: async (dailyJob: Record<string, unknown>) => {
     return api.post('/daily-jobs', dailyJob);
   },
 
   // Update a daily job
-  updateDailyJob: async (id: number, dailyJob: any) => {
+  updateDailyJob: async (id: number, dailyJob: Record<string, unknown>) => {
     return api.put(`/daily-jobs/${id}`, dailyJob);
   },
 

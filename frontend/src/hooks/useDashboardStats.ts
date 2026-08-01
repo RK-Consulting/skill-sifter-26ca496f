@@ -1,4 +1,3 @@
-
 import { useQuery } from '@tanstack/react-query';
 import { candidateService, jobService, dailyJobService, businessDevService, interviewService } from '@/services/api';
 
@@ -70,29 +69,49 @@ export const useDashboardStats = (): DashboardStats => {
     retry: false,
   });
 
-  // Safely extract data with array check
-  const safeGetArray = (data: any): any[] => {
+  // Minimal shapes for the fields this hook actually reads. Other fields
+  // returned by the API are ignored here, hence the index signature.
+  interface JobRecord {
+    status?: string;
+    [key: string]: unknown;
+  }
+  interface InterviewRecord {
+    status?: string;
+    [key: string]: unknown;
+  }
+
+  // Safely extract data with array check. API responses sometimes come back
+  // as a bare array, or wrapped once (`{ data: [...] }`), or wrapped twice
+  // (`{ data: { data: [...] } }`) depending on the endpoint — this defends
+  // against all three shapes without assuming which one a given call used.
+  const safeGetArray = <T,>(data: unknown): T[] => {
     if (!data) return [];
-    if (Array.isArray(data)) return data;
-    if (data.data && Array.isArray(data.data)) return data.data;
-    if (data.data && data.data.data && Array.isArray(data.data.data)) return data.data.data;
+    if (Array.isArray(data)) return data as T[];
+    if (typeof data === 'object' && data !== null && 'data' in data) {
+      const inner = (data as { data: unknown }).data;
+      if (Array.isArray(inner)) return inner as T[];
+      if (typeof inner === 'object' && inner !== null && 'data' in inner) {
+        const innerInner = (inner as { data: unknown }).data;
+        if (Array.isArray(innerInner)) return innerInner as T[];
+      }
+    }
     console.warn('Expected array data but received:', data);
     return [];
   };
 
   // Extract data safely
-  const candidatesArray = safeGetArray(candidatesData);
-  const jobsArray = safeGetArray(jobsData);
-  const dailyJobsArray = safeGetArray(dailyJobsData);
-  const businessArray = safeGetArray(businessData);
-  const interviewsArray = safeGetArray(interviewsData);
+  const candidatesArray = safeGetArray<Record<string, unknown>>(candidatesData);
+  const jobsArray = safeGetArray<JobRecord>(jobsData);
+  const dailyJobsArray = safeGetArray<Record<string, unknown>>(dailyJobsData);
+  const businessArray = safeGetArray<Record<string, unknown>>(businessData);
+  const interviewsArray = safeGetArray<InterviewRecord>(interviewsData);
   
   // Calculate totals using the safe arrays
   const totalCandidates = candidatesArray.length;
   
   // Calculate active jobs (filter by status 'open' or 'Active')
   const activeJobs = jobsArray.filter(
-    (job: any) => job.status === 'open' || job.status === 'Active'
+    (job) => job.status === 'open' || job.status === 'Active'
   ).length;
   
   // Daily tasks count from backend
@@ -103,8 +122,8 @@ export const useDashboardStats = (): DashboardStats => {
 
   // Interview statistics with correct status matching
   const totalInterviews = interviewsArray.length;
-  const scheduledInterviews = interviewsArray.filter((interview: any) => interview.status === 'scheduled').length;
-  const completedInterviews = interviewsArray.filter((interview: any) => interview.status === 'completed').length;
+  const scheduledInterviews = interviewsArray.filter((interview) => interview.status === 'scheduled').length;
+  const completedInterviews = interviewsArray.filter((interview) => interview.status === 'completed').length;
 
   // Determine overall loading state - only if ALL are loading
   const isLoading = candidatesLoading && jobsLoading && dailyJobsLoading && businessLoading && interviewsLoading;

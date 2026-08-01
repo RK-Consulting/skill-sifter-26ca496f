@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -14,6 +13,7 @@ import Button from '@/components/ui-custom/Button';
 import { ArrowLeft, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { businessDevService } from '@/services/api';
+import { getErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   clientName: z.string().min(2, 'Client name is required'),
@@ -62,9 +62,9 @@ const AddBusinessDev = () => {
       } else {
         toast.error(response.data?.message || 'Failed to add business contact');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error saving business contact:', error);
-      toast.error(error.response?.data?.message || 'Failed to add business contact');
+      toast.error(getErrorMessage(error, 'Failed to add business contact'));
       
       // Fallback to localStorage for demo purposes if API fails
       try {

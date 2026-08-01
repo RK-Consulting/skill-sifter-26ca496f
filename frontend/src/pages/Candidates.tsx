@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
@@ -29,7 +28,31 @@ interface Candidate {
   email: string;
   phone?: string;
   position?: string;
-  source?: string;
+  experience?: string;
+  currentCTC?: string;
+  expectedCTC?: string;
+  noticePeriod?: string;
+  skills?: string;
+}
+
+// Shape actually returned by GET /api/candidates as of the schema-mismatch
+// fix (docs/architecture.md). Note there is currently no `status` or
+// `source` field on the backend — status filtering/updating in this page is
+// client-side only until the candidate_statuses/status_id design (section
+// 12.5/13.6) is actually implemented.
+interface ApiCandidate {
+  id: number;
+  name: string;
+  email: string;
+  phone?: string;
+  position?: string;
+  location?: string;
+  experience?: string;
+  currentCTC?: string;
+  expectedCTC?: string;
+  noticePeriod?: string;
+  skills?: string;
+  createdAt?: string;
 }
 
 const Candidates = () => {
@@ -51,17 +74,24 @@ const Candidates = () => {
       
       if (response.data && response.data.data) {
         // Transform API data to match our Candidate interface
-        const apiCandidates = response.data.data.map((candidate: any) => ({
+        const apiCandidates = response.data.data.map((candidate: ApiCandidate) => ({
           id: candidate.id,
           name: candidate.name,
           email: candidate.email,
           phone: candidate.phone,
           role: candidate.position || 'No Position',
-          location: 'Remote', // Default since not in backend model
-          status: candidate.status || 'applied',
-          date: candidate.dateApplied ? new Date(candidate.dateApplied).toLocaleDateString() : 'Recently',
+          location: candidate.location || 'Not specified',
+          // No real status field exists on the backend yet (see ApiCandidate
+          // comment above) — this is a client-side-only placeholder until
+          // section 12.5/13.6's candidate_statuses design is implemented.
+          status: 'applied',
+          date: candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString() : 'Recently',
           position: candidate.position,
-          source: candidate.source
+          experience: candidate.experience,
+          currentCTC: candidate.currentCTC,
+          expectedCTC: candidate.expectedCTC,
+          noticePeriod: candidate.noticePeriod,
+          skills: candidate.skills,
         }));
         console.log('Transformed candidates:', apiCandidates);
         setCandidates(apiCandidates);
@@ -108,7 +138,11 @@ const Candidates = () => {
       const candidateToUpdate = candidates.find(c => c.id === id);
       if (!candidateToUpdate) return;
 
-      // Update in backend
+      // NOTE: the backend's candidates table has no status column yet (see
+      // ApiCandidate comment above) — UpdateCandidate will silently ignore
+      // this field. This call currently only updates local UI state below;
+      // it does not persist. Real persistence needs the candidate_statuses/
+      // status_id migration (docs/architecture.md section 12.5/13.6).
       await candidateService.updateCandidate(id, {
         ...candidateToUpdate,
         status: status

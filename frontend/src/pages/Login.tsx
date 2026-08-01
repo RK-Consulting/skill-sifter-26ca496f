@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -20,6 +19,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { authService } from '@/services/api';
+import { getErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   email: z.string().email({
@@ -129,9 +129,9 @@ const Login = () => {
         setLoginError(response.data?.message || "Login failed");
         toast.error(response.data?.message || "Login failed");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login error:", error);
-      const errorMessage = error.response?.data?.message || "Invalid credentials. Please try again.";
+      const errorMessage = getErrorMessage(error, "Invalid credentials. Please try again.");
       setLoginError(errorMessage);
       toast.error(errorMessage);
     } finally {

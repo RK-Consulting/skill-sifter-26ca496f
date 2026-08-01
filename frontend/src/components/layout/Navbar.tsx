@@ -5,6 +5,11 @@ import Container from './Container';
 import { Search, User, Menu, X, BarChart3, Users, FileText, Briefcase, Calendar, Store, Video, LogOut } from 'lucide-react';
 import Button from '../ui-custom/Button';
 
+interface NavbarUserData {
+  username?: string;
+  email?: string;
+}
+
 interface NavbarProps extends React.HTMLAttributes<HTMLElement> {
   transparent?: boolean;
 }
@@ -14,7 +19,7 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
     const [isScrolled, setIsScrolled] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [userData, setUserData] = useState<any>(null);
+    const [userData, setUserData] = useState<NavbarUserData | null>(null);
     const location = useLocation();
     const navigate = useNavigate();
     

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -21,6 +20,7 @@ import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { authService } from '@/services/api';
+import { getErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   username: z.string().min(2, {
@@ -107,9 +107,9 @@ const Register = () => {
       } else {
         toast.error(response.data.message || "Registration failed");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Registration error:", error);
-      toast.error(error.response?.data?.message || "Registration failed.");
+      toast.error(getErrorMessage(error, "Registration failed."));
     } finally {
       setIsLoading(false);
     }
