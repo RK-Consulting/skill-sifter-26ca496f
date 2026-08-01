@@ -157,6 +157,7 @@ func setupProtectedRoutes(r *mux.Router) {
 
 	apiRouter.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	apiRouter.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
+	apiRouter.HandleFunc("/reports/activity", handlers.GetRecentActivity).Methods("GET", "OPTIONS")
 
 }
 

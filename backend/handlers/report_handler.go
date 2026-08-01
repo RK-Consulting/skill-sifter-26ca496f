@@ -9,7 +9,62 @@ import (
 	"github.com/RK-Consulting/skill-sifter/models"
 )
 
-// GetHiringReport returns aggregated hiring data
+// GetRecentActivity returns a real, timestamp-sorted feed of recent events
+// across candidates, jobs, business_dev, daily_jobs, and interviews.
+// Replaces the hardcoded mock data previously in Dashboard.tsx's
+// activityData array. Not sourced from a dedicated activity-log table (none
+// exists) — built as a UNION ALL over each table's own real timestamp
+// column, which is sufficient for a simple recent-events feed without
+// needing new schema.
+func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
+	companyName := r.Context().Value("companyName").(string)
+
+	query := `
+		(SELECT 'candidate' AS type, 'New candidate application' AS title,
+			name || ' added as a candidate' AS description, created_at AS ts
+		 FROM candidates WHERE company_name = $1)
+		UNION ALL
+		(SELECT 'job' AS type, 'New job posted' AS title,
+			title || ' posted' AS description, date_posted AS ts
+		 FROM jobs WHERE company_name = $1)
+		UNION ALL
+		(SELECT 'business_dev' AS type, 'New business contact added' AS title,
+			client_name || ' added as a new client' AS description, created_at AS ts
+		 FROM business_dev WHERE company_name = $1)
+		UNION ALL
+		(SELECT 'daily_job' AS type, 'Daily task assigned' AS title,
+			instructions AS description, assigned_date AS ts
+		 FROM daily_jobs WHERE company_name = $1)
+		UNION ALL
+		(SELECT 'interview' AS type, 'Interview scheduled' AS title,
+			candidate_name || ' — ' || position AS description, last_modified AS ts
+		 FROM interviews WHERE company_name = $1)
+		ORDER BY ts DESC
+		LIMIT 10`
+
+	rows, err := db.DB.Query(query, companyName)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching recent activity")
+		return
+	}
+	defer rows.Close()
+
+	activity := []models.ActivityEntry{}
+	for rows.Next() {
+		var a models.ActivityEntry
+		if err := rows.Scan(&a.Type, &a.Title, &a.Description, &a.Timestamp); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning activity row")
+			return
+		}
+		activity = append(activity, a)
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Recent activity retrieved successfully",
+		Data:    activity,
+	})
+}
 func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 

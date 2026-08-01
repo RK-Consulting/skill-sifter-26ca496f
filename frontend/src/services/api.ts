@@ -309,6 +309,11 @@ export const reportService = {
   getSourceReport: async () => {
     return api.get('/reports/sources');
   },
+
+  // Get recent activity feed
+  getRecentActivity: async () => {
+    return api.get('/reports/activity');
+  },
 };
 
 export default api;

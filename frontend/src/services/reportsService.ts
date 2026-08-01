@@ -10,6 +10,13 @@ export interface SourceReportEntry {
   count: number;
 }
 
+export interface ActivityEntry {
+  type: string;
+  title: string;
+  description: string;
+  timestamp: string;
+}
+
 export const reportsService = {
   async getHiringStats(): Promise<HiringReportEntry[]> {
     try {
@@ -27,6 +34,16 @@ export const reportsService = {
       return response.data?.data || [];
     } catch (error) {
       console.error('Error fetching candidate sources:', error);
+      return [];
+    }
+  },
+
+  async getRecentActivity(): Promise<ActivityEntry[]> {
+    try {
+      const response = await reportService.getRecentActivity();
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
       return [];
     }
   },

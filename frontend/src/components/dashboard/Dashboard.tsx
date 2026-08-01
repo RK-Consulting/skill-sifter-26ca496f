@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { 
   Users, 
@@ -21,8 +20,27 @@ import ActivitySection from './ActivitySection';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui-custom/Card';
 import { useDashboardStats } from '@/hooks/useDashboardStats';
+import { useQuery } from '@tanstack/react-query';
+import { reportsService } from '@/services/reportsService';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Skeleton } from '@/components/ui/skeleton';
+
+// Converts an ISO timestamp into a short relative string ("2 minutes ago",
+// "3 hours ago", "5 days ago"), matching the granularity the mock data used
+// to show before this was wired to real data.
+function timeAgo(isoTimestamp: string): string {
+  const then = new Date(isoTimestamp).getTime();
+  const now = Date.now();
+  const diffSeconds = Math.max(0, Math.floor((now - then) / 1000));
+
+  if (diffSeconds < 60) return 'just now';
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  if (diffMinutes < 60) return `${diffMinutes} minute${diffMinutes !== 1 ? 's' : ''} ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+}
 
 interface DashboardProps {
   username: string;
@@ -94,24 +112,17 @@ const Dashboard = ({ username }: DashboardProps) => {
     }
   ];
 
-  // Activity data
-  const activityData = [
-    {
-      title: "New candidate application",
-      description: "Sarah Wilson applied for Senior UI Designer",
-      time: "2 minutes ago"
-    },
-    {
-      title: "New business contact added",
-      description: "TechSolutions Inc added as a new client",
-      time: "1 hour ago"
-    },
-    {
-      title: "Daily task assigned",
-      description: "Follow up with ClientX for feedback assigned to Alex",
-      time: "2 hours ago"
-    }
-  ];
+  // Real recent activity, replacing the previously hardcoded array
+  const { data: recentActivity } = useQuery({
+    queryKey: ['recentActivity'],
+    queryFn: reportsService.getRecentActivity,
+  });
+
+  const activityData = (recentActivity || []).map((entry) => ({
+    title: entry.title,
+    description: entry.description,
+    time: timeAgo(entry.timestamp),
+  }));
 
   // Chart data
   const hiringData = [

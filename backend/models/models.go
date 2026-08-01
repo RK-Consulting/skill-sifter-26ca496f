@@ -169,3 +169,14 @@ type SourceReportResponse struct {
 	Message string              `json:"message"`
 	Data    []SourceReportEntry `json:"data"`
 }
+
+// ActivityEntry represents a single real event for the Dashboard's Recent
+// Activity feed. Built from real timestamps across candidates, jobs,
+// business_dev, daily_jobs, and interviews — replaces the hardcoded mock
+// data that previously lived in Dashboard.tsx.
+type ActivityEntry struct {
+	Type        string    `json:"type"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Timestamp   time.Time `json:"timestamp"`
+}
