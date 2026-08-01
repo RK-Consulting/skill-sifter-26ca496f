@@ -1,20 +1,26 @@
 # SkillSifter
 
+**Version: 0.2.0** · [Changelog](CHANGELOG.md)
+
 SkillSifter is a multi-tenant Applicant Tracking System (ATS) for staffing and recruitment teams. It lets a recruiting company manage candidates, job openings, daily job assignments, interviews, and business-development leads, all scoped per company (tenant) with role-based access control.
 
-The project is a full-stack app: a **React + TypeScript** SPA frontend and a **Go** REST API backend, backed by **PostgreSQL**.
+The project is a full-stack app: a **React + TypeScript** SPA frontend (in `frontend/`) and a **Go** REST API backend (in `backend/`), backed by **PostgreSQL**.
 
 ## Features
 
-- **Authentication & Authorization** — JWT-based login/register, with role-based access (`admin`, `manager`, `recruiter`, `team_leader`) enforced via middleware.
-- **Multi-tenancy** — Every core resource (candidates, jobs, interviews, daily jobs, business dev) is scoped by `company_name`, so multiple recruiting firms can use the same deployment in isolation.
-- **Candidate management** — Add, view, update, and delete candidates with fields like position, location, experience, CTC (current/expected), notice period, language, and skills.
-- **Job management** — Post and track job openings (title, department, location, status, description, requirements).
-- **Daily job tracking** — Assign daily job descriptions/instructions to users.
-- **Interview scheduling** — Schedule interviews against candidates, track status and feedback.
-- **Business development** — Track clients, partners, and contacts for BD pipeline.
-- **Reports** — Aggregated hiring reports (interviews per month) and source reports.
-- **Dashboard UI** — Built with shadcn/ui, Radix primitives, Tailwind CSS, and Recharts for data visualization.
+Status reflects what's actually verified working as of v0.2.0, not just what's designed — see [`docs/features.md`](docs/features.md) for the full page-by-page audit.
+
+- ✅ **Authentication & Authorization** — JWT-based login/register, role-based access (`admin`, `manager`, `recruiter`, `team_leader`) enforced via middleware, with a delete/edit hierarchy (Admin undeletable, Manager deletable only by Admin)
+- ✅ **Multi-tenancy** — every core resource scoped by `company_name`
+- ✅ **Candidate management** — add, view, update, delete; fields include position, location, experience, CTC, notice period, skills
+- ✅ **Job management** — post and track job openings, scoped to Manager/Admin roles (`manage_jobs` permission)
+- ✅ **Daily job tracking** — assign and track daily tasks, with a real assignee dropdown
+- ✅ **Business development** — track clients, partners, and contacts
+- ✅ **Dashboard: Recent Activity** — real, timestamp-sorted feed across candidates/jobs/business-dev/daily-tasks/interviews
+- ⚠️ **Interview scheduling** — display and scheduling not yet verified working, under investigation
+- ⚠️ **Reports** — Total Candidates works; source-distribution report currently errors (missing schema column); hiring-trend chart wiring not yet confirmed
+- ⚠️ **Dashboard: charts & pipeline** — Hiring Trend chart, Candidate Sources chart, and Recruitment Pipeline widget are not yet wired to real data
+- **Dashboard UI** — built with shadcn/ui, Radix primitives, Tailwind CSS, and Recharts
 
 ## Tech Stack
 
@@ -47,22 +53,35 @@ The project is a full-stack app: a **React + TypeScript** SPA frontend and a **G
 ├── backend/                  # Go REST API
 │   ├── auth/                 # JWT auth & role middleware
 │   ├── db/                   # DB connection + env helpers
-│   ├── database/             # SQL schema (schema.sql)
-│   ├── docs/                 # Swagger spec + design doc
-│   ├── handlers/             # HTTP handlers (candidates, jobs, interviews, etc.)
-│   ├── models/                # Data models
-│   ├── main.go                # Entry point, routes, server bootstrap
+│   ├── database/
+│   │   ├── schema.sql         # Legacy full-schema file (see migrations/ below)
+│   │   └── migrations/        # Versioned schema migrations, applied in order by deploy.sh
+│   ├── docs/                  # Swagger spec + design doc
+│   ├── handlers/               # HTTP handlers (candidates, jobs, interviews, etc.), with tests
+│   ├── models/                 # Data models
+│   ├── main.go                  # Entry point, routes, server bootstrap
 │   └── Dockerfile
-├── src/                      # React frontend
-│   ├── components/           # UI components (dashboard, layout, shadcn ui)
-│   ├── hooks/                 # Custom hooks
-│   ├── pages/                 # Route-level pages (Candidates, Jobs, Interviews, Reports, ...)
-│   ├── services/              # API client (Axios) + service wrappers
-│   └── App.tsx                 # Routes & app shell
-├── docker-compose.yml         # Postgres + backend + frontend services
-├── Dockerfile                 # Frontend build (Vite → Nginx)
-├── nginx.conf
-└── package.json
+├── frontend/                  # React SPA
+│   ├── src/
+│   │   ├── components/         # UI components (dashboard, layout, shadcn ui)
+│   │   ├── hooks/                # Custom hooks
+│   │   ├── pages/                # Route-level pages (Candidates, Jobs, Interviews, Reports, ...)
+│   │   ├── services/             # API client (Axios) + service wrappers
+│   │   └── test/                  # Vitest setup + tests
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+├── infra/                     # Deployment infrastructure, versioned
+│   ├── nginx/                  # Reverse proxy config
+│   ├── systemd/                 # Service unit
+│   └── scripts/
+│       ├── bootstrap.sh          # One-time server setup
+│       ├── deploy.sh             # Repeatable deploy — runs the test gate first
+│       └── test.sh               # Full backend + frontend test/build gate
+├── docs/                       # Architecture decisions, feature audit
+├── docker-compose.yml           # Postgres + backend + frontend services (local dev)
+├── CHANGELOG.md
+└── README.md
 ```
 
 ## API Overview
@@ -138,12 +157,21 @@ The backend calls `db.InitDB()` and `db.InitializeSchema()` on startup, so it wi
 
 **Frontend**
 ```sh
+cd frontend
 npm install
 # Create a .env file with:
 # VITE_API_URL=http://localhost:8080
 npm run dev
 ```
 The frontend will be available at http://localhost:5173.
+
+## Testing
+
+Run the full backend + frontend gate (gofmt, vet, build, test on the backend; lint, test, build on the frontend) in one command:
+```sh
+bash infra/scripts/test.sh
+```
+This is the same gate `deploy.sh` runs automatically before touching the live service on every deploy.
 
 ## Configuration
 

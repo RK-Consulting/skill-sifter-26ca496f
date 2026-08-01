@@ -1,18 +1,31 @@
-
 package auth
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// JWT secret key
-var JwtKey = []byte("skill_sifter_secret_key") // In production, use env variable
+// JWT secret key, read from the JWT_SECRET environment variable.
+// Falls back to a well-known dev-only value with a loud warning so it
+// is never silently used in a real deployment.
+var JwtKey = loadJwtKey()
+
+func loadJwtKey() []byte {
+	secret := db.GetEnv("JWT_SECRET", "")
+	if secret == "" {
+		log.Println("⚠️  WARNING: JWT_SECRET is not set. Using an insecure default key. " +
+			"Set JWT_SECRET in the environment before deploying to production.")
+		secret = "dev_only_insecure_default_key"
+	}
+	return []byte(secret)
+}
 
 // Claims for JWT
 type Claims struct {
@@ -73,7 +86,7 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			// Get role from context (set by authMiddleware)
 			role := r.Context().Value("role").(string)
-			
+
 			// Check if the role is allowed
 			allowed := false
 			for _, allowedRole := range allowedRoles {
@@ -82,12 +95,12 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 					break
 				}
 			}
-			
+
 			if !allowed {
 				http.Error(w, "Insufficient permissions", http.StatusForbidden)
 				return
 			}
-			
+
 			next.ServeHTTP(w, r)
 		})
 	}
@@ -111,6 +124,6 @@ func GenerateToken(user models.User, roleName string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	return tokenString, nil
 }

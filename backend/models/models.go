@@ -1,50 +1,60 @@
-
 package models
 
 import (
 	"time"
 )
 
-// Candidate model
+// Candidate model — fields match the actual deployed candidates table
+// (backend/database/schema.sql / migrations/001_baseline.sql) and what
+// frontend/src/pages/AddCandidate.tsx actually sends. The previous version
+// of this struct referenced status/source/date_applied/resume_url/cover_letter/
+// last_modified — none of which exist in the real schema, meaning
+// GetCandidates/AddCandidate/UpdateCandidate were broken (every call would
+// fail with "column does not exist"). Fixed as part of the Dashboard
+// mock-data investigation, docs/architecture.md gap audit.
 type Candidate struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	Name         string    `json:"name" db:"name,notnull"`
-	Email        string    `json:"email" db:"email,notnull"`
-	Phone        string    `json:"phone" db:"phone"`
-	Position     string    `json:"position" db:"position"`
-	Status       string    `json:"status" db:"status,default:'applied'"`
-	Source 	     string    `json:"source" db:"source"`
-	DateApplied  time.Time `json:"dateApplied" db:"date_applied,default:CURRENT_TIMESTAMP"`
-	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
-	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
-	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
+	ID             int       `json:"id" db:"id,primarykey,autoincrement"`
+	Name           string    `json:"name" db:"name,notnull"`
+	Email          string    `json:"email" db:"email,notnull"`
+	Phone          string    `json:"phone" db:"phone"`
+	Position       string    `json:"position" db:"position"`
+	Location       string    `json:"location" db:"location"`
+	Experience     string    `json:"experience" db:"experience"`
+	CurrentCTC     string    `json:"currentCTC" db:"currentctc"`
+	ExpectedCTC    string    `json:"expectedCTC" db:"expectedctc"`
+	NoticePeriod   string    `json:"noticePeriod" db:"noticeperiod"`
+	JLPTLanguage   string    `json:"jlptLanguage" db:"jlptlanguage"`
+	Skills         string    `json:"skills" db:"skills"`
+	JobDescription string    `json:"newJD" db:"jobdescription"`
+	CreatedAt      time.Time `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CompanyName    string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Job model
 type Job struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	Title        string    `json:"title" db:"title,notnull"`
-	Department   string    `json:"department" db:"department"`
-	Location     string    `json:"location" db:"location"`
-	Status       string    `json:"status" db:"status,default:'open'"`
-	DatePosted   time.Time `json:"datePosted" db:"date_posted,default:CURRENT_TIMESTAMP"`
-	Description  string    `json:"description,omitempty" db:"description"`
-	Requirements string    `json:"requirements,omitempty" db:"requirements"`
-	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
+	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
+	Title           string    `json:"title" db:"title,notnull"`
+	Department      string    `json:"department" db:"department"`
+	Location        string    `json:"location" db:"location"`
+	Status          string    `json:"status" db:"status,default:'open'"`
+	DatePosted      time.Time `json:"datePosted" db:"date_posted,default:CURRENT_TIMESTAMP"`
+	Description     string    `json:"description,omitempty" db:"description"`
+	Requirements    string    `json:"requirements,omitempty" db:"requirements"`
+	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
+	CreatedByUserID int       `json:"createdByUserId,omitempty" db:"created_by_user_id"`
 }
 
 // DailyJob model
 type DailyJob struct {
-	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
-	JdNo            int       `json:"jdNo" db:"jd_no,notnull"`
-	Instructions    string    `json:"instructions" db:"instructions"`
-	AssignedUser    int       `json:"assignedUser" db:"assigned_user"`
+	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
+	JdNo             int       `json:"jdNo" db:"jd_no,notnull"`
+	Instructions     string    `json:"instructions" db:"instructions"`
+	AssignedUser     int       `json:"assignedUser" db:"assigned_user"`
 	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
-	AssignedDate    time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
-	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
+	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
+	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Interview model
@@ -90,13 +100,13 @@ type Role struct {
 
 // User model
 type User struct {
-	ID         int       `json:"id" db:"id,primarykey,autoincrement"`
-	Username   string    `json:"username" db:"username,notnull"`
-	Email      string    `json:"email" db:"email,notnull,unique"`
-	Password   string    `json:"password,omitempty" db:"password,notnull"`
-	Role       string    `json:"role" db:"role,notnull"`
+	ID          int       `json:"id" db:"id,primarykey,autoincrement"`
+	Username    string    `json:"username" db:"username,notnull"`
+	Email       string    `json:"email" db:"email,notnull,unique"`
+	Password    string    `json:"password,omitempty" db:"password,notnull"`
+	Role        string    `json:"role" db:"role,notnull"`
 	CompanyName string    `json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
-	CreatedAt  time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // SchemaVersion for tracking db schema version
@@ -158,4 +168,15 @@ type SourceReportResponse struct {
 	Success bool                `json:"success"`
 	Message string              `json:"message"`
 	Data    []SourceReportEntry `json:"data"`
+}
+
+// ActivityEntry represents a single real event for the Dashboard's Recent
+// Activity feed. Built from real timestamps across candidates, jobs,
+// business_dev, daily_jobs, and interviews — replaces the hardcoded mock
+// data that previously lived in Dashboard.tsx.
+type ActivityEntry struct {
+	Type        string    `json:"type"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Timestamp   time.Time `json:"timestamp"`
 }

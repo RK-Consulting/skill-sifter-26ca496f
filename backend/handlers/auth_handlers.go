@@ -1,152 +1,152 @@
-
 package handlers
 
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
+	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
 func RegisterUser(w http.ResponseWriter, r *http.Request) {
-    var creds models.Credentials
-    err := json.NewDecoder(r.Body).Decode(&creds)
-    if err != nil {
-        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-        return
-    }
-    defer r.Body.Close()
+	var creds models.Credentials
+	err := json.NewDecoder(r.Body).Decode(&creds)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
 
-    // Validate required fields
-    if creds.Email == "" || creds.Password == "" || creds.Username == "" {
-        respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
-        return
-    }
+	// Validate required fields
+	if creds.Email == "" || creds.Password == "" || creds.Username == "" {
+		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
+		return
+	}
 
-    // Hash the password
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not hash password")
-        return
-    }
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not hash password")
+		return
+	}
 
-    // Start a transaction
-    tx, err := db.DB.Begin()
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
-        return
-    }
+	// Start a transaction
+	tx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
+		return
+	}
 
-    defer tx.Rollback()
+	defer tx.Rollback()
 
-    // Check if company name is provided
-    if creds.CompanyName == "" {
-        respondWithError(w, http.StatusBadRequest, "Company name is required")
-        return
-    }
+	// Check if company name is provided
+	if creds.CompanyName == "" {
+		respondWithError(w, http.StatusBadRequest, "Company name is required")
+		return
+	}
 
-    // Check if company already exists
-    var exists bool
-    err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Database error")
-        return
-    }
+	// Check if company already exists
+	var exists bool
+	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
 
-    // Generate company ID for new companies
-    var companyID string
-    var isFirstUser bool
+	// Generate company ID for new companies
+	var companyID string
+	var isFirstUser bool
 
-    if !exists {
-        // Create new company with generated ID
-        companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
-        _, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
-            companyID, creds.CompanyName, time.Now())
-        if err != nil {
-            respondWithError(w, http.StatusInternalServerError, "Could not create company")
-            return
-        }
-        isFirstUser = true
-    }
+	if !exists {
+		// Create new company with generated ID
+		companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
+		_, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+			companyID, creds.CompanyName, time.Now())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not create company")
+			return
+		}
+		isFirstUser = true
+	}
 
-    // Determine role
-    var role string
-    if creds.Role != "" {
-        role = creds.Role
-    } else if isFirstUser {
-        role = "admin"
-    } else {
-        role = "recruiter" // Default role if none provided
-    }
+	// Determine role
+	var role string
+	if creds.Role != "" {
+		role = creds.Role
+	} else if isFirstUser {
+		role = "admin"
+	} else {
+		role = "recruiter" // Default role if none provided
+	}
 
-    // Validate role
-    validRoles := map[string]bool{
-        "admin":       true,
-        "manager":     true,
-        "recruiter":   true,
-        "team_leader": true,
-    }
-    
-    if !validRoles[role] {
-        respondWithError(w, http.StatusBadRequest, "Invalid role")
-        return
-    }
+	// Validate role
+	validRoles := map[string]bool{
+		"admin":       true,
+		"manager":     true,
+		"recruiter":   true,
+		"team_leader": true,
+	}
 
-    // Insert user with company name
-    var userID int
-    err = tx.QueryRow(`
+	if !validRoles[role] {
+		respondWithError(w, http.StatusBadRequest, "Invalid role")
+		return
+	}
+
+	// Insert user with company name
+	var userID int
+	err = tx.QueryRow(`
         INSERT INTO users(username, email, password, role, company_name, created_at) 
         VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-        creds.Username, creds.Email, hashedPassword, role, creds.CompanyName, time.Now()).Scan(&userID)
+		creds.Username, creds.Email, hashedPassword, role, creds.CompanyName, time.Now()).Scan(&userID)
 
-    if err != nil {
-        if strings.Contains(err.Error(), "unique constraint") {
-            respondWithError(w, http.StatusConflict, "Email already exists")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Could not register user")
-        return
-    }
+	if err != nil {
+		if strings.Contains(err.Error(), "unique constraint") {
+			respondWithError(w, http.StatusConflict, "Email already exists")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not register user")
+		return
+	}
 
-    // Commit transaction
-    if err = tx.Commit(); err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
-        return
-    }
+	// Commit transaction
+	if err = tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
+		return
+	}
 
-    // Create user object for response (without password)
-    user := models.User{
-        ID:         userID,
-        Username:   creds.Username,
-        Email:      creds.Email,
-        Role:       role,
-        CompanyName: creds.CompanyName, // Use company name instead of ID
-        CreatedAt:  time.Now(),
-    }
+	// Create user object for response (without password)
+	user := models.User{
+		ID:          userID,
+		Username:    creds.Username,
+		Email:       creds.Email,
+		Role:        role,
+		CompanyName: creds.CompanyName, // Use company name instead of ID
+		CreatedAt:   time.Now(),
+	}
 
-    // Create JWT token
-    tokenString, err := auth.GenerateToken(user, role)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not generate token")
-        return
-    }
+	// Create JWT token
+	tokenString, err := auth.GenerateToken(user, role)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
+		return
+	}
 
-    // Return token and user info
-    respondWithJSON(w, http.StatusCreated, models.ApiResponse{
-        Success: true,
-        Message: "User registered successfully",
-        Data: models.TokenResponse{
-            Token: tokenString,
-            User:  user,
-        },
-    })
+	// Return token and user info
+	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
+		Success: true,
+		Message: "User registered successfully",
+		Data: models.TokenResponse{
+			Token: tokenString,
+			User:  user,
+		},
+	})
 }
 
 // LoginUser handles user login
@@ -210,13 +210,13 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 func GetUsers(w http.ResponseWriter, r *http.Request) {
 	// Get company name from context
 	companyName := r.Context().Value("companyName").(string)
-	
+
 	users := []models.User{}
 	rows, err := db.DB.Query(`
 		SELECT id, username, email, role, company_name, created_at
 		FROM users 
 		WHERE company_name = $1`, companyName)
-		
+
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching users")
 		return
@@ -243,7 +243,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Get company name from context
 	companyName := r.Context().Value("companyName").(string)
-	
+
 	var user models.User
 	err := json.NewDecoder(r.Body).Decode(&user)
 	if err != nil {
@@ -251,7 +251,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	
+
 	// Set company name from logged in admin
 	user.CompanyName = companyName
 
@@ -280,12 +280,12 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	// Create user object for response (without password)
 	createdUser := models.User{
-		ID:         userID,
-		Username:   user.Username,
-		Email:      user.Email,
-		Role:       user.Role,
+		ID:          userID,
+		Username:    user.Username,
+		Email:       user.Email,
+		Role:        user.Role,
 		CompanyName: user.CompanyName,
-		CreatedAt:  time.Now(),
+		CreatedAt:   time.Now(),
 	}
 
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
@@ -296,19 +296,151 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateUser updates an existing user (admin only)
+// UpdateUser updates a user's username, email, and/or role.
+// Reuses the exact same access rule as DeleteUser (docs/architecture.md
+// section 13.3), since both are "can this caller touch this user record"
+// questions: admin's own record can never be edited via this endpoint,
+// manager's record can only be edited by admin, recruiter/team_leader can
+// be edited by admin or manager.
+// Additionally guards against privilege escalation: only an admin may set
+// a target user's role to "admin" (a manager could otherwise create a
+// second admin, or edit their own downstream reports upward, bypassing the
+// hierarchy this endpoint is meant to protect).
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
-	// Implementation omitted for brevity
-	// This would extract the user ID from the URL path and update the user
+	vars := mux.Vars(r)
+	targetID := vars["id"]
+
+	companyName := r.Context().Value("companyName").(string)
+	requesterRole := r.Context().Value("role").(string)
+
+	var currentRole string
+	err := db.DB.QueryRow(
+		`SELECT role FROM users WHERE id = $1 AND company_name = $2`,
+		targetID, companyName,
+	).Scan(&currentRole)
+
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
+		return
+	}
+
+	if currentRole == "admin" {
+		respondWithError(w, http.StatusForbidden, "Admin users cannot be edited via this endpoint")
+		return
+	}
+	if currentRole == "manager" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can edit a manager")
+		return
+	}
+
+	var update struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	if update.Role == "admin" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can promote a user to admin")
+		return
+	}
+
+	validRoles := map[string]bool{"admin": true, "manager": true, "recruiter": true, "team_leader": true}
+	if update.Role != "" && !validRoles[update.Role] {
+		respondWithError(w, http.StatusBadRequest, "Invalid role")
+		return
+	}
+
+	result, err := db.DB.Exec(
+		`UPDATE users SET
+			username = COALESCE(NULLIF($1, ''), username),
+			email = COALESCE(NULLIF($2, ''), email),
+			role = COALESCE(NULLIF($3, ''), role)
+		WHERE id = $4 AND company_name = $5`,
+		update.Username, update.Email, update.Role, targetID, companyName,
+	)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error updating user")
+		return
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "User updated successfully",
 	})
 }
 
-// DeleteUser deletes a user (admin only)
+// DeleteUser deletes a user, enforcing the role hierarchy defined in
+// docs/architecture.md section 13.3:
+//   - Admin can never be deleted, by anyone, under any circumstance.
+//   - Manager can only be deleted by Admin.
+//   - Recruiter/Team Leader can be deleted by Admin or Manager.
+//
+// This check is based on the TARGET user's actual role, so it is safe
+// regardless of whether it's reached via the admin-only or manager-accessible
+// route (both are wired to this same handler).
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
-	// Implementation omitted for brevity
-	// This would extract the user ID from the URL path and delete the user
+	vars := mux.Vars(r)
+	targetID := vars["id"]
+
+	companyName := r.Context().Value("companyName").(string)
+	requesterRole := r.Context().Value("role").(string)
+
+	// Look up the target user's role, scoped to the same company (tenant safety —
+	// never allow deleting a user from a different company via this endpoint).
+	var targetRole string
+	err := db.DB.QueryRow(
+		`SELECT role FROM users WHERE id = $1 AND company_name = $2`,
+		targetID, companyName,
+	).Scan(&targetRole)
+
+	if err == sql.ErrNoRows {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
+		return
+	}
+
+	if targetRole == "admin" {
+		respondWithError(w, http.StatusForbidden, "Admin users cannot be deleted")
+		return
+	}
+	if targetRole == "manager" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can delete a manager")
+		return
+	}
+	// Any remaining case (target is recruiter/team_leader, requester is admin or
+	// manager) is allowed, matching the hierarchy table.
+
+	result, err := db.DB.Exec(
+		`DELETE FROM users WHERE id = $1 AND company_name = $2`,
+		targetID, companyName,
+	)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error deleting user")
+		return
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected == 0 {
+		respondWithError(w, http.StatusNotFound, "User not found")
+		return
+	}
+
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "User deleted successfully",

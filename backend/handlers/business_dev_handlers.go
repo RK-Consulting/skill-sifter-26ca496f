@@ -1,4 +1,3 @@
-
 package handlers
 
 import (
@@ -24,10 +23,10 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 
 	// Query database with error handling
 	query := "SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE company_name = $1 ORDER BY created_at DESC"
-	
+
 	// Debug logging
 	fmt.Printf("Executing business_dev query: %s with company name: %s\n", query, companyName)
-	
+
 	// Check if table exists
 	var tableExists bool
 	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
@@ -47,7 +46,7 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	
+
 	rows, err := db.DB.Query(query, companyName)
 	if err != nil {
 		// Log the specific error
@@ -191,7 +190,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, "Error creating business_dev table")
 			return
 		}
-		
+
 		// Create index
 		_, err = db.DB.Exec("CREATE INDEX IF NOT EXISTS idx_business_dev_company ON business_dev(company_name)")
 		if err != nil {

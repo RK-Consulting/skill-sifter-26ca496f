@@ -1,4 +1,3 @@
-
 package db
 
 import (
@@ -21,7 +20,7 @@ var DB *sql.DB
 func InitDB() {
 	// Load .env file if exists
 	godotenv.Load()
-	
+
 	host := GetEnv("DB_HOST", "localhost")
 	port := GetEnv("DB_PORT", "5432")
 	user := GetEnv("DB_USER", "skillsifter")
@@ -56,11 +55,11 @@ func InitializeSchema() error {
 			AND table_name = 'schema_version'
 		)
 	`).Scan(&exists)
-	
+
 	if err != nil {
 		return fmt.Errorf("error checking schema_version table: %v", err)
 	}
-	
+
 	// If schema_version table doesn't exist, create it and initialize schema
 	if !exists {
 		tx, err := DB.Begin()
@@ -68,7 +67,7 @@ func InitializeSchema() error {
 			return fmt.Errorf("error starting transaction: %v", err)
 		}
 		defer tx.Rollback()
-		
+
 		// Create schema_version table
 		_, err = tx.Exec(`
 			CREATE TABLE public.schema_version (
@@ -79,45 +78,45 @@ func InitializeSchema() error {
 		if err != nil {
 			return fmt.Errorf("error creating schema_version table: %v", err)
 		}
-		
+
 		// Create tables in correct order based on dependencies
 		fmt.Println("Initializing database schema...")
-		
+
 		// 1. Companies table (no dependencies)
 		if err := createTableFromStruct(tx, models.Company{}, "companies"); err != nil {
 			return err
 		}
-		
+
 		// 2. Roles table (no dependencies)
 		if err := createTableFromStruct(tx, models.Role{}, "roles"); err != nil {
 			return err
 		}
-		
+
 		// 3. Users table (depends on roles and companies)
 		if err := createTableFromStruct(tx, models.User{}, "users"); err != nil {
 			return err
 		}
-		
+
 		// 4. Candidates table (depends on companies)
 		if err := createTableFromStruct(tx, models.Candidate{}, "candidates"); err != nil {
 			return err
 		}
-		
+
 		// 5. Jobs table (depends on companies)
 		if err := createTableFromStruct(tx, models.Job{}, "jobs"); err != nil {
 			return err
 		}
-		
+
 		// 6. Daily Jobs table (depends on companies and users)
 		if err := createTableFromStruct(tx, models.DailyJob{}, "daily_jobs"); err != nil {
 			return err
 		}
-		
+
 		// 7. Interviews table (depends on companies and candidates)
 		if err := createTableFromStruct(tx, models.Interview{}, "interviews"); err != nil {
 			return err
 		}
-		
+
 		// Create indexes for performance
 		_, err = tx.Exec(`
 			CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_name);
@@ -127,11 +126,11 @@ func InitializeSchema() error {
 			CREATE INDEX IF NOT EXISTS idx_users_company ON users(company_name);
 			CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 		`)
-		
+
 		if err != nil {
 			return fmt.Errorf("error creating indexes: %v", err)
 		}
-		
+
 		// Insert default roles
 		_, err = tx.Exec(`
 			INSERT INTO roles (name, permissions, created_at) VALUES 
@@ -141,27 +140,27 @@ func InitializeSchema() error {
 			('team_leader', '["view_candidates", "add_candidates", "view_jobs", "manage_team"]', NOW())
 			ON CONFLICT (name) DO NOTHING;
 		`)
-		
+
 		if err != nil {
 			return fmt.Errorf("error inserting default roles: %v", err)
 		}
-		
+
 		// Insert schema version
 		_, err = tx.Exec("INSERT INTO schema_version (version) VALUES (1)")
 		if err != nil {
 			return fmt.Errorf("error inserting schema version: %v", err)
 		}
-		
+
 		// Commit the transaction
 		if err = tx.Commit(); err != nil {
 			return fmt.Errorf("error committing schema transaction: %v", err)
 		}
-		
+
 		fmt.Println("Database schema initialized successfully!")
 	} else {
 		fmt.Println("Database schema already initialized, skipping...")
 	}
-	
+
 	return nil
 }
 
@@ -176,40 +175,40 @@ func createTableFromStruct(tx *sql.Tx, model interface{}, tableName string) erro
 			AND table_name = $1
 		)
 	`, tableName).Scan(&exists)
-	
+
 	if err != nil {
 		return fmt.Errorf("error checking if %s table exists: %v", tableName, err)
 	}
-	
+
 	if exists {
 		fmt.Printf("Table %s already exists, skipping creation\n", tableName)
 		return nil
 	}
-	
+
 	fmt.Printf("Creating table %s...\n", tableName)
-	
+
 	t := reflect.TypeOf(model)
 	var columns []string
 	var foreignKeys []string
-	
+
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
 		dbTag := field.Tag.Get("db")
-		
+
 		if dbTag == "" {
 			continue // Skip fields without db tag
 		}
-		
+
 		parts := strings.Split(dbTag, ",")
 		colName := parts[0]
-		
+
 		if colName == "-" {
 			continue // Skip explicitly ignored fields
 		}
-		
+
 		colType := getPostgresType(field.Type)
 		colDef := fmt.Sprintf("%s %s", colName, colType)
-		
+
 		// Add constraints from tags
 		for _, part := range parts[1:] {
 			switch {
@@ -237,20 +236,20 @@ func createTableFromStruct(tx *sql.Tx, model interface{}, tableName string) erro
 				colDef = fmt.Sprintf("%s %s", colName, typeVal)
 			}
 		}
-		
+
 		columns = append(columns, colDef)
 	}
-	
+
 	// Add foreign key constraints at the end
 	columns = append(columns, foreignKeys...)
-	
+
 	createSQL := fmt.Sprintf("CREATE TABLE %s (\n\t%s\n)", tableName, strings.Join(columns, ",\n\t"))
 	_, err = tx.Exec(createSQL)
-	
+
 	if err != nil {
 		return fmt.Errorf("error creating %s table: %v\nSQL: %s", tableName, err, createSQL)
 	}
-	
+
 	return nil
 }
 
