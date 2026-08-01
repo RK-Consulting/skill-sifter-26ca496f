@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -71,7 +70,12 @@ const DailyJobs = () => {
   };
 
   const viewJobDetails = (id: number) => {
-    navigate(`/daily-jobs/${id}`);
+    // No /daily-jobs/:id route exists yet — this used to navigate() to a
+    // nonexistent route, hitting the catch-all NotFound page. Matching the
+    // same placeholder pattern used in Candidates.tsx until a real detail
+    // page is built.
+    console.log(`View daily job ${id}`);
+    toast.info('Daily job details page is not built yet.');
   };
 
   // Handle loading and error states

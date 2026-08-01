@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -16,8 +17,13 @@ func GetJobs(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 
 	jobs := []models.Job{}
-	rows, err := db.DB.Query("SELECT * FROM jobs WHERE company_name = $1", companyName)
+	rows, err := db.DB.Query(`
+		SELECT id, title, department, location, status, date_posted,
+			description, requirements, last_modified, company_name,
+			COALESCE(created_by_user_id, 0)
+		FROM jobs WHERE company_name = $1`, companyName)
 	if err != nil {
+		log.Println("GetJobs query error:", err)
 		respondWithError(w, http.StatusInternalServerError, "Error fetching jobs")
 		return
 	}
@@ -28,8 +34,9 @@ func GetJobs(w http.ResponseWriter, r *http.Request) {
 		var j models.Job
 		err := rows.Scan(&j.ID, &j.Title, &j.Department, &j.Location,
 			&j.Status, &j.DatePosted, &j.Description, &j.Requirements,
-			&j.LastModified, &j.CompanyName)
+			&j.LastModified, &j.CompanyName, &j.CreatedByUserID)
 		if err != nil {
+			log.Println("GetJobs scan error:", err)
 			respondWithError(w, http.StatusInternalServerError, "Error scanning job row")
 			return
 		}
@@ -56,12 +63,15 @@ func GetJobByID(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 
 	var job models.Job
-	err = db.DB.QueryRow(
-		"SELECT * FROM jobs WHERE id = $1 AND company_name = $2",
+	err = db.DB.QueryRow(`
+		SELECT id, title, department, location, status, date_posted,
+			description, requirements, last_modified, company_name,
+			COALESCE(created_by_user_id, 0)
+		FROM jobs WHERE id = $1 AND company_name = $2`,
 		id, companyName,
 	).Scan(&job.ID, &job.Title, &job.Department, &job.Location,
 		&job.Status, &job.DatePosted, &job.Description, &job.Requirements,
-		&job.LastModified, &job.CompanyName)
+		&job.LastModified, &job.CompanyName, &job.CreatedByUserID)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Job not found")
@@ -103,6 +113,7 @@ func AddJob(w http.ResponseWriter, r *http.Request) {
 	).Scan(&id)
 
 	if err != nil {
+		log.Println("AddJob insert error:", err)
 		respondWithError(w, http.StatusInternalServerError, "Error creating job")
 		return
 	}

@@ -111,6 +111,12 @@ func setupProtectedRoutes(r *mux.Router) {
 	managerRouter.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
 
 	// General API Resources
+	// company-users: used by the daily-tasks assignee dropdown, and any other
+	// place needing a list of colleagues at the same company. Was missing
+	// entirely — the frontend called /company-users but no such route
+	// existed, so the assignee dropdown was always empty.
+	apiRouter.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
+
 	setupResourceRoutes(apiRouter, "/candidates", handlers.GetCandidates, handlers.AddCandidate,
 		handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
 
@@ -130,6 +136,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	// Duplicate for root-level paths (no /api prefix)
 	nonApi := r.NewRoute().Subrouter()
 	nonApi.Use(auth.AuthMiddleware)
+
+	nonApi.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 
 	setupResourceRoutes(nonApi, "/candidates", handlers.GetCandidates, handlers.AddCandidate,
 		handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
