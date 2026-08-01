@@ -53,6 +53,11 @@ func setupCORS() *cors.Cors {
 			"https://skillsifter.in",
 			"https://www.skillsifter.in",
 			"https://api.skillsifter.in",
+			// Cloudflare Pages preview URLs get a new random hash on every
+			// deploy (e.g. https://a27a97ac.skill-sifter-26ca496f.pages.dev),
+			// so a wildcard is needed rather than a fixed URL. rs/cors
+			// supports a single * per origin entry.
+			"https://*.skill-sifter-26ca496f.pages.dev",
 			"http://localhost:5173",
 			"http://localhost:3000",
 			"http://127.0.0.1:5173",
