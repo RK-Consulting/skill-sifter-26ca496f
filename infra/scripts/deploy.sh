@@ -13,9 +13,31 @@ echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
 git reset --hard "origin/${CURRENT_BRANCH}"
 
-echo "==> Building backend"
+echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 cd "$APP_DIR/backend"
 go mod download
+
+UNFORMATTED=$(gofmt -l .)
+if [ -n "$UNFORMATTED" ]; then
+  echo "❌ DEPLOY ABORTED: the following files are not gofmt-formatted:"
+  echo "$UNFORMATTED"
+  echo "The live service was NOT touched. Fix formatting, push, and redeploy."
+  exit 1
+fi
+
+if ! go vet ./...; then
+  echo "❌ DEPLOY ABORTED: go vet failed. The live service was NOT touched."
+  exit 1
+fi
+
+if ! go test ./...; then
+  echo "❌ DEPLOY ABORTED: tests failed. The live service was NOT touched."
+  exit 1
+fi
+
+echo "✅ Test gate passed — proceeding with build and deploy"
+
+echo "==> Building backend"
 go build -o skillsifter .
 
 echo "==> Running database migrations"
