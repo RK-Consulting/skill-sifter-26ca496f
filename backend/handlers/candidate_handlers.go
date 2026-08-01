@@ -14,7 +14,9 @@ import (
 func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 
-	query := `SELECT id, name, email, phone, position, status, date_applied, resume_url, cover_letter, last_modified, company_name, source FROM candidates WHERE company_name = $1`
+	query := `SELECT id, name, email, phone, position, location, experience,
+		currentctc, expectedctc, noticeperiod, jlptlanguage, skills, jobdescription,
+		created_at, company_name FROM candidates WHERE company_name = $1`
 	rows, err := db.DB.Query(query, companyName)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching candidates")
@@ -25,8 +27,9 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	candidates := []models.Candidate{}
 	for rows.Next() {
 		var c models.Candidate
-		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Status,
-			&c.DateApplied, &c.ResumeURL, &c.CoverLetter, &c.LastModified, &c.CompanyName, &c.Source)
+		err := rows.Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location,
+			&c.Experience, &c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JLPTLanguage,
+			&c.Skills, &c.JobDescription, &c.CreatedAt, &c.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning candidate row")
 			return
@@ -54,10 +57,13 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 
 	var c models.Candidate
 	err = db.DB.QueryRow(`
-		SELECT id, name, email, phone, position, status, date_applied, resume_url, cover_letter, last_modified, company_name, source 
+		SELECT id, name, email, phone, position, location, experience,
+		currentctc, expectedctc, noticeperiod, jlptlanguage, skills, jobdescription,
+		created_at, company_name
 		FROM candidates WHERE id = $1 AND company_name = $2`, id, companyName).Scan(
-		&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Status, &c.DateApplied,
-		&c.ResumeURL, &c.CoverLetter, &c.LastModified, &c.CompanyName, &c.Source)
+		&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location, &c.Experience,
+		&c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JLPTLanguage, &c.Skills,
+		&c.JobDescription, &c.CreatedAt, &c.CompanyName)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
@@ -84,10 +90,13 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	c.CompanyName = r.Context().Value("companyName").(string)
 
 	err = db.DB.QueryRow(`
-		INSERT INTO candidates (name, email, phone, position, status, resume_url, cover_letter, company_name, source)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id`,
-		c.Name, c.Email, c.Phone, c.Position, c.Status, c.ResumeURL, c.CoverLetter, c.CompanyName, c.Source).Scan(&c.ID)
+		INSERT INTO candidates (name, email, phone, position, location, experience,
+			currentctc, expectedctc, noticeperiod, jlptlanguage, skills, jobdescription, company_name)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id, created_at`,
+		c.Name, c.Email, c.Phone, c.Position, c.Location, c.Experience,
+		c.CurrentCTC, c.ExpectedCTC, c.NoticePeriod, c.JLPTLanguage, c.Skills,
+		c.JobDescription, c.CompanyName).Scan(&c.ID, &c.CreatedAt)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating candidate")
@@ -122,11 +131,13 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 	c.ID = id
 
 	_, err = db.DB.Exec(`
-		UPDATE candidates SET name=$1, email=$2, phone=$3, position=$4, status=$5,
-		resume_url=$6, cover_letter=$7, last_modified=NOW(), source=$8
-		WHERE id=$9 AND company_name=$10`,
-		c.Name, c.Email, c.Phone, c.Position, c.Status,
-		c.ResumeURL, c.CoverLetter, c.Source, c.ID, c.CompanyName)
+		UPDATE candidates SET name=$1, email=$2, phone=$3, position=$4, location=$5,
+		experience=$6, currentctc=$7, expectedctc=$8, noticeperiod=$9, jlptlanguage=$10,
+		skills=$11, jobdescription=$12
+		WHERE id=$13 AND company_name=$14`,
+		c.Name, c.Email, c.Phone, c.Position, c.Location, c.Experience,
+		c.CurrentCTC, c.ExpectedCTC, c.NoticePeriod, c.JLPTLanguage, c.Skills,
+		c.JobDescription, c.ID, c.CompanyName)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating candidate")

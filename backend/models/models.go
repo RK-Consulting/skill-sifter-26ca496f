@@ -4,20 +4,30 @@ import (
 	"time"
 )
 
-// Candidate model
+// Candidate model — fields match the actual deployed candidates table
+// (backend/database/schema.sql / migrations/001_baseline.sql) and what
+// frontend/src/pages/AddCandidate.tsx actually sends. The previous version
+// of this struct referenced status/source/date_applied/resume_url/cover_letter/
+// last_modified — none of which exist in the real schema, meaning
+// GetCandidates/AddCandidate/UpdateCandidate were broken (every call would
+// fail with "column does not exist"). Fixed as part of the Dashboard
+// mock-data investigation, docs/architecture.md gap audit.
 type Candidate struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	Name         string    `json:"name" db:"name,notnull"`
-	Email        string    `json:"email" db:"email,notnull"`
-	Phone        string    `json:"phone" db:"phone"`
-	Position     string    `json:"position" db:"position"`
-	Status       string    `json:"status" db:"status,default:'applied'"`
-	Source       string    `json:"source" db:"source"`
-	DateApplied  time.Time `json:"dateApplied" db:"date_applied,default:CURRENT_TIMESTAMP"`
-	ResumeURL    string    `json:"resumeUrl,omitempty" db:"resume_url"`
-	CoverLetter  string    `json:"coverLetter,omitempty" db:"cover_letter"`
-	LastModified time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	CompanyName  string    `json:"companyName" db:"company_name,notnull"`
+	ID             int       `json:"id" db:"id,primarykey,autoincrement"`
+	Name           string    `json:"name" db:"name,notnull"`
+	Email          string    `json:"email" db:"email,notnull"`
+	Phone          string    `json:"phone" db:"phone"`
+	Position       string    `json:"position" db:"position"`
+	Location       string    `json:"location" db:"location"`
+	Experience     string    `json:"experience" db:"experience"`
+	CurrentCTC     string    `json:"currentCTC" db:"currentctc"`
+	ExpectedCTC    string    `json:"expectedCTC" db:"expectedctc"`
+	NoticePeriod   string    `json:"noticePeriod" db:"noticeperiod"`
+	JLPTLanguage   string    `json:"jlptLanguage" db:"jlptlanguage"`
+	Skills         string    `json:"skills" db:"skills"`
+	JobDescription string    `json:"newJD" db:"jobdescription"`
+	CreatedAt      time.Time `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CompanyName    string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Job model
