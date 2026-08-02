@@ -180,3 +180,18 @@ type ActivityEntry struct {
 	Description string    `json:"description"`
 	Timestamp   time.Time `json:"timestamp"`
 }
+
+// PipelineResponse represents the Dashboard's Recruitment Pipeline widget.
+// "Screening" has no dedicated field anywhere in the schema (see
+// docs/architecture.md section 12.4) — defined here as candidates with no
+// interview record yet. "Interview" and "Rejected" are real interview
+// status/feedback values.
+type PipelineResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+	Data    struct {
+		Screening int `json:"screening"`
+		Interview int `json:"interview"`
+		Rejected  int `json:"rejected"`
+	} `json:"data"`
+}

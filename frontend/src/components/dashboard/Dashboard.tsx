@@ -14,7 +14,6 @@ import {
 import Container from '../layout/Container';
 import DashboardHeader from './DashboardHeader';
 import StatsCards from './StatsCards';
-import UploadSection from './UploadSection';
 import PipelineStatus from './PipelineStatus';
 import ActivitySection from './ActivitySection';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
@@ -93,21 +92,28 @@ const Dashboard = ({ username }: DashboardProps) => {
     }
   ];
 
-  // Pipeline data
+  // Real pipeline counts, replacing the previously hardcoded 24/12/8 values.
+  // "Screening" = candidates with no interview record yet (no dedicated
+  // field exists for this — see docs/architecture.md section 12.4).
+  const { data: pipeline } = useQuery({
+    queryKey: ['pipeline'],
+    queryFn: reportsService.getPipeline,
+  });
+
   const pipelineData = [
     {
       label: "Screening",
-      count: 24,
+      count: pipeline?.screening ?? 0,
       icon: <CheckCircle2 className="w-5 h-5 text-green-500" />
     },
     {
       label: "Interview",
-      count: 12,
+      count: pipeline?.interview ?? 0,
       icon: <Clock3 className="w-5 h-5 text-yellow-500" />
     },
     {
       label: "Rejected",
-      count: 8,
+      count: pipeline?.rejected ?? 0,
       icon: <XCircle className="w-5 h-5 text-red-500" />
     }
   ];
@@ -124,15 +130,23 @@ const Dashboard = ({ username }: DashboardProps) => {
     time: timeAgo(entry.timestamp),
   }));
 
-  // Chart data
-  const hiringData = [
-    { name: 'Jan', candidates: 4 },
-    { name: 'Feb', candidates: 7 },
-    { name: 'Mar', candidates: 5 },
-    { name: 'Apr', candidates: 10 },
-    { name: 'May', candidates: 8 },
-    { name: 'Jun', candidates: 12 },
-  ];
+  // Real hiring trend, replacing the previously hardcoded array. Backend
+  // returns { date: "2026-01", totalInterviews: N } — reformatted here into
+  // the { name: "Jan", candidates: N } shape the chart expects.
+  const { data: hiringStats } = useQuery({
+    queryKey: ['hiringStats'],
+    queryFn: reportsService.getHiringStats,
+  });
+
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const hiringData = (hiringStats || []).map((entry) => {
+    const [, monthNum] = entry.date.split('-');
+    const monthIndex = parseInt(monthNum, 10) - 1;
+    return {
+      name: monthNames[monthIndex] ?? entry.date,
+      candidates: entry.totalInterviews,
+    };
+  });
 
   const sourceData = [
     { name: 'LinkedIn', value: 40 },
@@ -255,8 +269,9 @@ const Dashboard = ({ username }: DashboardProps) => {
         </div>
 
         {/* Actions Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          <UploadSection />
+        {/* Upload Resumes removed — not functional yet; AI-based resume
+            extraction is a future milestone (docs/architecture.md section 11) */}
+        <div className="grid grid-cols-1 gap-6 mb-8">
           <PipelineStatus items={pipelineData} />
         </div>
 

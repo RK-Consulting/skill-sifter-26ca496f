@@ -122,16 +122,6 @@ const Navbar = React.forwardRef<HTMLElement, NavbarProps>(
                     <Search className="w-5 h-5" />
                   </button>
                   
-                  <Link to="/candidates/add">
-                    <Button 
-                      variant="primary" 
-                      size="sm" 
-                      className="animate-fade-in"
-                    >
-                      Add Candidate
-                    </Button>
-                  </Link>
-                  
                   <div className="flex items-center space-x-2">
                     <div className="p-1.5 text-ats-gray-600 hover:text-ats-gray-900 rounded-full hover:bg-ats-gray-100/50 border border-ats-gray-200 cursor-pointer">
                       <User className="w-5 h-5" />

@@ -17,6 +17,12 @@ export interface ActivityEntry {
   timestamp: string;
 }
 
+export interface PipelineData {
+  screening: number;
+  interview: number;
+  rejected: number;
+}
+
 export const reportsService = {
   async getHiringStats(): Promise<HiringReportEntry[]> {
     try {
@@ -45,6 +51,16 @@ export const reportsService = {
     } catch (error) {
       console.error('Error fetching recent activity:', error);
       return [];
+    }
+  },
+
+  async getPipeline(): Promise<PipelineData> {
+    try {
+      const response = await reportService.getPipeline();
+      return response.data?.data || { screening: 0, interview: 0, rejected: 0 };
+    } catch (error) {
+      console.error('Error fetching pipeline:', error);
+      return { screening: 0, interview: 0, rejected: 0 };
     }
   },
 

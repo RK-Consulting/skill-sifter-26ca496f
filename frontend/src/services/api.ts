@@ -314,6 +314,11 @@ export const reportService = {
   getRecentActivity: async () => {
     return api.get('/reports/activity');
   },
+
+  // Get recruitment pipeline counts
+  getPipeline: async () => {
+    return api.get('/reports/pipeline');
+  },
 };
 
 export default api;

@@ -65,6 +65,47 @@ func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 		Data:    activity,
 	})
 }
+
+// GetPipeline returns real counts for the Dashboard's Recruitment Pipeline
+// widget, replacing the hardcoded 24/12/8 values. See PipelineResponse in
+// models for the definition of each category (docs/architecture.md
+// section 12.4 explains why "Screening" has no dedicated field).
+func GetPipeline(w http.ResponseWriter, r *http.Request) {
+	companyName := r.Context().Value("companyName").(string)
+
+	var resp models.PipelineResponse
+	resp.Success = true
+	resp.Message = "Pipeline retrieved successfully"
+
+	err := db.DB.QueryRow(`
+		SELECT COUNT(*) FROM candidates c
+		WHERE c.company_name = $1
+		AND NOT EXISTS (SELECT 1 FROM interviews i WHERE i.candidate_id = c.id)
+	`, companyName).Scan(&resp.Data.Screening)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching pipeline screening count")
+		return
+	}
+
+	err = db.DB.QueryRow(`
+		SELECT COUNT(*) FROM interviews WHERE company_name = $1 AND status = 'scheduled'
+	`, companyName).Scan(&resp.Data.Interview)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching pipeline interview count")
+		return
+	}
+
+	err = db.DB.QueryRow(`
+		SELECT COUNT(*) FROM interviews WHERE company_name = $1 AND feedback = 'Rejected'
+	`, companyName).Scan(&resp.Data.Rejected)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching pipeline rejected count")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, resp)
+}
+
 func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 	companyName := r.Context().Value("companyName").(string)
 
