@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +10,6 @@ import {
   Clock,
   Mail,
   Phone,
-  User,
   ArrowLeft
 } from 'lucide-react';
 
@@ -45,11 +43,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { interviewService } from '@/services/api';
+import { interviewService, candidateService } from '@/services/api';
 
-// Define the schema for form validation matching backend Interview model
+// Define the schema for form validation matching backend Interview model.
+// candidateId is required — the backend's candidate_id column has a foreign
+// key constraint (REFERENCES candidates(id)); previously this form only
+// collected a free-text candidateName and never sent candidateId at all,
+// so every real submission failed with a foreign key violation (candidate_id
+// defaulted to 0, which matches no real candidate). See
+// docs/architecture.md / CHANGELOG for the investigation.
 const formSchema = z.object({
-  candidateName: z.string().min(1, { message: 'Candidate name is required' }),
+  candidateId: z.string().min(1, { message: 'Please select a candidate' }),
   position: z.string().min(1, { message: 'Position is required' }),
   interviewDate: z.date({
     required_error: 'Interview date and time is required',
@@ -60,9 +64,35 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
+interface CandidateOption {
+  id: number;
+  name: string;
+  position?: string;
+}
+
 const ScheduleInterview = () => {
   const navigate = useNavigate();
-  
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [isLoadingCandidates, setIsLoadingCandidates] = useState(true);
+
+  // Fetch real candidates for the dropdown, same pattern as AddDailyJob's
+  // assignee dropdown (userService.getAllUsers)
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      try {
+        const response = await candidateService.getAllCandidates();
+        const data = response.data?.data || [];
+        setCandidates(data);
+      } catch (error) {
+        console.error('Error fetching candidates:', error);
+        toast.error('Failed to load candidates list');
+      } finally {
+        setIsLoadingCandidates(false);
+      }
+    };
+    fetchCandidates();
+  }, []);
+
   // Initialize form with zod resolver
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -72,14 +102,32 @@ const ScheduleInterview = () => {
     },
   });
 
+  // When a candidate is selected, auto-fill Position from their record if
+  // it's currently empty, saving a redundant re-type
+  const handleCandidateChange = (candidateId: string) => {
+    form.setValue('candidateId', candidateId);
+    const selected = candidates.find((c) => c.id.toString() === candidateId);
+    if (selected?.position && !form.getValues('position')) {
+      form.setValue('position', selected.position);
+    }
+  };
+
   // Handle form submission
   const onSubmit = async (data: FormValues) => {
     try {
+      const selectedCandidate = candidates.find((c) => c.id.toString() === data.candidateId);
+      if (!selectedCandidate) {
+        toast.error('Selected candidate not found — please re-select.');
+        return;
+      }
+
       console.log('Interview data to submit:', data);
       
-      // Create interview object matching backend Interview model
+      // Create interview object matching backend Interview model.
+      // candidateId is the actual fix — previously never sent at all.
       const interviewData = {
-        candidateName: data.candidateName,
+        candidateId: parseInt(data.candidateId, 10),
+        candidateName: selectedCandidate.name,
         position: data.position,
         interviewDate: data.interviewDate.toISOString(),
         status: data.status,
@@ -126,19 +174,31 @@ const ScheduleInterview = () => {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Candidate Name */}
+                    {/* Candidate */}
                     <FormField
                       control={form.control}
-                      name="candidateName"
+                      name="candidateId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Candidate Name</FormLabel>
-                          <FormControl>
-                            <div className="flex">
-                              <User className="w-4 h-4 absolute mt-3 ml-3 text-ats-gray-500" />
-                              <Input className="pl-10" placeholder="John Doe" {...field} />
-                            </div>
-                          </FormControl>
+                          <FormLabel>Candidate</FormLabel>
+                          <Select
+                            onValueChange={handleCandidateChange}
+                            defaultValue={field.value}
+                            disabled={isLoadingCandidates}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder={isLoadingCandidates ? "Loading candidates..." : "Select a candidate"} />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {candidates.map((candidate) => (
+                                <SelectItem key={candidate.id} value={candidate.id.toString()}>
+                                  {candidate.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                           <FormMessage />
                         </FormItem>
                       )}

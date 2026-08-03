@@ -53,6 +53,11 @@ func setupCORS() *cors.Cors {
 			"https://skillsifter.in",
 			"https://www.skillsifter.in",
 			"https://api.skillsifter.in",
+			// Cloudflare Pages' own root domain (always aliases the latest
+			// Production deployment) — distinct from the custom domain above
+			// AND from the hashed preview URLs below; the wildcard entry does
+			// not match this since there's no subdomain segment to substitute.
+			"https://skill-sifter-26ca496f.pages.dev",
 			// Cloudflare Pages preview URLs get a new random hash on every
 			// deploy (e.g. https://a27a97ac.skill-sifter-26ca496f.pages.dev),
 			// so a wildcard is needed rather than a fixed URL. rs/cors
