@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -291,7 +290,7 @@ const InterviewDetails = () => {
                   <Button 
                     variant="secondary" 
                     className="w-full"
-                    onClick={() => navigate('/interviews/schedule')}
+                    onClick={() => navigate(`/interviews/schedule?editId=${interview.id}`)}
                   >
                     Reschedule
                   </Button>

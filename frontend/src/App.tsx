@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +8,7 @@ import useApiDebug from "./hooks/useApiDebug";
 import Index from "./pages/Index";
 import Candidates from "./pages/Candidates";
 import Jobs from "./pages/Jobs";
+import JobDetails from "./pages/JobDetails";
 import Reports from "./pages/Reports";
 import NotFound from "./pages/NotFound";
 import Login from "./pages/Login";
@@ -89,6 +89,7 @@ const App = () => {
             <Route path="/candidates" element={<ProtectedRoute><Candidates /></ProtectedRoute>} />
             <Route path="/candidates/add" element={<ProtectedRoute><AddCandidate /></ProtectedRoute>} />
             <Route path="/jobs" element={<ProtectedRoute><Jobs /></ProtectedRoute>} />
+            <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
             <Route path="/jobs/add" element={<ProtectedRoute><AddJob /></ProtectedRoute>} />
             <Route path="/daily-jobs" element={<ProtectedRoute><DailyJobs /></ProtectedRoute>} />
             <Route path="/daily-jobs/add" element={<ProtectedRoute><AddDailyJob /></ProtectedRoute>} />

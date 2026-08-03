@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -72,6 +72,9 @@ interface CandidateOption {
 
 const ScheduleInterview = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
+  const isEditMode = !!editId;
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
   const [isLoadingCandidates, setIsLoadingCandidates] = useState(true);
 
@@ -101,6 +104,34 @@ const ScheduleInterview = () => {
       feedback: '',
     },
   });
+
+  // Edit/reschedule mode: fetch the existing interview and prefill the form.
+  // This is the actual fix for the reschedule bug — "Reschedule" previously
+  // navigated here with no editId, always creating a brand-new interview
+  // record while the original stayed untouched (status='scheduled'), so
+  // both showed up in the list. Now it updates the existing record instead.
+  useEffect(() => {
+    if (!editId) return;
+    const fetchInterview = async () => {
+      try {
+        const response = await interviewService.getInterviewById(Number(editId));
+        const interview = response.data?.data;
+        if (interview) {
+          form.reset({
+            candidateId: interview.candidateId?.toString() || '',
+            position: interview.position || '',
+            interviewDate: interview.interviewDate ? new Date(interview.interviewDate) : undefined,
+            status: interview.status || 'scheduled',
+            feedback: interview.feedback || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching interview for reschedule:', error);
+        toast.error('Failed to load interview details');
+      }
+    };
+    fetchInterview();
+  }, [editId, form]);
 
   // When a candidate is selected, auto-fill Position from their record if
   // it's currently empty, saving a redundant re-type
@@ -136,15 +167,17 @@ const ScheduleInterview = () => {
 
       console.log('Sending interview data:', interviewData);
       
-      const response = await interviewService.createInterview(interviewData);
-      console.log('Interview created successfully:', response);
+      const response = isEditMode
+        ? await interviewService.updateInterview(Number(editId), interviewData)
+        : await interviewService.createInterview(interviewData);
+      console.log('Interview saved successfully:', response);
       
-      toast.success('Interview successfully scheduled!');
+      toast.success(isEditMode ? 'Interview successfully rescheduled!' : 'Interview successfully scheduled!');
       form.reset();
       navigate('/interviews');
     } catch (error) {
-      console.error('Error scheduling interview:', error);
-      toast.error('Failed to schedule interview. Please try again.');
+      console.error('Error saving interview:', error);
+      toast.error(isEditMode ? 'Failed to reschedule interview. Please try again.' : 'Failed to schedule interview. Please try again.');
     }
   };
 
@@ -165,7 +198,7 @@ const ScheduleInterview = () => {
                 Back to Interviews
               </Button>
             </div>
-            <h1 className="text-3xl font-semibold tracking-tight mb-3">Schedule Interview</h1>
+            <h1 className="text-3xl font-semibold tracking-tight mb-3">{isEditMode ? 'Reschedule Interview' : 'Schedule Interview'}</h1>
             <p className="text-ats-gray-500">Create a new interview for a candidate.</p>
           </div>
 
@@ -342,7 +375,7 @@ const ScheduleInterview = () => {
                       Cancel
                     </Button>
                     <Button type="submit">
-                      Schedule Interview
+                      {isEditMode ? 'Reschedule Interview' : 'Schedule Interview'}
                     </Button>
                   </div>
                 </form>

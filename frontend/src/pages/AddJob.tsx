@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import Navbar from '@/components/layout/Navbar';
@@ -71,8 +71,13 @@ type FormData = z.infer<typeof formSchema>;
 
 const AddJob = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
+  const isEditMode = !!editId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [isLoadingJob, setIsLoadingJob] = useState(isEditMode);
+  const [existingStatus, setExistingStatus] = useState('open');
   
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
@@ -96,6 +101,40 @@ const AddJob = () => {
     },
   });
 
+  // Edit mode: fetch the existing job and prefill what's actually stored
+  // separately (title, department, location, requirements). The other
+  // fields (JD No, Client, Experience, etc.) were folded into the
+  // description text on create, not stored as their own columns — they
+  // can't be reliably parsed back out, so they're left blank for the user
+  // to re-enter if relevant. The raw stored description is prefilled as-is
+  // into the Description field.
+  useEffect(() => {
+    if (!editId) return;
+    const fetchJob = async () => {
+      try {
+        const response = await jobService.getJobById(Number(editId));
+        const job = response.data?.data;
+        if (job) {
+          form.reset({
+            ...form.getValues(),
+            title: job.title || '',
+            department: job.department || '',
+            location: job.location || '',
+            description: job.description || '',
+            requirements: job.requirements || '',
+          });
+          setExistingStatus(job.status || 'open');
+        }
+      } catch (error) {
+        console.error('Error fetching job for edit:', error);
+        toast.error('Failed to load job details for editing');
+      } finally {
+        setIsLoadingJob(false);
+      }
+    };
+    fetchJob();
+  }, [editId, form]);
+
   const onSubmit = async (values: FormData) => {
     setIsSubmitting(true);
     setFormError(null);
@@ -108,7 +147,7 @@ const AddJob = () => {
         title: values.title,
         department: values.department,
         location: values.location,
-        status: 'open', // Default status
+        status: existingStatus, // 'open' for new jobs; preserved as-is when editing
         description: `
 Position: ${values.position}
 JD Number: ${values.jdNo}
@@ -130,13 +169,15 @@ ${values.description}
       
       console.log("Calling API with job data:", jobData);
       
-      // Send to API
-      const response = await jobService.createJob(jobData);
+      // Send to API — update if editing an existing job, create otherwise
+      const response = isEditMode
+        ? await jobService.updateJob(Number(editId), jobData)
+        : await jobService.createJob(jobData);
       
       console.log("API response:", response);
       
       if (response.data?.success) {
-        toast.success("Job posted successfully");
+        toast.success(isEditMode ? "Job updated successfully" : "Job posted successfully");
         navigate('/jobs');
       } else {
         const errorMsg = response.data?.message || "Failed to post job";
@@ -165,7 +206,7 @@ ${values.description}
       <main className="pt-24 pb-10">
         <Container className="px-4 md:px-6 mx-auto max-w-7xl">
           <div className="mb-8">
-            <h1 className="text-3xl font-semibold tracking-tight mb-3">Post New Job</h1>
+            <h1 className="text-3xl font-semibold tracking-tight mb-3">{isEditMode ? 'Edit Job' : 'Post New Job'}</h1>
             <p className="text-ats-gray-500">Create a new job posting for your organization.</p>
           </div>
 
@@ -437,7 +478,7 @@ ${values.description}
                       variant="primary"
                       disabled={isSubmitting}
                     >
-                      {isSubmitting ? 'Posting...' : 'Post Job'}
+                      {isSubmitting ? (isEditMode ? 'Updating...' : 'Posting...') : (isEditMode ? 'Update Job' : 'Post Job')}
                     </Button>
                   </div>
                 </form>
