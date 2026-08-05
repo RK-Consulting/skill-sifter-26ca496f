@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -34,9 +34,13 @@ interface User {
 
 const AddDailyJob = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
+  const isEditMode = !!editId;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
+  const [existingAssignedDate, setExistingAssignedDate] = useState<string | null>(null);
 
   // Fetch company users for the dropdown
   useEffect(() => {
@@ -68,25 +72,56 @@ const AddDailyJob = () => {
     },
   });
 
+  // Edit mode: fetch the existing daily task and prefill the form.
+  // assignedDate is deliberately captured and preserved, not reset — the
+  // submit payload previously hardcoded assignedDate to "now" on every
+  // save, which would have silently overwritten the original assignment
+  // date every time someone edited an existing task (same class of bug as
+  // AddJob.tsx's hardcoded status reset).
+  useEffect(() => {
+    if (!editId) return;
+    const fetchDailyJob = async () => {
+      try {
+        const response = await dailyJobService.getDailyJobById(Number(editId));
+        const job = response.data?.data;
+        if (job) {
+          form.reset({
+            jdNo: job.jdNo,
+            instructions: job.instructions || '',
+            assignedUser: job.assignedUser?.toString() || '',
+          });
+          setExistingAssignedDate(job.assignedDate || null);
+        }
+      } catch (error) {
+        console.error('Error fetching daily job for edit:', error);
+        toast.error('Failed to load daily task for editing');
+      }
+    };
+    fetchDailyJob();
+  }, [editId, form]);
+
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
     console.log("Submitting daily job:", data);
     
     try {
-      // Convert assignedUser to number
+      // Convert assignedUser to number. assignedDate is preserved as-is when
+      // editing (not reset to now) — only set to "now" for a brand-new task.
       const dailyJobData = {
         jdNo: data.jdNo,
         instructions: data.instructions,
         assignedUser: parseInt(data.assignedUser), // Convert string ID to number
-        assignedDate: new Date().toISOString()
+        assignedDate: isEditMode && existingAssignedDate ? existingAssignedDate : new Date().toISOString()
       };
       
-      // Send to API
-      const response = await dailyJobService.createDailyJob(dailyJobData);
+      // Send to API — update if editing an existing task, create otherwise
+      const response = isEditMode
+        ? await dailyJobService.updateDailyJob(Number(editId), dailyJobData)
+        : await dailyJobService.createDailyJob(dailyJobData);
       console.log("API response:", response);
       
       if (response.data.success) {
-        toast.success('Daily job assignment added successfully');
+        toast.success(isEditMode ? 'Daily task updated successfully' : 'Daily job assignment added successfully');
         navigate('/daily-jobs');
       } else {
         toast.error(response.data.message || 'Failed to add daily job assignment');
@@ -116,7 +151,7 @@ const AddDailyJob = () => {
           
           <Card>
             <CardHeader className="p-6">
-              <CardTitle>Add Daily Job Assignment</CardTitle>
+              <CardTitle>{isEditMode ? 'Edit Daily Job Assignment' : 'Add Daily Job Assignment'}</CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <Form {...form}>
@@ -195,7 +230,7 @@ const AddDailyJob = () => {
                       disabled={isSubmitting}
                     >
                       <Save size={16} />
-                      {isSubmitting ? 'Saving...' : 'Save Assignment'}
+                      {isSubmitting ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Assignment' : 'Save Assignment')}
                     </Button>
                   </div>
                 </form>

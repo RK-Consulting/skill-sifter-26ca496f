@@ -83,14 +83,17 @@ const Jobs = () => {
     enabled: isAuthenticated
   });
 
-  // Filter jobs based on search term
+  // Filter jobs based on search term. Guards against any job record having a
+  // missing/null field (only title is NOT NULL in the schema) — without this,
+  // .toLowerCase() on undefined throws, and with no error boundary anywhere
+  // in the app, React unmounts the whole tree to a blank page.
   const filteredJobs = React.useMemo(() => {
     if (!jobsData) return [];
 
     return jobsData.filter((job: Job) =>
-      job.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.department.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      job.location.toLowerCase().includes(searchTerm.toLowerCase())
+      (job.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.department || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (job.location || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [searchTerm, jobsData]);
 

@@ -16,8 +16,10 @@ import Register from "./pages/Register";
 import AddCandidate from "./pages/AddCandidate";
 import AddJob from "./pages/AddJob";
 import DailyJobs from "./pages/DailyJobs";
+import DailyJobDetails from "./pages/DailyJobDetails";
 import AddDailyJob from "./pages/AddDailyJob";
 import BusinessDev from "./pages/BusinessDev";
+import BusinessDevDetails from "./pages/BusinessDevDetails";
 import AddBusinessDev from "./pages/AddBusinessDev";
 import Interviews from "./pages/Interviews";
 import InterviewDetails from "./pages/InterviewDetails";
@@ -92,8 +94,10 @@ const App = () => {
             <Route path="/jobs/:id" element={<ProtectedRoute><JobDetails /></ProtectedRoute>} />
             <Route path="/jobs/add" element={<ProtectedRoute><AddJob /></ProtectedRoute>} />
             <Route path="/daily-jobs" element={<ProtectedRoute><DailyJobs /></ProtectedRoute>} />
+            <Route path="/daily-jobs/:id" element={<ProtectedRoute><DailyJobDetails /></ProtectedRoute>} />
             <Route path="/daily-jobs/add" element={<ProtectedRoute><AddDailyJob /></ProtectedRoute>} />
             <Route path="/business-dev" element={<ProtectedRoute><BusinessDev /></ProtectedRoute>} />
+            <Route path="/business-dev/:id" element={<ProtectedRoute><BusinessDevDetails /></ProtectedRoute>} />
             <Route path="/business-dev/add" element={<ProtectedRoute><AddBusinessDev /></ProtectedRoute>} />
             <Route path="/interviews" element={<ProtectedRoute><Interviews /></ProtectedRoute>} />
             <Route path="/interviews/:id" element={<ProtectedRoute><InterviewDetails /></ProtectedRoute>} />

@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -27,6 +27,9 @@ type FormData = z.infer<typeof formSchema>;
 
 const AddBusinessDev = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get('editId');
+  const isEditMode = !!editId;
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const form = useForm<FormData>({
@@ -39,6 +42,30 @@ const AddBusinessDev = () => {
       contactEmail: '',
     },
   });
+
+  // Edit mode: fetch the existing client and prefill the form
+  useEffect(() => {
+    if (!editId) return;
+    const fetchBusinessDev = async () => {
+      try {
+        const response = await businessDevService.getBusinessDevById(Number(editId));
+        const dev = response.data?.data;
+        if (dev) {
+          form.reset({
+            clientName: dev.clientName || '',
+            partnerName: dev.partnerName || '',
+            contactPerson: dev.contactPerson || '',
+            contactNumber: dev.contactNumber || '',
+            contactEmail: dev.contactEmail || '',
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching business contact for edit:', error);
+        toast.error('Failed to load client details for editing');
+      }
+    };
+    fetchBusinessDev();
+  }, [editId, form]);
 
   const onSubmit = async (data: FormData) => {
     setIsSubmitting(true);
@@ -53,20 +80,26 @@ const AddBusinessDev = () => {
         return;
       }
       
-      // Send data to API using our business service
-      const response = await businessDevService.createBusinessDev(data);
+      // Send data to API using our business service — update if editing,
+      // create otherwise
+      const response = isEditMode
+        ? await businessDevService.updateBusinessDev(Number(editId), data)
+        : await businessDevService.createBusinessDev(data);
       
       if (response.data && response.data.success) {
-        toast.success('Business contact added successfully');
+        toast.success(isEditMode ? 'Business contact updated successfully' : 'Business contact added successfully');
         navigate('/business-dev');
       } else {
-        toast.error(response.data?.message || 'Failed to add business contact');
+        toast.error(response.data?.message || (isEditMode ? 'Failed to update business contact' : 'Failed to add business contact'));
       }
     } catch (error: unknown) {
       console.error('Error saving business contact:', error);
-      toast.error(getErrorMessage(error, 'Failed to add business contact'));
+      toast.error(getErrorMessage(error, isEditMode ? 'Failed to update business contact' : 'Failed to add business contact'));
       
-      // Fallback to localStorage for demo purposes if API fails
+      // Fallback to localStorage for demo purposes if API fails — only
+      // meaningful for the create path; editing an existing record can't be
+      // meaningfully "saved locally" without the real record, so skip it
+      if (!isEditMode) {
       try {
         // Get existing data from localStorage
         const existingBusinessDevs = JSON.parse(localStorage.getItem('businessDevs') || '[]');
@@ -91,6 +124,7 @@ const AddBusinessDev = () => {
       } catch (localError) {
         console.error('Error saving to localStorage:', localError);
       }
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -113,7 +147,7 @@ const AddBusinessDev = () => {
           
           <Card>
             <CardHeader className="p-6">
-              <CardTitle>Add Business Contact</CardTitle>
+              <CardTitle>{isEditMode ? 'Edit Business Contact' : 'Add Business Contact'}</CardTitle>
             </CardHeader>
             <CardContent className="p-6 pt-0">
               <Form {...form}>
@@ -200,7 +234,7 @@ const AddBusinessDev = () => {
                       disabled={isSubmitting}
                     >
                       <Save size={16} />
-                      {isSubmitting ? 'Saving...' : 'Save Contact'}
+                      {isSubmitting ? (isEditMode ? 'Updating...' : 'Saving...') : (isEditMode ? 'Update Contact' : 'Save Contact')}
                     </Button>
                   </div>
                 </form>

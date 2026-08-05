@@ -6,7 +6,8 @@ import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui-custom/Card';
-import { Search, Filter, PlusCircle, ChevronRight } from 'lucide-react';
+import { Search, Filter, PlusCircle, ChevronRight, Pencil, Eye } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { toast } from 'sonner';
@@ -70,12 +71,7 @@ const DailyJobs = () => {
   };
 
   const viewJobDetails = (id: number) => {
-    // No /daily-jobs/:id route exists yet — this used to navigate() to a
-    // nonexistent route, hitting the catch-all NotFound page. Matching the
-    // same placeholder pattern used in Candidates.tsx until a real detail
-    // page is built.
-    console.log(`View daily job ${id}`);
-    toast.info('Daily job details page is not built yet.');
+    navigate(`/daily-jobs/${id}`);
   };
 
   // Handle loading and error states
@@ -170,13 +166,23 @@ const DailyJobs = () => {
                           <TableCell>{job.assignedUsername || `User #${job.assignedUser}`}</TableCell>
                           <TableCell>{formatDate(job.assignedDate)}</TableCell>
                           <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => viewJobDetails(job.id)}
-                            >
-                              <ChevronRight size={16} />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <ChevronRight size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-[160px]">
+                                <DropdownMenuItem onClick={() => viewJobDetails(job.id)}>
+                                  <Eye size={14} className="mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/daily-jobs/add?editId=${job.id}`)}>
+                                  <Pencil size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))

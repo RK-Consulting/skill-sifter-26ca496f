@@ -6,7 +6,8 @@ import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Card, CardContent } from '@/components/ui-custom/Card';
-import { Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
+import { Search, Filter, UserPlus, ChevronRight, Pencil, Eye } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
 import { businessDevService } from '@/services/api';
@@ -128,7 +129,7 @@ const BusinessDev = () => {
   };
 
   const viewBusinessDevDetails = (id: number) => {
-    console.log(`View business dev ${id}`);
+    navigate(`/business-dev/${id}`);
   };
 
   return (
@@ -204,15 +205,25 @@ const BusinessDev = () => {
                               <div className="text-ats-gray-500">{dev.contactNumber}</div>
                             </div>
                           </TableCell>
-                          <TableCell>{dev.createdAt}</TableCell>
+                          <TableCell>{new Date(dev.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={() => viewBusinessDevDetails(dev.id)}
-                            >
-                              <ChevronRight size={16} />
-                            </Button>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <ChevronRight size={16} />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="w-[160px]">
+                                <DropdownMenuItem onClick={() => viewBusinessDevDetails(dev.id)}>
+                                  <Eye size={14} className="mr-2" />
+                                  View Details
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => navigate(`/business-dev/add?editId=${dev.id}`)}>
+                                  <Pencil size={14} className="mr-2" />
+                                  Edit
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       ))
