@@ -37,8 +37,10 @@ fi
 
 echo "✅ Test gate passed — proceeding with build and deploy"
 
-echo "==> Building backend"
-go build -o skillsifter .
+echo "==> Building backend Docker image"
+GIT_SHA="$(git rev-parse --short HEAD)"
+docker build -t "skillsifter:${GIT_SHA}" -t skillsifter:latest "$APP_DIR/backend"
+echo "    tagged skillsifter:${GIT_SHA} and skillsifter:latest"
 
 echo "==> Running database migrations"
 source "$APP_DIR/backend/.env"

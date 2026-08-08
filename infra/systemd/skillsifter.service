@@ -1,13 +1,15 @@
 [Unit]
-Description=SkillSifter Go API
-After=network.target postgresql.service
+Description=SkillSifter Go API (Docker container)
+After=network.target postgresql.service docker.service
+Requires=docker.service
 
 [Service]
 Type=simple
-User=root
 WorkingDirectory=__APP_DIR__/backend
 EnvironmentFile=__APP_DIR__/backend/.env
-ExecStart=__APP_DIR__/backend/skillsifter
+ExecStartPre=-/usr/bin/docker rm -f skillsifter
+ExecStart=/usr/bin/docker run --rm --name skillsifter --network host --env-file __APP_DIR__/backend/.env skillsifter:latest
+ExecStop=-/usr/bin/docker stop -t 10 skillsifter
 Restart=on-failure
 RestartSec=5
 
