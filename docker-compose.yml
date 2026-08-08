@@ -43,11 +43,11 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-https://api.skillsifter.in}
     container_name: skillsifter-client
     ports:
       - "5173:80"
-    environment:
-      - VITE_API_URL=https://api.skillsifter.in
     depends_on:
       - backend
     restart: unless-stopped

@@ -1,0 +1,9 @@
+.git
+.gitignore
+*.md
+docs/
+database/migrations/
+*.log
+.env
+.env.*
+tmp/
