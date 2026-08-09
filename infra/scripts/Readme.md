@@ -22,7 +22,7 @@ tooling directly. Before relying on them, confirm:
   `infra/scripts/deploy.sh` inside SkillSifter's own repo. That script is
   the authoritative source for how this app is actually meant to be built
   and deployed. Treat `provision.sh` here as a disaster-recovery stopgap
-  (restores the last-known compiled binary), not a replacement for that
+  (restores the last-known Docker image), not a replacement for that
   proper build pipeline.
 
 ## `backup.sh`
@@ -31,7 +31,7 @@ Run on the production server (needs `sudo`). Captures:
 - `skillsifter` database (Postgres) — custom + plain SQL format
 - SkillSifter's Nginx site config (`api.skillsifter.in`)
 - Its SSL certificate
-- Compiled binary, `.env` (if present), systemd unit file
+- Docker image (`skillsifter:latest`), `.env` (if present), systemd unit file
 - Shared server-level facts (UFW rules, cron, installed packages)
 
 ```bash
@@ -46,9 +46,9 @@ lying around longer than needed.
 ## `provision.sh`
 
 Sets up a **brand-new** server and restores SkillSifter from a `backup.sh`
-archive as a disaster-recovery stopgap: installs Nginx, PostgreSQL,
-Certbot, UFW; restores the database; restores the last-known binary +
-systemd service.
+archive as a disaster-recovery stopgap: installs Docker, Nginx, PostgreSQL,
+Certbot, UFW; restores the database; loads the last-known Docker image and
+restores its systemd service.
 
 ```bash
 sudo bash provision.sh /path/to/skillsifter_backup_<timestamp>.tar.gz
@@ -56,7 +56,7 @@ sudo bash provision.sh /path/to/skillsifter_backup_<timestamp>.tar.gz
 
 For a genuine, deliberate migration (not disaster recovery), prefer
 rebuilding SkillSifter fresh from source via its own repo's build/deploy
-process rather than relying on the restored binary long-term.
+process rather than relying on the restored image long-term.
 
 **Deliberately manual, not automated:**
 - DNS cutover and propagation wait

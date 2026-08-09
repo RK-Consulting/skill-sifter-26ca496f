@@ -63,15 +63,15 @@ tar -czf "$WORKDIR/letsencrypt/api_skillsifter_cert.tar.gz" \
   && echo "  ✅ Certificate archived" || echo "  ⚠️  Cert archive had issues"
 
 # ------------------------------------------------------------------
-# 4. SkillSifter app state — binary, .env, systemd unit
+# 4. SkillSifter app state — Docker image, .env, systemd unit
 # ------------------------------------------------------------------
 echo "📦 Backing up SkillSifter app state..."
 mkdir -p "$WORKDIR/app"
-if [ -f /var/www/skillsifter/backend/skillsifter ]; then
-  cp /var/www/skillsifter/backend/skillsifter "$WORKDIR/app/skillsifter_binary"
-  echo "  ✅ Compiled binary"
+if docker image inspect skillsifter:latest > /dev/null 2>&1; then
+  docker save skillsifter:latest -o "$WORKDIR/app/skillsifter_image.tar"
+  echo "  ✅ Docker image (skillsifter:latest)"
 else
-  echo "  ⚠️  Binary not found at /var/www/skillsifter/backend/skillsifter — verify path"
+  echo "  ⚠️  No skillsifter:latest Docker image found — verify 'docker images' on this host"
 fi
 # ASSUMPTION — verify this is the real .env path before relying on it
 if [ -f /var/www/skillsifter/backend/.env ]; then

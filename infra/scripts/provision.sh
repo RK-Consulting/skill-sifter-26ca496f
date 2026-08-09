@@ -4,11 +4,12 @@
 # Run as: sudo ./provision.sh /path/to/skillsifter_backup_<timestamp>.tar.gz
 #
 # What this DOES automate:
-#   - Installs Nginx, PostgreSQL, Certbot, UFW
+#   - Installs Docker, Nginx, PostgreSQL, Certbot, UFW
 #   - Restores the skillsifter database from the backup archive
 #   - Restores SkillSifter's Nginx site config
 #   - Re-enables UFW
-#   - Restores the compiled binary + systemd service (as a stopgap)
+#   - Loads the backed-up Docker image and restores the systemd unit that
+#     runs it (as a stopgap)
 #
 # What this DOES NOT automate (needs your manual judgment):
 #   - Pointing DNS at the new server's IP (do this BEFORE running certbot)
@@ -17,11 +18,11 @@
 #     domain + validity window — a genuine migration should re-issue)
 #   - Rotating secrets that were ever exposed before this migration
 #
-# ⚠️ IMPORTANT: restoring the backed-up BINARY gets SkillSifter running
+# ⚠️ IMPORTANT: restoring the backed-up DOCKER IMAGE gets SkillSifter running
 # quickly for disaster recovery, but it's a snapshot as of the backup date.
 # For a real, deliberate migration, prefer rebuilding fresh from source via
 # SkillSifter's own repo and its own infra/scripts/deploy.sh (referenced in
-# its Nginx config header) rather than relying on this stopgap binary.
+# its Nginx config header) rather than relying on this stopgap image.
 #
 # Scope: this script only sets up SkillSifter. If other applications also
 # run on this server, they need their own separate provisioning.
@@ -56,7 +57,24 @@ echo "========================================"
 echo "📥 Installing core packages..."
 apt-get update -qq
 apt-get install -y -qq \
-  nginx postgresql certbot python3-certbot-nginx ufw git curl
+  nginx postgresql certbot python3-certbot-nginx ufw git curl ca-certificates
+
+echo "🐳 Installing Docker (official repo — avoids docker.io/containerd.io conflict)..."
+if ! command -v docker > /dev/null 2>&1; then
+  install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  chmod a+r /etc/apt/keyrings/docker.asc
+  ARCH="$(dpkg --print-architecture)"
+  CODENAME="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+  echo "deb [arch=${ARCH} signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu ${CODENAME} stable" \
+    > /etc/apt/sources.list.d/docker.list
+  apt-get update -qq
+  apt-get install -y -qq docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  systemctl enable --now docker
+  echo "  ✅ Docker installed"
+else
+  echo "  ✅ Docker already present, skipping"
+fi
 
 # ------------------------------------------------------------------
 # 2. PostgreSQL — restore skillsifter database
@@ -93,14 +111,16 @@ ufw --force enable
 echo "  ✅ UFW enabled with SSH + Nginx allowed"
 
 # ------------------------------------------------------------------
-# 5. SkillSifter app — restore binary + systemd unit (stopgap)
+# 5. SkillSifter app — restore Docker image + systemd unit (stopgap)
 # ------------------------------------------------------------------
 echo "📦 Restoring SkillSifter application (stopgap — see warning at top)..."
 mkdir -p /var/www/skillsifter/backend
-if [ -f "$BACKUP_CONTENT_DIR/app/skillsifter_binary" ]; then
-  cp "$BACKUP_CONTENT_DIR/app/skillsifter_binary" /var/www/skillsifter/backend/skillsifter
-  chmod +x /var/www/skillsifter/backend/skillsifter
-  echo "  ✅ Binary restored (snapshot as of backup date)"
+if [ -f "$BACKUP_CONTENT_DIR/app/skillsifter_image.tar" ]; then
+  docker load -i "$BACKUP_CONTENT_DIR/app/skillsifter_image.tar"
+  echo "  ✅ Docker image restored (snapshot as of backup date)"
+else
+  echo "  ⚠️  No skillsifter_image.tar in backup — you'll need to 'docker build'"
+  echo "     from source before the systemd unit below can start"
 fi
 if [ -f "$BACKUP_CONTENT_DIR/app/backend.env" ]; then
   cp "$BACKUP_CONTENT_DIR/app/backend.env" /var/www/skillsifter/backend/.env
@@ -126,6 +146,6 @@ echo "  4. Update SkillSifter's config with the new password"
 echo "  5. Enable the Nginx site + run certbot for a fresh SSL cert (see step 3)"
 echo "  6. Start SkillSifter: systemctl start skillsifter"
 echo "  7. STRONGLY CONSIDER rebuilding from source via SkillSifter's own repo"
-echo "     instead of running the restored binary long-term"
+echo "     instead of running the restored image long-term"
 echo "  8. Test end-to-end before decommissioning the old server"
 echo "========================================"
