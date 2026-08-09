@@ -4,6 +4,34 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+Known issues and limitations are tracked separately in [docs/ISSUES.md](docs/ISSUES.md), not duplicated here.
+
+## [0.3.0] - 2026-08-09
+
+### Added
+- Real Pipeline and Hiring Trend data on the Dashboard (`report_handler.go`, `reportsService.ts`), replacing hardcoded chart data
+- Jobs View/Edit actions, including a new JobDetails page
+- Daily Tasks and Business Dev View/Edit actions
+- `Manual_testing.sh`: API regression test script replacing manual UI data entry
+
+### Fixed
+- Interviews reschedule now updates the existing record instead of creating a duplicate (closes ISS-002)
+- Interviews scheduling `candidateId` bug (closes ISS-002)
+- Daily Tasks: hardcoded `assignedDate` reset bug
+- Business Dev: date column formatting
+- Jobs: hardcoded status bug
+- CORS: added the Cloudflare Pages root domain to allowed origins (partial progress on ISS-003 — origins are still hardcoded in source, not environment-configurable)
+- CRLF line endings reintroduced on save, and a missing trailing newline in `main.go`
+- **Docker**: `VITE_API_URL` is now baked into the frontend build via a Docker build `ARG`, instead of a container runtime env var that Vite's build step never actually saw
+
+### Changed — Infrastructure
+- **Backend production deployment migrated from a native systemd-run binary to a Docker container.** The container uses `--network host`; Postgres and nginx remain native and unchanged — no port mapping, `pg_hba.conf`, or nginx config changes were needed
+- `backend/Dockerfile` converted to a multi-stage build: the production image now ships only the compiled binary + CA certificates on `alpine:3.19`, not the full Go toolchain
+- Added `.dockerignore` for `backend/` and `frontend/` to keep Docker build contexts lean
+- `deploy.sh` now builds a tagged Docker image (git SHA + `latest`) instead of running `go build` directly
+- `backup.sh`/`provision.sh` updated to back up/restore the Docker image (`docker save`/`docker load`) instead of a compiled binary; `provision.sh` now installs Docker via its official apt repo on fresh servers (avoids a `docker.io`/`containerd.io` package conflict discovered during this release's live deployment)
+- Removed a duplicate "Add Candidate" button and a stray "Upload Resumes" section from the dashboard/navbar
+
 ## [0.2.0] - 2026-08-02
 
 ### Added
