@@ -16,6 +16,10 @@ dist
 dist-ssr
 *.local
 
+# Local resume storage — candidate documents must never be committed
+storage/resumes/
+backend/storage/resumes/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

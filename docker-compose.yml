@@ -18,7 +18,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-  
+
   backend:
     build:
       context: ./backend
@@ -31,14 +31,21 @@ services:
       - DB_USER=postgres
       - DB_PASSWORD=postgres
       - DB_NAME=skillsifter
-      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set — see .env.example}
+      - JWT_SECRET=${JWT_SECRET:?JWT_SECRET must be set — see deployment environment}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - RESUME_STORAGE_PATH=/app/storage/resumes
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - resumes:/app/storage/resumes
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-  
+
   frontend:
     build:
       context: ./frontend
@@ -47,10 +54,11 @@ services:
     ports:
       - "5173:80"
     environment:
-      - VITE_API_URL=https://api.skillsifter.in
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8080}
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
   pgdata:
+  resumes:
