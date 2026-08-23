@@ -1,6 +1,6 @@
 # SkillSifter
 
-**Published version: 0.2.0** · [Changelog](CHANGELOG.md)
+**Current baseline: v0.3.0** · [Changelog](CHANGELOG.md)
 
 The approved V1 target architecture, scope, governance rules, and ADR process are documented in [`docs/architecture/v1-baseline.md`](docs/architecture/v1-baseline.md), [`docs/product/v1-scope.md`](docs/product/v1-scope.md), [`CODEX_ENGINEERING_RULES.md`](CODEX_ENGINEERING_RULES.md), and [`docs/architecture/ADRs/`](docs/architecture/ADRs/). The exact current-release designation is tracked for reconciliation in [`ISSUES.md`](ISSUES.md).
 

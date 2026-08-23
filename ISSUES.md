@@ -2,13 +2,13 @@
 
 This file records facts requiring an explicit issue or decision; it is not a substitute for GitHub Issues.
 
-## Release and documentation reconciliation — required before declaring v0.4 complete
+## Release and documentation reconciliation — resolved baseline
 
-- `CHANGELOG.md` and `README.md` identify v0.2.0 as the published baseline, while the new architecture attachment identifies v0.3.0 as the current baseline.
+- The product owner approved v0.3.0 as the current repository baseline on 2026-08-23. README, changelog, and release notes now use that designation.
 - The repository does not currently contain a GitHub Actions workflow, although architecture material refers to GitHub Actions as CI/CD.
 - Historical documentation is stale in places: the dashboard's recent activity is now API-backed in code, while other dashboard visuals remain hardcoded; report and feature documentation should be re-verified against running software.
 
-The product owner must approve the release designation. After that decision, update the changelog, release notes, README, architecture status, and GitHub milestone together.
+The GitHub milestone and issues must be published after repository authentication is restored.
 
 ## Verified technical follow-ups
 
