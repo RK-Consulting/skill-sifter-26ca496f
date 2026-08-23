@@ -1,6 +1,8 @@
 # SkillSifter
 
-**Version: 0.2.0** · [Changelog](CHANGELOG.md)
+**Published version: 0.2.0** · [Changelog](CHANGELOG.md)
+
+The approved V1 target architecture, scope, governance rules, and ADR process are documented in [`docs/architecture/v1-baseline.md`](docs/architecture/v1-baseline.md), [`docs/product/v1-scope.md`](docs/product/v1-scope.md), [`CODEX_ENGINEERING_RULES.md`](CODEX_ENGINEERING_RULES.md), and [`docs/architecture/ADRs/`](docs/architecture/ADRs/). The exact current-release designation is tracked for reconciliation in [`ISSUES.md`](ISSUES.md).
 
 SkillSifter is a multi-tenant Applicant Tracking System (ATS) for staffing and recruitment teams. It lets a recruiting company manage candidates, job openings, daily job assignments, interviews, and business-development leads, all scoped per company (tenant) with role-based access control.
 
