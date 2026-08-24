@@ -88,9 +88,19 @@ CREATE TABLE IF NOT EXISTS interviews (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create business_dev table (recreate to ensure all fields are present)
-DROP TABLE IF EXISTS business_dev;
-CREATE TABLE business_dev (
+-- Create business_dev table. Originally this recreated the table
+-- unconditionally ("DROP TABLE IF EXISTS business_dev; CREATE TABLE
+-- business_dev (...)") on the assumption this always runs against an
+-- empty/fresh database. That assumption is false: on an existing
+-- installation upgrading to the new deterministic migration runner (see
+-- backend/db/migrations.go), this file executes for the first time against
+-- a database that may already have a populated business_dev table (e.g.
+-- created by the lazy CREATE TABLE IF NOT EXISTS fallback previously in
+-- handlers/business_dev_handlers.go). The DROP would have destroyed that
+-- data. Changed to CREATE TABLE IF NOT EXISTS, matching every other
+-- statement in this file, so this migration is safe to run against a
+-- brand-new database and an existing one alike.
+CREATE TABLE IF NOT EXISTS business_dev (
     id SERIAL PRIMARY KEY,
     client_name VARCHAR(255) NOT NULL,
     partner_name VARCHAR(255),
