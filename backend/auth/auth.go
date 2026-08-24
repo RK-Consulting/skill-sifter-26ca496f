@@ -27,11 +27,19 @@ func loadJwtKey() []byte {
 	return []byte(secret)
 }
 
-// Claims for JWT
+// Claims for JWT.
+//
+// TenantID is the authoritative tenant identity per ADR 0001 (Stage C):
+// tenant-scoped operations must be scoped to TenantID, not CompanyName.
+// CompanyName is retained on the claims for display/compatibility with
+// existing clients during the migration window (ADR 0001 explicitly lists
+// "existing JWTs containing companyName" as a compatibility concern), but it
+// must never be used as an authorization or isolation key going forward.
 type Claims struct {
 	UserID      int    `json:"userId"`
 	Email       string `json:"email"`
 	Role        string `json:"role"`
+	TenantID    string `json:"tenantId"`
 	CompanyName string `json:"companyName"`
 	jwt.RegisteredClaims
 }
@@ -68,11 +76,28 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Store claims in context for further use
+		// Reject tokens issued before tenant_id existed on the claims,
+		// rather than silently propagating an empty tenant identity into
+		// request context, where an empty string could otherwise be
+		// mistaken for "no tenant restriction" by a future bug. Existing
+		// users are unaffected in practice: JWTs expire after 24h
+		// (auth.GenerateToken), and every token issued after this change
+		// carries TenantID, so this only ever rejects tokens from before
+		// deployment, which would have expired anyway within one day.
+		if claims.TenantID == "" {
+			http.Error(w, "Token is missing tenant identity; please log in again", http.StatusUnauthorized)
+			return
+		}
+
+		// Store claims in context for further use. TenantID is the
+		// authoritative tenant-scoping value (ADR 0001); companyName is
+		// carried for display/compatibility only and must not be used to
+		// scope or authorize any tenant-owned data access.
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "email", claims.Email)
 		ctx = context.WithValue(ctx, "role", claims.Role)
+		ctx = context.WithValue(ctx, "tenantID", claims.TenantID)
 		ctx = context.WithValue(ctx, "companyName", claims.CompanyName)
 
 		// Call the next handler with the updated context
@@ -106,13 +131,16 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-// GenerateToken creates a JWT token for a user
+// GenerateToken creates a JWT token for a user. user.TenantID must be the
+// authoritative companies.id for the user's tenant (ADR 0001) — callers must
+// never pass a client-supplied value here.
 func GenerateToken(user models.User, roleName string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
 	claims := &Claims{
 		UserID:      user.ID,
 		Email:       user.Email,
 		Role:        user.Role,
+		TenantID:    user.TenantID,
 		CompanyName: user.CompanyName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),

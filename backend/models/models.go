@@ -27,6 +27,7 @@ type Candidate struct {
 	Skills         string    `json:"skills" db:"skills"`
 	JobDescription string    `json:"newJD" db:"jobdescription"`
 	CreatedAt      time.Time `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
+	TenantID       string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName    string    `json:"companyName" db:"company_name,notnull"`
 }
 
@@ -41,6 +42,7 @@ type Job struct {
 	Description     string    `json:"description,omitempty" db:"description"`
 	Requirements    string    `json:"requirements,omitempty" db:"requirements"`
 	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	TenantID        string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
 	CreatedByUserID int       `json:"createdByUserId,omitempty" db:"created_by_user_id"`
 }
@@ -54,6 +56,7 @@ type DailyJob struct {
 	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
 	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	TenantID         string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
 }
 
@@ -67,6 +70,7 @@ type Interview struct {
 	Status        string    `json:"status" db:"status,default:'scheduled'"`
 	Feedback      string    `json:"feedback" db:"feedback"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
 }
 
@@ -80,6 +84,7 @@ type BusinessDev struct {
 	ContactEmail  string    `json:"contactEmail" db:"contact_email,notnull"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
 }
 
@@ -105,6 +110,7 @@ type User struct {
 	Email       string    `json:"email" db:"email,notnull,unique"`
 	Password    string    `json:"password,omitempty" db:"password,notnull"`
 	Role        string    `json:"role" db:"role,notnull"`
+	TenantID    string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName string    `json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
 	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }

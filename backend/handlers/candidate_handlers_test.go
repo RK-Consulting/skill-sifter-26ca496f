@@ -59,6 +59,13 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	testDB.Exec(`
+		CREATE TABLE IF NOT EXISTS companies (
+			id VARCHAR(255) PRIMARY KEY,
+			name VARCHAR(255) NOT NULL UNIQUE,
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
+		)
+	`)
+	testDB.Exec(`
 		CREATE TABLE IF NOT EXISTS candidates (
 			id SERIAL PRIMARY KEY,
 			name VARCHAR(255) NOT NULL,
@@ -73,18 +80,30 @@ func setupTestDB(t *testing.T) *sql.DB {
 			jlptlanguage VARCHAR(100),
 			skills VARCHAR(100),
 			jobdescription VARCHAR(500),
+			tenant_id VARCHAR(255) REFERENCES companies(id),
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)
 	`)
+	// Add tenant_id if this table pre-dates it (older local dev DBs).
+	testDB.Exec(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`)
+
+	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('test_company', 'test_company') ON CONFLICT (id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('other_company', 'other_company') ON CONFLICT (id) DO NOTHING`)
+
 	// Clean slate for this test run
-	testDB.Exec(`DELETE FROM candidates WHERE company_name = 'test_company'`)
+	testDB.Exec(`DELETE FROM candidates WHERE tenant_id IN ('test_company', 'other_company')`)
 
 	return testDB
 }
 
 func withAuthContext(req *http.Request, companyName string) *http.Request {
+	// Existing tests identify their tenant by a human-readable name; this
+	// helper treats that same string as the tenant_id too (both companies
+	// tables above use it as their id), so existing callers keep working
+	// unchanged while still exercising the real tenant_id-scoped code path.
 	ctx := context.WithValue(req.Context(), "companyName", companyName)
+	ctx = context.WithValue(ctx, "tenantID", companyName)
 	return req.WithContext(ctx)
 }
 
