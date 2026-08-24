@@ -60,7 +60,11 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate company ID for new companies
+	// Resolve the authoritative tenant identity (companies.id, per ADR 0001)
+	// for this registration. This used to only be computed for brand-new
+	// companies — an existing company's id was never looked up, so a
+	// second user joining an existing company had no way to be linked to
+	// its tenant identity. Both branches now resolve companyID explicitly.
 	var companyID string
 	var isFirstUser bool
 
@@ -74,6 +78,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		isFirstUser = true
+	} else {
+		err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.CompanyName).Scan(&companyID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not resolve existing company")
+			return
+		}
 	}
 
 	// Determine role
@@ -99,12 +109,14 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Insert user with company name
+	// Insert user with tenant_id (authoritative) and company_name
+	// (display/compatibility). tenant_id is always server-resolved above,
+	// never taken from the request payload.
 	var userID int
 	err = tx.QueryRow(`
-        INSERT INTO users(username, email, password, role, company_name, created_at) 
-        VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		creds.Username, creds.Email, hashedPassword, role, creds.CompanyName, time.Now()).Scan(&userID)
+        INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at) 
+        VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		creds.Username, creds.Email, hashedPassword, role, companyID, creds.CompanyName, time.Now()).Scan(&userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -127,7 +139,8 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Username:    creds.Username,
 		Email:       creds.Email,
 		Role:        role,
-		CompanyName: creds.CompanyName, // Use company name instead of ID
+		TenantID:    companyID,
+		CompanyName: creds.CompanyName,
 		CreatedAt:   time.Now(),
 	}
 
@@ -164,11 +177,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	var hashedPassword string
 
 	err = db.DB.QueryRow(`
-		SELECT u.id, u.username, u.email, u.password, u.role, u.company_name, u.created_at
+		SELECT u.id, u.username, u.email, u.password, u.role, u.tenant_id, u.company_name, u.created_at
 		FROM users u
 		WHERE u.email = $1`, creds.Email).Scan(
 		&user.ID, &user.Username, &user.Email, &hashedPassword,
-		&user.Role, &user.CompanyName, &user.CreatedAt)
+		&user.Role, &user.TenantID, &user.CompanyName, &user.CreatedAt)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -206,16 +219,16 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetUsers fetches all users for a company (admin only)
+// GetUsers fetches all users for a tenant (admin only). Scoped by the
+// authenticated tenant_id (ADR 0001), not by company_name.
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	// Get company name from context
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 
 	users := []models.User{}
 	rows, err := db.DB.Query(`
-		SELECT id, username, email, role, company_name, created_at
+		SELECT id, username, email, role, tenant_id, company_name, created_at
 		FROM users 
-		WHERE company_name = $1`, companyName)
+		WHERE tenant_id = $1`, tenantID)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching users")
@@ -225,7 +238,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.CompanyName, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.TenantID, &u.CompanyName, &u.CreatedAt); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning user row")
 			return
 		}
@@ -239,9 +252,13 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CreateUser creates a new user (admin only)
+// CreateUser creates a new user (admin only). The new user's tenant is
+// always the authenticated admin's tenant — tenant_id and company_name in
+// the request body (if any) are ignored and overwritten, so a client can
+// never place a new user into a different tenant (ADR 0001: "client-provided
+// tenant identifiers or names cannot override the authenticated tenant").
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-	// Get company name from context
+	tenantID := r.Context().Value("tenantID").(string)
 	companyName := r.Context().Value("companyName").(string)
 
 	var user models.User
@@ -252,7 +269,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Set company name from logged in admin
+	// Always derive tenant identity from the authenticated context, never
+	// from the request body.
+	user.TenantID = tenantID
 	user.CompanyName = companyName
 
 	// Hash the password
@@ -265,9 +284,9 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	// Insert user
 	var userID int
 	err = db.DB.QueryRow(`
-        INSERT INTO users(username, email, password, role, company_name, created_at) 
-        VALUES($1, $2, $3, $4, $5, $6) RETURNING id`,
-		user.Username, user.Email, hashedPassword, user.Role, user.CompanyName, time.Now()).Scan(&userID)
+        INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at) 
+        VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		user.Username, user.Email, hashedPassword, user.Role, user.TenantID, user.CompanyName, time.Now()).Scan(&userID)
 
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -284,6 +303,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		Username:    user.Username,
 		Email:       user.Email,
 		Role:        user.Role,
+		TenantID:    user.TenantID,
 		CompanyName: user.CompanyName,
 		CreatedAt:   time.Now(),
 	}
@@ -310,13 +330,13 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 	requesterRole := r.Context().Value("role").(string)
 
 	var currentRole string
 	err := db.DB.QueryRow(
-		`SELECT role FROM users WHERE id = $1 AND company_name = $2`,
-		targetID, companyName,
+		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
+		targetID, tenantID,
 	).Scan(&currentRole)
 
 	if err == sql.ErrNoRows {
@@ -364,8 +384,8 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			username = COALESCE(NULLIF($1, ''), username),
 			email = COALESCE(NULLIF($2, ''), email),
 			role = COALESCE(NULLIF($3, ''), role)
-		WHERE id = $4 AND company_name = $5`,
-		update.Username, update.Email, update.Role, targetID, companyName,
+		WHERE id = $4 AND tenant_id = $5`,
+		update.Username, update.Email, update.Role, targetID, tenantID,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating user")
@@ -396,15 +416,15 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 	requesterRole := r.Context().Value("role").(string)
 
 	// Look up the target user's role, scoped to the same company (tenant safety —
 	// never allow deleting a user from a different company via this endpoint).
 	var targetRole string
 	err := db.DB.QueryRow(
-		`SELECT role FROM users WHERE id = $1 AND company_name = $2`,
-		targetID, companyName,
+		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
+		targetID, tenantID,
 	).Scan(&targetRole)
 
 	if err == sql.ErrNoRows {
@@ -428,8 +448,8 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// manager) is allowed, matching the hierarchy table.
 
 	result, err := db.DB.Exec(
-		`DELETE FROM users WHERE id = $1 AND company_name = $2`,
-		targetID, companyName,
+		`DELETE FROM users WHERE id = $1 AND tenant_id = $2`,
+		targetID, tenantID,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error deleting user")
