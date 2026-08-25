@@ -154,6 +154,28 @@ Migration will be staged:
 
 No destructive replacement or uncontrolled rename is authorized as part of this architecture decision.
 
+### Implementation status (Issue #34)
+
+Issue #34 implemented stage 1 only: the Client and Requirement domain model
+(`clients` and `requirements` tables, tenant-scoped, with full CRUD and
+tenant isolation). Stages 2-7 above are **not** implemented and were not
+attempted.
+
+**Legacy `jobs` remains authoritative for existing recruitment
+transactions. Client/Requirement is a new, independent v0.4 domain.**
+Migration of historical `jobs` records into `requirements` (stage 3) is
+intentionally deferred, not merely unstarted: `jobs.company_name`
+identifies the *recruiting tenant itself*, not a client of that tenant, so
+it does not encode the client relationship `requirements.client_id`
+requires. There is no reliable existing data from which to derive real
+client identities for historical job records. Treat this as an open
+architectural question requiring an explicit decision — including whether
+synthetic per-tenant clients would be created, how `interviews` and
+`daily_jobs` (which currently reference `jobs`, not `requirements`) would
+be affected, and what happens to `jobs.created_by_user_id` and other
+fields with no `requirements` equivalent — not as a default follow-up task
+to "just migrate the jobs."
+
 ## Historical and Audit Requirements
 
 Requirement changes must not rewrite historical recruitment transaction facts. Recruitment Assignment, submission, interview, offer, joining, and commercial records must be able to preserve the requirement context that was relevant at the time of the transaction. The exact snapshot strategy is defined by the Recruitment Assignment and downstream architecture issues.

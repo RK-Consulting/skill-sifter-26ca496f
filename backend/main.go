@@ -34,5 +34,14 @@ func setupProtectedRoutes(r *mux.Router){
  setupResourceRoutes(api,"/business-dev",handlers.GetBusinessDevs,handlers.AddBusinessDev,handlers.GetBusinessDevByID,handlers.UpdateBusinessDev,handlers.DeleteBusinessDev)
  api.HandleFunc("/reports/hiring",handlers.GetHiringReport).Methods("GET","OPTIONS");api.HandleFunc("/reports/sources",handlers.GetSourceReport).Methods("GET","OPTIONS");api.HandleFunc("/reports/activity",handlers.GetRecentActivity).Methods("GET","OPTIONS");api.HandleFunc("/reports/periodic",handlers.GetPeriodicReport).Methods("GET","OPTIONS");api.HandleFunc("/reports/activity-log",handlers.GetActivityLog).Methods("GET","OPTIONS")
  api.HandleFunc("/resume-ai/upload",handlers.UploadResumes).Methods("POST","OPTIONS");api.HandleFunc("/resume-ai/search",handlers.SearchResumes).Methods("GET","OPTIONS");api.HandleFunc("/resume-ai/resumes",handlers.ListResumes).Methods("GET","OPTIONS");api.HandleFunc("/resume-ai/health",handlers.GetResumeHealth).Methods("GET","OPTIONS")
+
+ // Issue #34 / ADR 0002: Client and Requirement domain. New V1 domain work
+ // is introduced under /api/v1 per ADR 0008 ("New V1 endpoints must be
+ // introduced under /api/v1/..."); the existing /api namespace above is
+ // untouched, and `jobs` remains available there unchanged (ADR 0002:
+ // jobs is retained as a temporary compatibility model, not replaced).
+ apiV1:=r.PathPrefix("/api/v1").Subrouter();apiV1.Use(auth.AuthMiddleware)
+ setupResourceRoutes(apiV1,"/clients",handlers.GetClients,managerOnly(handlers.AddClient),handlers.GetClientByID,managerOnly(handlers.UpdateClient),managerOnly(handlers.DeleteClient))
+ setupResourceRoutes(apiV1,"/requirements",handlers.GetRequirements,managerOnly(handlers.AddRequirement),handlers.GetRequirementByID,managerOnly(handlers.UpdateRequirement),managerOnly(handlers.DeleteRequirement))
 }
 func main(){db.InitDB();defer db.DB.Close();if err:=db.InitializeSchema();err!=nil{log.Fatalf("Schema initialization failed: %v",err)};if err:=db.ApplyMigrations();err!=nil{log.Fatalf("Migration failed: %v",err)};r:=mux.NewRouter();r.Use(loggingMiddleware);setupPublicRoutes(r);setupProtectedRoutes(r);r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter,r *http.Request){w.WriteHeader(http.StatusNoContent)});port:=db.GetEnv("PORT","8080");fmt.Printf("SkillSifter API running at http://localhost:%s\n",port);log.Fatal(http.ListenAndServe(":"+port,setupCORS().Handler(r)))}
