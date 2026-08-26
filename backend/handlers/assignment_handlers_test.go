@@ -470,6 +470,193 @@ func TestAssignmentHandlers_MalformedRequests(t *testing.T) {
 	})
 }
 
+// --- Lifecycle transition (checkpoint 4) ---
+
+func TestTransitionAssignment_Success(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, $3, $3) RETURNING id`,
+		f.candidateID, f.requirementID, f.userID).Scan(&id)
+
+	body, _ := json.Marshal(map[string]string{"status": "screening"})
+	req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+	req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+	rec := httptest.NewRecorder()
+	TransitionAssignment(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200. Body: %s", rec.Code, rec.Body.String())
+	}
+	var resp struct {
+		Data assignmentResponse `json:"data"`
+	}
+	json.Unmarshal(rec.Body.Bytes(), &resp)
+	if resp.Data.Status != "screening" {
+		t.Errorf("status = %q, want %q", resp.Data.Status, "screening")
+	}
+
+	var persisted string
+	testDB.QueryRow(`SELECT status FROM recruitment_assignments WHERE id = $1`, id).Scan(&persisted)
+	if persisted != "screening" {
+		t.Errorf("persisted status = %q, want %q", persisted, "screening")
+	}
+}
+
+func TestTransitionAssignment_IllegalTransitionReturns409(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, $3, $3) RETURNING id`,
+		f.candidateID, f.requirementID, f.userID).Scan(&id)
+
+	// draft -> offered skips screening/submitted/interviewing entirely.
+	body, _ := json.Marshal(map[string]string{"status": "offered"})
+	req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+	req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+	rec := httptest.NewRecorder()
+	TransitionAssignment(rec, req)
+
+	if rec.Code != http.StatusConflict {
+		t.Errorf("status = %d, want 409. Body: %s", rec.Code, rec.Body.String())
+	}
+
+	var persisted string
+	testDB.QueryRow(`SELECT status FROM recruitment_assignments WHERE id = $1`, id).Scan(&persisted)
+	if persisted != "draft" {
+		t.Errorf("persisted status = %q after rejected transition, want unchanged %q", persisted, "draft")
+	}
+}
+
+func TestTransitionAssignment_TerminalStateProtection(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+
+	for _, terminal := range []string{"joined", "rejected", "withdrawn"} {
+		t.Run(terminal, func(t *testing.T) {
+			var candID int
+			testDB.QueryRow(`INSERT INTO candidates (name, email, tenant_id, company_name, status) VALUES ($1, $2, 'ah_tenant_a', 'ah_tenant_a', 'active') RETURNING id`,
+				"Cand "+terminal, terminal+"@test.com").Scan(&candID)
+			var id int
+			testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, $3, $4, $4) RETURNING id`,
+				candID, f.requirementID, terminal, f.userID).Scan(&id)
+
+			body, _ := json.Marshal(map[string]string{"status": "screening"})
+			req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+			req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+			rec := httptest.NewRecorder()
+			TransitionAssignment(rec, req)
+
+			if rec.Code != http.StatusConflict {
+				t.Errorf("status = %d, want 409 (terminal state %q must reject further transitions)", rec.Code, terminal)
+			}
+
+			var persisted string
+			testDB.QueryRow(`SELECT status FROM recruitment_assignments WHERE id = $1`, id).Scan(&persisted)
+			if persisted != terminal {
+				t.Errorf("persisted status = %q, want unchanged terminal %q", persisted, terminal)
+			}
+		})
+	}
+}
+
+func TestTransitionAssignment_UnrecognizedStatusReturns400(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, $3, $3) RETURNING id`,
+		f.candidateID, f.requirementID, f.userID).Scan(&id)
+
+	for _, status := range []string{"", "cancelled", "APPROVED", "Screening"} {
+		t.Run(status, func(t *testing.T) {
+			body, _ := json.Marshal(map[string]string{"status": status})
+			req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+			req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+			rec := httptest.NewRecorder()
+			TransitionAssignment(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("status=%q: response code = %d, want 400", status, rec.Code)
+			}
+		})
+	}
+}
+
+func TestTransitionAssignment_CrossTenantReturns404(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	fA := seedAHFixtures(t, testDB, "ah_tenant_a")
+	fB := seedAHFixtures(t, testDB, "ah_tenant_b")
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, created_by_user_id, owner_user_id) VALUES ('ah_tenant_b', $1, $2, $3, $3) RETURNING id`,
+		fB.candidateID, fB.requirementID, fB.userID).Scan(&id)
+
+	body, _ := json.Marshal(map[string]string{"status": "screening"})
+	req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", fA.userID, "manager")
+	req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+	rec := httptest.NewRecorder()
+	TransitionAssignment(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 404", rec.Code)
+	}
+
+	var persisted string
+	testDB.QueryRow(`SELECT status FROM recruitment_assignments WHERE id = $1`, id).Scan(&persisted)
+	if persisted != "draft" {
+		t.Errorf("Tenant B's assignment status = %q after cross-tenant transition attempt, want unchanged %q", persisted, "draft")
+	}
+}
+
+func TestTransitionAssignment_RoleAuthorization(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, $3, $3) RETURNING id`,
+		f.candidateID, f.requirementID, f.userID).Scan(&id)
+
+	protected := auth.RoleMiddleware("admin", "manager")(http.HandlerFunc(TransitionAssignment))
+
+	body, _ := json.Marshal(map[string]string{"status": "screening"})
+	req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "recruiter")
+	req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+	rec := httptest.NewRecorder()
+	protected.ServeHTTP(rec, req)
+	if rec.Code != http.StatusForbidden {
+		t.Errorf("recruiter role: status = %d, want 403", rec.Code)
+	}
+}
+
+func TestTransitionAssignment_Unauthenticated(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	protected := auth.AuthMiddleware(http.HandlerFunc(TransitionAssignment))
+	req := httptest.NewRequest("POST", "/api/v1/assignments/1/transition", bytes.NewReader([]byte(`{"status":"screening"}`)))
+	rec := httptest.NewRecorder()
+	protected.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", rec.Code)
+	}
+}
+
 // --- Service/repository error propagation ---
 
 func TestAssignmentHandlers_ServiceErrorPropagation(t *testing.T) {

@@ -76,6 +76,16 @@ func respondWithAssignmentError(w http.ResponseWriter, err error) {
 	case errors.Is(err, assignment.ErrDuplicateAssignment):
 		respondWithError(w, http.StatusConflict, err.Error())
 	default:
+		var transitionErr *assignment.TransitionError
+		if errors.As(err, &transitionErr) {
+			// A genuine state conflict, not a malformed request: the
+			// target status is a recognized value (validated earlier in
+			// TransitionAssignment, before this error can occur), but not
+			// a legal transition from the assignment's current status, or
+			// the assignment is already in a terminal state.
+			respondWithError(w, http.StatusConflict, err.Error())
+			return
+		}
 		respondWithError(w, http.StatusInternalServerError, "Error processing assignment request")
 	}
 }
@@ -254,5 +264,59 @@ func DeleteAssignment(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Assignment deleted successfully",
+	})
+}
+
+// transitionAssignmentRequest is the request body for the dedicated
+// lifecycle-transition endpoint. This is deliberately a separate endpoint
+// from UpdateAssignment/PUT (which only reassigns owner) rather than
+// letting arbitrary status values enter the PUT payload — keeping owner
+// mutation and lifecycle transition as two distinct concepts.
+type transitionAssignmentRequest struct {
+	Status string `json:"status"`
+}
+
+// TransitionAssignment moves an assignment to a new lifecycle status,
+// scoped to the authenticated tenant. All transition-legality rules (ADR
+// 0003 section 4) live in assignment.Assignment.TransitionTo via
+// assignment.Service.TransitionAssignment — this handler validates only
+// that the request is well-formed (a non-empty, recognized status value)
+// before delegating, so "not a recognized status at all" (400, malformed
+// request) stays distinct from "a recognized status but not a legal
+// transition from here" (409, domain conflict), which is everything
+// TransitionAssignment itself can return.
+func TransitionAssignment(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		return
+	}
+
+	var req transitionAssignmentRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	targetStatus := assignment.Status(req.Status)
+	if req.Status == "" || !targetStatus.Valid() {
+		respondWithError(w, http.StatusBadRequest, "status is required and must be one of: draft, screening, submitted, interviewing, offered, joined, rejected, withdrawn")
+		return
+	}
+
+	tenantID := r.Context().Value("tenantID").(string)
+
+	a, err := assignmentService().TransitionAssignment(tenantID, id, targetStatus)
+	if err != nil {
+		respondWithAssignmentError(w, err)
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Assignment transitioned successfully",
+		Data:    toAssignmentResponse(a),
 	})
 }

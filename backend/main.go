@@ -49,5 +49,10 @@ func setupProtectedRoutes(r *mux.Router){
  // deferred to later checkpoints — UpdateAssignment here only supports
  // reassigning owner_user_id (see handlers/assignment_handlers.go).
  setupResourceRoutes(apiV1,"/assignments",handlers.GetAssignments,managerOnly(handlers.AddAssignment),handlers.GetAssignmentByID,managerOnly(handlers.UpdateAssignment),managerOnly(handlers.DeleteAssignment))
+ // Checkpoint 4: dedicated lifecycle-transition endpoint, deliberately
+ // separate from PUT /assignments/{id} so owner mutation and lifecycle
+ // transition stay two distinct concepts. Snapshot capture and audit
+ // events remain deferred.
+ apiV1.HandleFunc("/assignments/{id}/transition",managerOnly(handlers.TransitionAssignment)).Methods("POST","OPTIONS")
 }
 func main(){db.InitDB();defer db.DB.Close();if err:=db.InitializeSchema();err!=nil{log.Fatalf("Schema initialization failed: %v",err)};if err:=db.ApplyMigrations();err!=nil{log.Fatalf("Migration failed: %v",err)};r:=mux.NewRouter();r.Use(loggingMiddleware);setupPublicRoutes(r);setupProtectedRoutes(r);r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter,r *http.Request){w.WriteHeader(http.StatusNoContent)});port:=db.GetEnv("PORT","8080");fmt.Printf("SkillSifter API running at http://localhost:%s\n",port);log.Fatal(http.ListenAndServe(":"+port,setupCORS().Handler(r)))}

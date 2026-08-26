@@ -121,11 +121,11 @@ func (s *Service) DeleteAssignment(tenantID string, id int) error {
 }
 
 // ChangeOwner reassigns an existing assignment's owner. This is
-// deliberately the only mutation exposed beyond creation in this
-// checkpoint: lifecycle status transitions and snapshot capture are out of
-// scope here (see Issue #35 checkpoint 3) and are not implemented via this
-// or any other Service method yet. The new owner must belong to the
-// assignment's tenant.
+// deliberately the only mutation exposed via UpdateAssignment/PUT in
+// checkpoint 3: lifecycle status transitions go through
+// TransitionAssignment instead (checkpoint 4), keeping owner mutation and
+// lifecycle transition as two distinct concepts rather than letting
+// arbitrary status values enter the PUT payload.
 func (s *Service) ChangeOwner(tenantID string, id int, newOwnerUserID int) (*Assignment, error) {
 	a, err := s.repo.GetByID(tenantID, id)
 	if err != nil {
@@ -137,6 +137,34 @@ func (s *Service) ChangeOwner(tenantID string, id int, newOwnerUserID int) (*Ass
 	}
 
 	a.OwnerUserID = newOwnerUserID
+	if err := s.repo.Update(a); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// TransitionAssignment moves an existing assignment to newStatus,
+// enforcing ADR 0003's transition rules via Assignment.TransitionTo, and
+// persists the result. It is the ONLY way an assignment's status changes
+// via the service layer — no other Service method touches Status. Returns
+// ErrNotFound if the assignment doesn't exist in tenantID (including if it
+// exists in a different tenant), or a *TransitionError if newStatus is not
+// a legal transition from the assignment's current status.
+//
+// Snapshot capture at formal submission (ADR 0003 section 6) is NOT
+// implemented here — that is explicitly deferred to a later checkpoint.
+// Transitioning into StatusSubmitted currently persists only the status
+// change, with candidate_snapshot/requirement_snapshot left NULL.
+func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status) (*Assignment, error) {
+	a, err := s.repo.GetByID(tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := a.TransitionTo(newStatus); err != nil {
+		return nil, err
+	}
+
 	if err := s.repo.Update(a); err != nil {
 		return nil, err
 	}
