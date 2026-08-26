@@ -114,6 +114,35 @@ func (s *Service) ListAssignments(tenantID string) ([]*Assignment, error) {
 	return s.repo.ListByTenant(tenantID)
 }
 
+// DeleteAssignment removes the assignment with the given id, scoped to
+// tenantID. Returns ErrNotFound if it doesn't exist in that tenant.
+func (s *Service) DeleteAssignment(tenantID string, id int) error {
+	return s.repo.Delete(tenantID, id)
+}
+
+// ChangeOwner reassigns an existing assignment's owner. This is
+// deliberately the only mutation exposed beyond creation in this
+// checkpoint: lifecycle status transitions and snapshot capture are out of
+// scope here (see Issue #35 checkpoint 3) and are not implemented via this
+// or any other Service method yet. The new owner must belong to the
+// assignment's tenant.
+func (s *Service) ChangeOwner(tenantID string, id int, newOwnerUserID int) (*Assignment, error) {
+	a, err := s.repo.GetByID(tenantID, id)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := s.requireUserInTenant(newOwnerUserID, tenantID); err != nil {
+		return nil, err
+	}
+
+	a.OwnerUserID = newOwnerUserID
+	if err := s.repo.Update(a); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
 func (s *Service) candidateStatus(candidateID int, tenantID string) (string, error) {
 	var status string
 	err := s.db.QueryRow(`SELECT status FROM candidates WHERE id = $1 AND tenant_id = $2`, candidateID, tenantID).Scan(&status)

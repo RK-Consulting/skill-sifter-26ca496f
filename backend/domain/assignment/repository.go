@@ -48,6 +48,11 @@ type Repository interface {
 	// LastModified. Returns ErrNotFound if no matching row exists in that
 	// tenant.
 	Update(a *Assignment) error
+
+	// Delete removes the assignment with the given id, scoped to
+	// tenantID. Returns ErrNotFound if no such assignment exists in that
+	// tenant.
+	Delete(tenantID string, id int) error
 }
 
 // PostgresRepository is the Repository implementation backed by
@@ -180,6 +185,22 @@ func (r *PostgresRepository) Update(a *Assignment) error {
 		string(a.Status), a.OwnerUserID, candidateSnapshot, requirementSnapshot, snapshotCreatedAt,
 		a.ID, a.TenantID,
 	)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrNotFound
+	}
+	return nil
+}
+
+func (r *PostgresRepository) Delete(tenantID string, id int) error {
+	result, err := r.db.Exec(`DELETE FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		return err
 	}
