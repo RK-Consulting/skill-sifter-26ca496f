@@ -48,6 +48,9 @@ func setupAssignmentTestDB(t *testing.T) *sql.DB {
 		)`,
 		`CREATE TABLE IF NOT EXISTS candidates (
 			id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL,
+			phone VARCHAR(20), position VARCHAR(100), location VARCHAR(50), experience VARCHAR(100),
+			currentctc VARCHAR(100), expectedctc VARCHAR(100), noticeperiod VARCHAR(100),
+			jlptlanguage VARCHAR(100), skills VARCHAR(100),
 			tenant_id VARCHAR(255) REFERENCES companies(id), company_name VARCHAR(255) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'active',
 			CONSTRAINT candidates_status_valid CHECK (status IN ('active','inactive','blacklisted','archived'))
@@ -59,6 +62,9 @@ func setupAssignmentTestDB(t *testing.T) *sql.DB {
 		`CREATE TABLE IF NOT EXISTS requirements (
 			id SERIAL PRIMARY KEY, tenant_id VARCHAR(255) REFERENCES companies(id),
 			client_id INTEGER REFERENCES clients(id), title VARCHAR(255) NOT NULL,
+			location VARCHAR(100), work_arrangement VARCHAR(50), description TEXT,
+			required_skills TEXT, experience_required VARCHAR(100), compensation VARCHAR(255),
+			headcount INTEGER NOT NULL DEFAULT 1, language_requirement VARCHAR(255),
 			status VARCHAR(50) NOT NULL DEFAULT 'draft'
 		)`,
 		`CREATE TABLE IF NOT EXISTS recruitment_assignments (

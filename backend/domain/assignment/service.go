@@ -2,8 +2,10 @@ package assignment
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 )
 
 // Errors returned by Service, distinct from Repository's errors, so
@@ -151,12 +153,30 @@ func (s *Service) ChangeOwner(tenantID string, id int, newOwnerUserID int) (*Ass
 // exists in a different tenant), or a *TransitionError if newStatus is not
 // a legal transition from the assignment's current status.
 //
-// Snapshot capture at formal submission (ADR 0003 section 6) is NOT
-// implemented here — that is explicitly deferred to a later checkpoint.
-// Transitioning into StatusSubmitted currently persists only the status
-// change, with candidate_snapshot/requirement_snapshot left NULL.
+// At formal submission (transitioning into StatusSubmitted), this captures
+// immutable candidate/requirement snapshots per ADR 0003 section 6. The
+// fetch-current-assignment, capture-snapshot, and persist-new-status steps
+// all happen inside a single database transaction (SELECT ... FOR UPDATE,
+// then UPDATE), so the status change and the snapshot write are atomic: if
+// anything fails partway, the whole attempt rolls back and the assignment
+// is left exactly as it was, never partially transitioned or
+// partially snapshotted. If a snapshot already exists (SnapshotCreatedAt
+// is already set), it is never recaptured or overwritten — this should
+// not be reachable in ordinary use anyway, since screening -> submitted is
+// the only transition into StatusSubmitted in the lifecycle, but the guard
+// is explicit rather than assumed.
 func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status) (*Assignment, error) {
-	a, err := s.repo.GetByID(tenantID, id)
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+
+	row := tx.QueryRow(`SELECT `+assignmentSelectColumns+`
+		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+		id, tenantID,
+	)
+	a, err := scanAssignmentRow(row)
 	if err != nil {
 		return nil, err
 	}
@@ -165,9 +185,66 @@ func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status
 		return nil, err
 	}
 
-	if err := s.repo.Update(a); err != nil {
+	if newStatus == StatusSubmitted && a.SnapshotCreatedAt == nil {
+		candidateData, err := fetchCandidateSnapshotTx(tx, a.CandidateID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		requirementData, err := fetchRequirementSnapshotTx(tx, a.RequirementID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+
+		candidateJSON, err := json.Marshal(candidateData)
+		if err != nil {
+			return nil, err
+		}
+		requirementJSON, err := json.Marshal(requirementData)
+		if err != nil {
+			return nil, err
+		}
+
+		now := time.Now()
+		a.CandidateSnapshot = candidateJSON
+		a.RequirementSnapshot = requirementJSON
+		a.SnapshotCreatedAt = &now
+	}
+
+	var snapshotCreatedAtParam interface{}
+	if a.SnapshotCreatedAt != nil {
+		snapshotCreatedAtParam = *a.SnapshotCreatedAt
+	}
+	var candidateSnapshotParam, requirementSnapshotParam interface{}
+	if a.CandidateSnapshot != nil {
+		candidateSnapshotParam = a.CandidateSnapshot
+	}
+	if a.RequirementSnapshot != nil {
+		requirementSnapshotParam = a.RequirementSnapshot
+	}
+
+	result, err := tx.Exec(`
+		UPDATE recruitment_assignments
+		SET status = $1, owner_user_id = $2, candidate_snapshot = $3, requirement_snapshot = $4,
+			snapshot_created_at = $5, last_modified = NOW()
+		WHERE id = $6 AND tenant_id = $7`,
+		string(a.Status), a.OwnerUserID, candidateSnapshotParam, requirementSnapshotParam,
+		snapshotCreatedAtParam, a.ID, a.TenantID,
+	)
+	if err != nil {
 		return nil, err
 	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, ErrNotFound
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return a, nil
 }
 

@@ -53,6 +53,9 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 		)`,
 		`CREATE TABLE IF NOT EXISTS candidates (
 			id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL,
+			phone VARCHAR(20), position VARCHAR(100), location VARCHAR(50), experience VARCHAR(100),
+			currentctc VARCHAR(100), expectedctc VARCHAR(100), noticeperiod VARCHAR(100),
+			jlptlanguage VARCHAR(100), skills VARCHAR(100),
 			tenant_id VARCHAR(255) REFERENCES companies(id), company_name VARCHAR(255) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'active',
 			CONSTRAINT ah_candidates_status_valid CHECK (status IN ('active','inactive','blacklisted','archived'))
@@ -64,6 +67,9 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 		`CREATE TABLE IF NOT EXISTS requirements (
 			id SERIAL PRIMARY KEY, tenant_id VARCHAR(255) REFERENCES companies(id),
 			client_id INTEGER REFERENCES clients(id), title VARCHAR(255) NOT NULL,
+			location VARCHAR(100), work_arrangement VARCHAR(50), description TEXT,
+			required_skills TEXT, experience_required VARCHAR(100), compensation VARCHAR(255),
+			headcount INTEGER NOT NULL DEFAULT 1, language_requirement VARCHAR(255),
 			status VARCHAR(50) NOT NULL DEFAULT 'draft'
 		)`,
 		`CREATE TABLE IF NOT EXISTS recruitment_assignments (
@@ -654,6 +660,47 @@ func TestTransitionAssignment_Unauthenticated(t *testing.T) {
 	protected.ServeHTTP(rec, req)
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", rec.Code)
+	}
+}
+
+// --- Snapshot capture at submission (checkpoint 5) ---
+
+func TestTransitionAssignment_SnapshotCapturedAtSubmission(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+	testDB.Exec(`UPDATE candidates SET name = 'HTTP Snapshot Candidate' WHERE id = $1`, f.candidateID)
+	testDB.Exec(`UPDATE requirements SET title = 'HTTP Snapshot Requirement' WHERE id = $1`, f.requirementID)
+
+	var id int
+	testDB.QueryRow(`INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id) VALUES ('ah_tenant_a', $1, $2, 'screening', $3, $3) RETURNING id`,
+		f.candidateID, f.requirementID, f.userID).Scan(&id)
+
+	body, _ := json.Marshal(map[string]string{"status": "submitted"})
+	req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments/x/transition", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+	req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+	rec := httptest.NewRecorder()
+	TransitionAssignment(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200. Body: %s", rec.Code, rec.Body.String())
+	}
+
+	var candidateSnapshot, requirementSnapshot []byte
+	var snapshotCreatedAt sql.NullTime
+	testDB.QueryRow(`SELECT candidate_snapshot, requirement_snapshot, snapshot_created_at FROM recruitment_assignments WHERE id = $1`, id).
+		Scan(&candidateSnapshot, &requirementSnapshot, &snapshotCreatedAt)
+
+	if !snapshotCreatedAt.Valid {
+		t.Fatal("snapshot_created_at is NULL after submission via HTTP")
+	}
+	if !bytes.Contains(candidateSnapshot, []byte("HTTP Snapshot Candidate")) {
+		t.Errorf("candidate_snapshot does not contain expected name: %s", candidateSnapshot)
+	}
+	if !bytes.Contains(requirementSnapshot, []byte("HTTP Snapshot Requirement")) {
+		t.Errorf("requirement_snapshot does not contain expected title: %s", requirementSnapshot)
 	}
 }
 

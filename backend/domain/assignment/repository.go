@@ -89,18 +89,19 @@ func (r *PostgresRepository) Create(a *Assignment) error {
 	return nil
 }
 
-func (r *PostgresRepository) GetByID(tenantID string, id int) (*Assignment, error) {
+// scanAssignmentRow scans a single recruitment_assignments row into an
+// Assignment. Works identically whether row came from db.QueryRow or
+// tx.QueryRow (both return *sql.Row), so this is shared between
+// PostgresRepository.GetByID and the transactional snapshot-capture path
+// in service.go, which needs a tenant-scoped fetch inside a transaction
+// that Repository's interface doesn't expose.
+func scanAssignmentRow(row *sql.Row) (*Assignment, error) {
 	a := &Assignment{}
 	var status string
 	var candidateSnapshot, requirementSnapshot []byte
 	var snapshotCreatedAt sql.NullTime
 
-	err := r.db.QueryRow(`
-		SELECT id, tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id,
-			candidate_snapshot, requirement_snapshot, snapshot_created_at, created_at, last_modified
-		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2`,
-		id, tenantID,
-	).Scan(&a.ID, &a.TenantID, &a.CandidateID, &a.RequirementID, &status, &a.CreatedByUserID, &a.OwnerUserID,
+	err := row.Scan(&a.ID, &a.TenantID, &a.CandidateID, &a.RequirementID, &status, &a.CreatedByUserID, &a.OwnerUserID,
 		&candidateSnapshot, &requirementSnapshot, &snapshotCreatedAt, &a.CreatedAt, &a.LastModified)
 
 	if err != nil {
@@ -119,6 +120,17 @@ func (r *PostgresRepository) GetByID(tenantID string, id int) (*Assignment, erro
 	}
 
 	return a, nil
+}
+
+const assignmentSelectColumns = `id, tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id,
+			candidate_snapshot, requirement_snapshot, snapshot_created_at, created_at, last_modified`
+
+func (r *PostgresRepository) GetByID(tenantID string, id int) (*Assignment, error) {
+	row := r.db.QueryRow(`SELECT `+assignmentSelectColumns+`
+		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
+	)
+	return scanAssignmentRow(row)
 }
 
 func (r *PostgresRepository) ListByTenant(tenantID string) ([]*Assignment, error) {
