@@ -25,7 +25,7 @@ func TestSnapshot_CapturedOnlyAtSubmission(t *testing.T) {
 		t.Fatal("newly created assignment already has a snapshot")
 	}
 
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening)
 	if err != nil {
 		t.Fatalf("draft->screening failed: %v", err)
 	}
@@ -34,7 +34,7 @@ func TestSnapshot_CapturedOnlyAtSubmission(t *testing.T) {
 	}
 
 	before := time.Now()
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("screening->submitted failed: %v", err)
 	}
@@ -72,8 +72,8 @@ func TestSnapshot_CandidateDataCapturedCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening)
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("submission failed: %v", err)
 	}
@@ -123,8 +123,8 @@ func TestSnapshot_RequirementDataCapturedCorrectly(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening)
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("submission failed: %v", err)
 	}
@@ -175,8 +175,8 @@ func TestSnapshot_UnchangedAfterSourceRecordsModified(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening)
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("submission failed: %v", err)
 	}
@@ -187,7 +187,7 @@ func TestSnapshot_UnchangedAfterSourceRecordsModified(t *testing.T) {
 
 	// Advance the assignment further (interviewing) to prove later
 	// transitions don't touch the snapshot either.
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusInterviewing)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusInterviewing)
 	if err != nil {
 		t.Fatalf("submitted->interviewing failed: %v", err)
 	}
@@ -233,8 +233,8 @@ func TestSnapshot_NotOverwrittenOnSubsequentTransitions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening)
-	a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening)
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("submission failed: %v", err)
 	}
@@ -252,7 +252,7 @@ func TestSnapshot_NotOverwrittenOnSubsequentTransitions(t *testing.T) {
 	originalCandidateSnapshot := string(a.CandidateSnapshot)
 
 	for _, next := range []Status{StatusInterviewing, StatusOffered, StatusJoined} {
-		a, err = svc.TransitionAssignment("asg_tenant_a", a.ID, next)
+		a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, next)
 		if err != nil {
 			t.Fatalf("transition to %q failed: %v", next, err)
 		}
@@ -306,11 +306,11 @@ func TestSnapshot_TransactionRollbackLeavesNoPartialSnapshot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	if _, err := svc.TransitionAssignment("asg_tenant_a", a.ID, StatusScreening); err != nil {
+	if _, err := svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening); err != nil {
 		t.Fatalf("draft->screening failed: %v", err)
 	}
 
-	_, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	_, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err == nil {
 		t.Fatal("expected the poisoned submission to fail, but it succeeded")
 	}
@@ -336,7 +336,7 @@ func TestSnapshot_TransactionRollbackLeavesNoPartialSnapshot(t *testing.T) {
 	// poison condition is removed, proving the row itself wasn't left in
 	// some corrupted, permanently-stuck state by the failed attempt.
 	db.Exec(`UPDATE candidates SET name = 'No Longer Poisoned' WHERE id = $1`, f.candidateID)
-	final, err := svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	final, err := svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
 	if err != nil {
 		t.Fatalf("submission after removing poison condition failed: %v", err)
 	}
@@ -360,12 +360,12 @@ func TestSnapshot_CrossTenantSubmissionDoesNotLeakOrCapture(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateAssignment failed: %v", err)
 	}
-	if _, err := svc.TransitionAssignment("asg_tenant_b", a.ID, StatusScreening); err != nil {
+	if _, err := svc.TransitionAssignment("asg_tenant_b", fB.userID, a.ID, StatusScreening); err != nil {
 		t.Fatalf("draft->screening failed: %v", err)
 	}
 
 	// Tenant A attempts to submit Tenant B's assignment by ID.
-	_, err = svc.TransitionAssignment("asg_tenant_a", a.ID, StatusSubmitted)
+	_, err = svc.TransitionAssignment("asg_tenant_a", fB.userID, a.ID, StatusSubmitted)
 	if err != ErrNotFound {
 		t.Errorf("error = %v, want ErrNotFound", err)
 	}

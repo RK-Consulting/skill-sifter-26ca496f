@@ -85,6 +85,17 @@ func setupAssignmentTestDB(t *testing.T) *sql.DB {
 			),
 			CONSTRAINT recruitment_assignments_candidate_requirement_unique UNIQUE (candidate_id, requirement_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS audit_events (
+			id SERIAL PRIMARY KEY,
+			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			actor_user_id INTEGER NOT NULL REFERENCES users(id),
+			entity_type VARCHAR(100) NOT NULL,
+			entity_id INTEGER NOT NULL,
+			action VARCHAR(100) NOT NULL,
+			occurred_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			correlation_id VARCHAR(100),
+			metadata JSONB NOT NULL DEFAULT '{}'::JSONB
+		)`,
 	}
 	for _, s := range statements {
 		if _, err := testDB.Exec(s); err != nil {
@@ -93,6 +104,7 @@ func setupAssignmentTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Clean slate for tenant_a / tenant_b.
+	testDB.Exec(`DELETE FROM audit_events WHERE tenant_id IN ('asg_tenant_a', 'asg_tenant_b')`)
 	testDB.Exec(`DELETE FROM recruitment_assignments WHERE tenant_id IN ('asg_tenant_a', 'asg_tenant_b')`)
 	testDB.Exec(`DELETE FROM requirements WHERE tenant_id IN ('asg_tenant_a', 'asg_tenant_b')`)
 	testDB.Exec(`DELETE FROM clients WHERE tenant_id IN ('asg_tenant_a', 'asg_tenant_b')`)

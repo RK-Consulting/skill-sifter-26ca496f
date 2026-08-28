@@ -55,22 +55,29 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 			id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL,
 			phone VARCHAR(20), position VARCHAR(100), location VARCHAR(50), experience VARCHAR(100),
 			currentctc VARCHAR(100), expectedctc VARCHAR(100), noticeperiod VARCHAR(100),
-			jlptlanguage VARCHAR(100), skills VARCHAR(100),
+			jlptlanguage VARCHAR(100), skills VARCHAR(100), jobdescription VARCHAR(500),
 			tenant_id VARCHAR(255) REFERENCES companies(id), company_name VARCHAR(255) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'active',
+			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT ah_candidates_status_valid CHECK (status IN ('active','inactive','blacklisted','archived'))
 		)`,
 		`CREATE TABLE IF NOT EXISTS clients (
-			id SERIAL PRIMARY KEY, tenant_id VARCHAR(255) REFERENCES companies(id), name VARCHAR(255) NOT NULL,
-			status VARCHAR(50) NOT NULL DEFAULT 'prospect'
+			id SERIAL PRIMARY KEY, tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id), name VARCHAR(255) NOT NULL,
+			status VARCHAR(50) NOT NULL DEFAULT 'prospect',
+			contact_email VARCHAR(255), contact_phone VARCHAR(50),
+			created_at TIMESTAMP NOT NULL DEFAULT NOW(), updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			CONSTRAINT ah_clients_status_valid CHECK (status IN ('prospect', 'active', 'inactive'))
 		)`,
 		`CREATE TABLE IF NOT EXISTS requirements (
 			id SERIAL PRIMARY KEY, tenant_id VARCHAR(255) REFERENCES companies(id),
 			client_id INTEGER REFERENCES clients(id), title VARCHAR(255) NOT NULL,
-			location VARCHAR(100), work_arrangement VARCHAR(50), description TEXT,
+			department VARCHAR(100), location VARCHAR(100), work_arrangement VARCHAR(50),
+			opened_date TIMESTAMP, description TEXT,
 			required_skills TEXT, experience_required VARCHAR(100), compensation VARCHAR(255),
 			headcount INTEGER NOT NULL DEFAULT 1, language_requirement VARCHAR(255),
-			status VARCHAR(50) NOT NULL DEFAULT 'draft'
+			status VARCHAR(50) NOT NULL DEFAULT 'draft',
+			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			last_modified TIMESTAMP NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS recruitment_assignments (
 			id SERIAL PRIMARY KEY,
@@ -90,6 +97,17 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 			),
 			CONSTRAINT ah_recruitment_assignments_candidate_requirement_unique UNIQUE (candidate_id, requirement_id)
 		)`,
+		`CREATE TABLE IF NOT EXISTS audit_events (
+			id SERIAL PRIMARY KEY,
+			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			actor_user_id INTEGER NOT NULL REFERENCES users(id),
+			entity_type VARCHAR(100) NOT NULL,
+			entity_id INTEGER NOT NULL,
+			action VARCHAR(100) NOT NULL,
+			occurred_at TIMESTAMP NOT NULL DEFAULT NOW(),
+			correlation_id VARCHAR(100),
+			metadata JSONB NOT NULL DEFAULT '{}'::JSONB
+		)`,
 	}
 	for _, s := range statements {
 		if _, err := testDB.Exec(s); err != nil {
@@ -97,7 +115,7 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 		}
 	}
 
-	for _, tbl := range []string{"recruitment_assignments", "requirements", "clients", "candidates", "users"} {
+	for _, tbl := range []string{"audit_events", "recruitment_assignments", "requirements", "clients", "candidates", "users"} {
 		testDB.Exec("DELETE FROM " + tbl + " WHERE tenant_id IN ('ah_tenant_a', 'ah_tenant_b')")
 	}
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('ah_tenant_a', 'Assignment Handler Tenant A') ON CONFLICT (id) DO NOTHING`)

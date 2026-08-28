@@ -230,8 +230,9 @@ func UpdateAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID := r.Context().Value("userID").(int)
 
-	a, err := assignmentService().ChangeOwner(tenantID, id, req.OwnerUserID)
+	a, err := assignmentService().ChangeOwner(tenantID, actorUserID, id, req.OwnerUserID)
 	if err != nil {
 		respondWithAssignmentError(w, err)
 		return
@@ -307,8 +308,9 @@ func TransitionAssignment(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID := r.Context().Value("userID").(int)
 
-	a, err := assignmentService().TransitionAssignment(tenantID, id, targetStatus)
+	a, err := assignmentService().TransitionAssignment(tenantID, actorUserID, id, targetStatus)
 	if err != nil {
 		respondWithAssignmentError(w, err)
 		return

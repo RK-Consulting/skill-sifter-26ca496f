@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/lib/pq"
 )
 
 // Errors returned by Service, distinct from Repository's errors, so
@@ -59,6 +61,14 @@ type CreateInput struct {
 // CreateAssignment validates tenant consistency and candidate eligibility,
 // then creates a new draft-status assignment. tenantID and actorUserID
 // must come from authenticated request context.
+//
+// Persistence (the assignment INSERT) and the assignment.created audit
+// event are written inside a single database transaction, so either both
+// land or neither does. Validation (candidate eligibility, tenant
+// membership checks) runs beforehand, outside the transaction, unchanged
+// from checkpoints 2-5 — only the final persist step gained transactional
+// scope, to avoid unnecessarily restructuring logic that was already
+// correct.
 func (s *Service) CreateAssignment(tenantID string, actorUserID int, input CreateInput) (*Assignment, error) {
 	ownerUserID := input.OwnerUserID
 	if ownerUserID == 0 {
@@ -98,9 +108,47 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 		OwnerUserID:     ownerUserID,
 	}
 
-	if err := s.repo.Create(a); err != nil {
+	correlationID, err := newCorrelationID()
+	if err != nil {
 		return nil, err
 	}
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+
+	// Same INSERT Repository.Create issues, duplicated here rather than
+	// reused, because Repository's interface operates on *sql.DB and has
+	// no transaction-scoped variant — the same precedent already set by
+	// TransitionAssignment (checkpoint 4/5), which does its own tx-scoped
+	// SQL rather than going through Repository for the same reason.
+	err = tx.QueryRow(`
+		INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, created_at, last_modified`,
+		a.TenantID, a.CandidateID, a.RequirementID, string(a.Status), a.CreatedByUserID, a.OwnerUserID,
+	).Scan(&a.ID, &a.CreatedAt, &a.LastModified)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" { // unique_violation
+			return nil, ErrDuplicateAssignment
+		}
+		return nil, err
+	}
+
+	if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, AuditAssignmentCreated, correlationID, map[string]int{
+		"candidateId":   a.CandidateID,
+		"requirementId": a.RequirementID,
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
 	return a, nil
 }
 
@@ -128,44 +176,12 @@ func (s *Service) DeleteAssignment(tenantID string, id int) error {
 // TransitionAssignment instead (checkpoint 4), keeping owner mutation and
 // lifecycle transition as two distinct concepts rather than letting
 // arbitrary status values enter the PUT payload.
-func (s *Service) ChangeOwner(tenantID string, id int, newOwnerUserID int) (*Assignment, error) {
-	a, err := s.repo.GetByID(tenantID, id)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.requireUserInTenant(newOwnerUserID, tenantID); err != nil {
-		return nil, err
-	}
-
-	a.OwnerUserID = newOwnerUserID
-	if err := s.repo.Update(a); err != nil {
-		return nil, err
-	}
-	return a, nil
-}
-
-// TransitionAssignment moves an existing assignment to newStatus,
-// enforcing ADR 0003's transition rules via Assignment.TransitionTo, and
-// persists the result. It is the ONLY way an assignment's status changes
-// via the service layer — no other Service method touches Status. Returns
-// ErrNotFound if the assignment doesn't exist in tenantID (including if it
-// exists in a different tenant), or a *TransitionError if newStatus is not
-// a legal transition from the assignment's current status.
 //
-// At formal submission (transitioning into StatusSubmitted), this captures
-// immutable candidate/requirement snapshots per ADR 0003 section 6. The
-// fetch-current-assignment, capture-snapshot, and persist-new-status steps
-// all happen inside a single database transaction (SELECT ... FOR UPDATE,
-// then UPDATE), so the status change and the snapshot write are atomic: if
-// anything fails partway, the whole attempt rolls back and the assignment
-// is left exactly as it was, never partially transitioned or
-// partially snapshotted. If a snapshot already exists (SnapshotCreatedAt
-// is already set), it is never recaptured or overwritten — this should
-// not be reachable in ordinary use anyway, since screening -> submitted is
-// the only transition into StatusSubmitted in the lifecycle, but the guard
-// is explicit rather than assumed.
-func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status) (*Assignment, error) {
+// The owner-reassignment UPDATE and the assignment.owner_changed audit
+// event are written inside a single database transaction, so either both
+// land or neither does. tenantID and actorUserID must come from
+// authenticated request context.
+func (s *Service) ChangeOwner(tenantID string, actorUserID int, id int, newOwnerUserID int) (*Assignment, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
@@ -181,10 +197,103 @@ func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status
 		return nil, err
 	}
 
+	var newOwnerExists bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2)`, newOwnerUserID, tenantID).Scan(&newOwnerExists); err != nil {
+		return nil, err
+	}
+	if !newOwnerExists {
+		return nil, ErrUserNotFound
+	}
+
+	previousOwnerUserID := a.OwnerUserID
+	a.OwnerUserID = newOwnerUserID
+
+	result, err := tx.Exec(`UPDATE recruitment_assignments SET owner_user_id = $1, last_modified = NOW() WHERE id = $2 AND tenant_id = $3`,
+		a.OwnerUserID, a.ID, a.TenantID)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, ErrNotFound
+	}
+
+	correlationID, err := newCorrelationID()
+	if err != nil {
+		return nil, err
+	}
+	if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, AuditAssignmentOwnerChanged, correlationID, map[string]int{
+		"previousOwnerUserId": previousOwnerUserID,
+		"newOwnerUserId":      newOwnerUserID,
+	}); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return a, nil
+}
+
+// TransitionAssignment moves an existing assignment to newStatus,
+// enforcing ADR 0003's transition rules via Assignment.TransitionTo, and
+// persists the result. It is the ONLY way an assignment's status changes
+// via the service layer — no other Service method touches Status. Returns
+// ErrNotFound if the assignment doesn't exist in tenantID (including if it
+// exists in a different tenant), or a *TransitionError if newStatus is not
+// a legal transition from the assignment's current status. tenantID and
+// actorUserID must come from authenticated request context.
+//
+// At formal submission (transitioning into StatusSubmitted), this captures
+// immutable candidate/requirement snapshots per ADR 0003 section 6. The
+// fetch-current-assignment, capture-snapshot, persist-new-status, and
+// audit-event steps all happen inside a single database transaction
+// (SELECT ... FOR UPDATE, then UPDATE, then the audit INSERT(s)), so all
+// of it is atomic: if anything fails partway, the whole attempt rolls back
+// and the assignment is left exactly as it was — never partially
+// transitioned, partially snapshotted, or transitioned-without-an-audit-
+// trail. If a snapshot already exists (SnapshotCreatedAt is already set),
+// it is never recaptured or overwritten — this should not be reachable in
+// ordinary use anyway, since screening -> submitted is the only transition
+// into StatusSubmitted in the lifecycle, but the guard is explicit rather
+// than assumed.
+//
+// Exactly one audit event is recorded for the transition itself (its
+// action name selected by the target status, per ADR 0006 section 4), and
+// — only when a snapshot is actually captured during this specific call,
+// never merely because the target is StatusSubmitted — a second,
+// assignment.snapshot_created event, sharing the same correlation_id as
+// the transition event so they can be grouped as one business operation.
+// An illegal transition or a not-found/cross-tenant assignment returns an
+// error before any audit event is written, and the deferred rollback
+// ensures nothing partial is left if the audit INSERT itself fails.
+func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int, newStatus Status) (*Assignment, error) {
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+
+	row := tx.QueryRow(`SELECT `+assignmentSelectColumns+`
+		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+		id, tenantID,
+	)
+	a, err := scanAssignmentRow(row)
+	if err != nil {
+		return nil, err
+	}
+
+	fromStatus := a.Status
+
 	if err := a.TransitionTo(newStatus); err != nil {
 		return nil, err
 	}
 
+	snapshotJustCaptured := false
 	if newStatus == StatusSubmitted && a.SnapshotCreatedAt == nil {
 		candidateData, err := fetchCandidateSnapshotTx(tx, a.CandidateID, tenantID)
 		if err != nil {
@@ -208,6 +317,7 @@ func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status
 		a.CandidateSnapshot = candidateJSON
 		a.RequirementSnapshot = requirementJSON
 		a.SnapshotCreatedAt = &now
+		snapshotJustCaptured = true
 	}
 
 	var snapshotCreatedAtParam interface{}
@@ -239,6 +349,29 @@ func (s *Service) TransitionAssignment(tenantID string, id int, newStatus Status
 	}
 	if affected == 0 {
 		return nil, ErrNotFound
+	}
+
+	correlationID, err := newCorrelationID()
+	if err != nil {
+		return nil, err
+	}
+
+	if action, ok := auditActionForStatus[newStatus]; ok {
+		if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, action, correlationID, map[string]string{
+			"from": string(fromStatus),
+			"to":   string(newStatus),
+		}); err != nil {
+			return nil, err
+		}
+	}
+
+	if snapshotJustCaptured {
+		// Deliberately minimal metadata: no candidate/requirement content,
+		// per ADR 0006 section 3 — this event documents THAT a snapshot
+		// was taken, not what it contains.
+		if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, AuditAssignmentSnapshotCreated, correlationID, map[string]string{}); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := tx.Commit(); err != nil {

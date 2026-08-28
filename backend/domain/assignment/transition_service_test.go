@@ -51,7 +51,7 @@ func TestTransitionAssignment_ExhaustiveMatrix(t *testing.T) {
 					t.Fatalf("could not force status to %q: %v", from, err)
 				}
 
-				result, err := svc.TransitionAssignment("asg_tenant_a", a.ID, to)
+				result, err := svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, to)
 				want := allowed[from][to]
 
 				if want {
@@ -103,7 +103,7 @@ func TestTransitionAssignment_CrossTenantReturnsNotFound(t *testing.T) {
 		t.Fatalf("seed CreateAssignment failed: %v", err)
 	}
 
-	_, err = svc.TransitionAssignment("asg_tenant_a", created.ID, StatusScreening)
+	_, err = svc.TransitionAssignment("asg_tenant_a", fB.userID, created.ID, StatusScreening)
 	if !errors.Is(err, ErrNotFound) {
 		t.Errorf("error = %v, want ErrNotFound (Tenant A must not transition Tenant B's assignment)", err)
 	}
