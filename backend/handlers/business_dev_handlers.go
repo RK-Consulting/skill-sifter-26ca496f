@@ -161,7 +161,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 		// tenant_id is included so this fallback path — if it is ever
 		// actually exercised — does not recreate a table missing the
 		// isolation column added by migration 006. In practice this table
-		// already exists via schema.sql/001_baseline.sql, so this branch
+		// already exists via migrations/001_baseline.sql, so this branch
 		// should not run in a correctly migrated environment.
 		_, err := db.DB.Exec(`
 			CREATE TABLE IF NOT EXISTS business_dev (

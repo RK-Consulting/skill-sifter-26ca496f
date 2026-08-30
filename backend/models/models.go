@@ -5,7 +5,7 @@ import (
 )
 
 // Candidate model — fields match the actual deployed candidates table
-// (backend/database/schema.sql / migrations/001_baseline.sql) and what
+// (backend/database/migrations/001_baseline.sql) and what
 // frontend/src/pages/AddCandidate.tsx actually sends. The previous version
 // of this struct referenced status/source/date_applied/resume_url/cover_letter/
 // last_modified — none of which exist in the real schema, meaning

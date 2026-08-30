@@ -54,10 +54,9 @@ Status reflects what's actually verified working as of v0.2.0, not just what's d
 .
 ├── backend/                  # Go REST API
 │   ├── auth/                 # JWT auth & role middleware
-│   ├── db/                   # DB connection + env helpers
+│   ├── db/                   # DB connection + env helpers + migrations
 │   ├── database/
-│   │   ├── schema.sql         # Legacy full-schema file (see migrations/ below)
-│   │   └── migrations/        # Versioned schema migrations, applied in order by deploy.sh
+│   │   └── migrations/        # Versioned schema migrations (authoritative schema source)
 │   ├── docs/                  # Swagger spec + design doc
 │   ├── handlers/               # HTTP handlers (candidates, jobs, interviews, etc.), with tests
 │   ├── models/                 # Data models
@@ -111,7 +110,7 @@ A Swagger spec is available at `backend/docs/swagger.yaml`.
 
 ## Data Model
 
-Core tables (see `backend/database/schema.sql`):
+Core tables (defined in `backend/database/migrations/`):
 - `companies` — tenants
 - `roles` — predefined roles with permission sets
 - `users` — belongs to a company, has a role
@@ -133,7 +132,7 @@ docker compose up --build
 - Backend API: http://localhost:8080
 - Postgres: localhost:5432 (db: `skillsifter`, user/pass: `postgres`/`postgres`)
 
-The Postgres container automatically runs `backend/database/schema.sql` on first boot.
+The Postgres container starts with an empty database; the Go backend applies all migrations from `backend/database/migrations/` on startup via `db.ApplyMigrations()`.
 
 > Note: the `docker-compose.yml` frontend build sets `VITE_API_URL=https://api.skillsifter.in` by default — override this env var for local development if you want the containerized frontend to talk to your local backend instead.
 
@@ -155,7 +154,7 @@ export PORT=8080
 go mod download
 go run main.go
 ```
-The backend calls `db.InitDB()` and `db.InitializeSchema()` on startup, so it will create/verify the schema automatically.
+The backend calls `db.InitDB()` and `db.ApplyMigrations()` on startup, so it will create/verify the schema automatically.
 
 **Frontend**
 ```sh

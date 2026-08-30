@@ -36,9 +36,9 @@ func migrationsDir() (string, error) {
 
 // ensureMigrationsTable creates the migration-tracking table if it does not
 // already exist. This is intentionally a separate table from
-// schema_version, which tracks the one-time InitializeSchema bootstrap, not
-// individual migration files (ADR 0007 requires "a dedicated
-// migration-history table").
+// schema_version (which was the legacy bootstrap tracking table used by the
+// old InitializeSchema approach, now removed). ADR 0007 requires a dedicated
+// migration-history table.
 func ensureMigrationsTable() error {
 	_, err := DB.Exec(`
 		CREATE TABLE IF NOT EXISTS schema_migrations (

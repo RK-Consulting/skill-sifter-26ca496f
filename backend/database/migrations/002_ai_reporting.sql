@@ -90,5 +90,3 @@ DROP TRIGGER IF EXISTS trg_business_dev_activity ON business_dev;
 CREATE TRIGGER trg_business_dev_activity AFTER INSERT OR UPDATE OR DELETE ON business_dev FOR EACH ROW EXECUTE FUNCTION skillsifter_activity_trigger();
 DROP TRIGGER IF EXISTS trg_resumes_activity ON resumes;
 CREATE TRIGGER trg_resumes_activity AFTER INSERT OR UPDATE OR DELETE ON resumes FOR EACH ROW EXECUTE FUNCTION skillsifter_activity_trigger();
-
-INSERT INTO schema_version(version) VALUES (2) ON CONFLICT (version) DO NOTHING;
