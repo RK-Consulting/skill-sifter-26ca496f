@@ -4,6 +4,41 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-08-31
+
+### Added
+- Recruitment assignment state-machine implementation with controlled lifecycle transitions.
+- Tenant-aware assignment actor authorization.
+- Assignment audit actor tenant enforcement.
+- Generic candidate technical expertise model.
+- Candidate language expertise model with proficiency framework and proficiency levels.
+- GitHub Actions CI for backend and frontend.
+
+### Changed
+- Recruitment assignments now enforce valid state transitions through the assignment domain.
+- Assignment state and snapshot handling has been strengthened around the recruitment workflow.
+- Candidate status is now explicitly constrained to `active`, `inactive`, `blacklisted`, or `archived`.
+- Candidate expertise has moved from obsolete candidate columns to dedicated expertise tables.
+- Backend and frontend verification now runs automatically through GitHub Actions.
+
+### Security
+- Assignment actors are tenant-scoped.
+- Cross-tenant assignment actors are rejected.
+- Assignment audit actors are tenant-scoped.
+- Cross-tenant audit relationships are rejected.
+
+### Testing
+- Expanded assignment state-machine regression coverage.
+- Added tenant-isolation regression coverage.
+- Added assignment actor authorization regression coverage.
+- Added assignment audit enforcement regression coverage.
+- Backend CI validates formatting, build, vet, and tests.
+- Frontend CI validates lint, tests, and production build.
+
+### Release Scope
+- This release focuses on recruitment assignment domain hardening, tenant isolation, audit integrity, candidate expertise, and CI foundations.
+- Continuous deployment is intentionally not part of this release.
+
 ## [0.3.0] - 2026-08-23
 
 ### Added
