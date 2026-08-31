@@ -4,31 +4,73 @@ import (
 	"time"
 )
 
-// Candidate model — fields match the actual deployed candidates table
-// (backend/database/migrations/001_baseline.sql) and what
-// frontend/src/pages/AddCandidate.tsx actually sends. The previous version
-// of this struct referenced status/source/date_applied/resume_url/cover_letter/
-// last_modified — none of which exist in the real schema, meaning
-// GetCandidates/AddCandidate/UpdateCandidate were broken (every call would
-// fail with "column does not exist"). Fixed as part of the Dashboard
-// mock-data investigation, docs/architecture.md gap audit.
+// Candidate represents a candidate in the recruitment system.
+//
+// CP7B introduces:
+//   - Candidate status
+//   - Generic language expertise
+//   - Generic technical expertise
+//
+// Legacy candidate language and skill columns are no longer part of the
+// authoritative Candidate model.
 type Candidate struct {
-	ID             int       `json:"id" db:"id,primarykey,autoincrement"`
-	Name           string    `json:"name" db:"name,notnull"`
-	Email          string    `json:"email" db:"email,notnull"`
-	Phone          string    `json:"phone" db:"phone"`
-	Position       string    `json:"position" db:"position"`
-	Location       string    `json:"location" db:"location"`
-	Experience     string    `json:"experience" db:"experience"`
-	CurrentCTC     string    `json:"currentCTC" db:"currentctc"`
-	ExpectedCTC    string    `json:"expectedCTC" db:"expectedctc"`
-	NoticePeriod   string    `json:"noticePeriod" db:"noticeperiod"`
-	JLPTLanguage   string    `json:"jlptLanguage" db:"jlptlanguage"`
-	Skills         string    `json:"skills" db:"skills"`
-	JobDescription string    `json:"newJD" db:"jobdescription"`
-	CreatedAt      time.Time `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
-	TenantID       string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
-	CompanyName    string    `json:"companyName" db:"company_name,notnull"`
+	ID                 int                          `json:"id" db:"id,primarykey,autoincrement"`
+	Name               string                       `json:"name" db:"name,notnull"`
+	Email              string                       `json:"email" db:"email,notnull"`
+	Phone              string                       `json:"phone" db:"phone"`
+	Position           string                       `json:"position" db:"position"`
+	Location           string                       `json:"location" db:"location"`
+	Experience         string                       `json:"experience" db:"experience"`
+	CurrentCTC         string                       `json:"currentCTC" db:"currentctc"`
+	ExpectedCTC        string                       `json:"expectedCTC" db:"expectedctc"`
+	NoticePeriod       string                       `json:"noticePeriod" db:"noticeperiod"`
+	JobDescription     string                       `json:"newJD" db:"jobdescription"`
+	Status             string                       `json:"status" db:"status"`
+	LanguageExpertise  []CandidateLanguageExpertise `json:"languageExpertise,omitempty" db:"-"`
+	TechnicalExpertise []CandidateExpertise         `json:"technicalExpertise,omitempty" db:"-"`
+	CreatedAt          time.Time                    `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
+	TenantID           string                       `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
+	CompanyName        string                       `json:"companyName" db:"company_name,notnull"`
+}
+
+// CandidateLanguageExpertise represents one candidate language expertise
+// record.
+//
+// proficiencyFramework is intentionally generic. Examples include:
+//   - JLPT / N1
+//   - CEFR / C1
+//   - ACTFL / Advanced High
+//
+// The framework itself is data; the schema is not tied to JLPT.
+type CandidateLanguageExpertise struct {
+	ID                   int       `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID             string    `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID          int       `json:"candidateId" db:"candidate_id,notnull"`
+	Language             string    `json:"language" db:"language,notnull"`
+	ProficiencyFramework string    `json:"proficiencyFramework" db:"proficiency_framework,notnull"`
+	ProficiencyLevel     string    `json:"proficiencyLevel" db:"proficiency_level,notnull"`
+	CreatedAt            time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt            time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+}
+
+// CandidateExpertise represents one candidate technical expertise record.
+//
+// category keeps the model generic across programming languages,
+// frameworks, databases, cloud technologies, AI/ML, tools, etc.
+type CandidateExpertise struct {
+	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID         string    `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID      int       `json:"candidateId" db:"candidate_id,notnull"`
+	Skill            string    `json:"skill" db:"skill,notnull"`
+	Category         string    `json:"category" db:"category,notnull"`
+	ProficiencyLevel string    `json:"proficiencyLevel" db:"proficiency_level,notnull"`
+	CreatedAt        time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt        time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+}
+
+// CandidateStatusUpdate is the request payload for updating Candidate status.
+type CandidateStatusUpdate struct {
+	Status string `json:"status" binding:"required,oneof=active inactive blacklisted archived"`
 }
 
 // Job model
@@ -177,7 +219,7 @@ type ApiResponse struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
-// TokenResponse for authentication
+// TokenResponse for login/register
 type TokenResponse struct {
 	Token string `json:"token"`
 	User  User   `json:"user"`
@@ -208,7 +250,6 @@ type HiringReportResponse struct {
 
 // SourceReportResponse represents candidate source distribution for reporting
 // @Description Aggregated report of candidates by source
-// @Success 200 {object} SourceReportResponse
 // @Router /api/reports/sources [get]
 type SourceReportResponse struct {
 	Success bool                `json:"success"`

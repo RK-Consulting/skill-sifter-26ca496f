@@ -63,7 +63,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			email VARCHAR(255) NOT NULL,
 			phone VARCHAR(20), position VARCHAR(100), location VARCHAR(50),
 			experience VARCHAR(100), currentctc VARCHAR(100), expectedctc VARCHAR(100),
-			noticeperiod VARCHAR(100), jlptlanguage VARCHAR(100), skills VARCHAR(100),
+			noticeperiod VARCHAR(100),
 			jobdescription VARCHAR(500),
 			tenant_id VARCHAR(255) REFERENCES companies(id),
 			company_name VARCHAR(255) NOT NULL,
@@ -161,8 +161,8 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	var tenantBCandidateID int
 	err := testDB.QueryRow(
-		`INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jlptlanguage, skills, jobdescription, tenant_id, company_name)
-		 VALUES ('B Candidate', 'bcand@test.com', '', '', '', '', '', '', '', '', '', '', 'tenant_b', 'tenant_b') RETURNING id`,
+		`INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, tenant_id, company_name)
+		 VALUES ('B Candidate', 'bcand@test.com', '', '', '', '', '', '', '', '', 'tenant_b', 'tenant_b') RETURNING id`,
 	).Scan(&tenantBCandidateID)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)

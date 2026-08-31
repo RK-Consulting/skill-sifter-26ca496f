@@ -55,7 +55,7 @@ func setupAssignmentHandlerTestDB(t *testing.T) *sql.DB {
 			id SERIAL PRIMARY KEY, name VARCHAR(255) NOT NULL, email VARCHAR(255) NOT NULL,
 			phone VARCHAR(20), position VARCHAR(100), location VARCHAR(50), experience VARCHAR(100),
 			currentctc VARCHAR(100), expectedctc VARCHAR(100), noticeperiod VARCHAR(100),
-			jlptlanguage VARCHAR(100), skills VARCHAR(100), jobdescription VARCHAR(500),
+			jobdescription VARCHAR(500),
 			tenant_id VARCHAR(255) REFERENCES companies(id), company_name VARCHAR(255) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'active',
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),

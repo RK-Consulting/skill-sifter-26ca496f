@@ -1,7 +1,6 @@
 package assignment
 
 import (
-	"database/sql"
 	"encoding/json"
 	"testing"
 	"time"
@@ -65,7 +64,24 @@ func TestSnapshot_CandidateDataCapturedCorrectly(t *testing.T) {
 	// values so the assertions below can't accidentally pass on defaults.
 	db.Exec(`UPDATE candidates SET name = 'Snapshot Candidate', phone = '555-1234', position = 'Backend Engineer',
 		location = 'Bangalore', experience = '5 years', currentctc = '20 LPA', expectedctc = '28 LPA',
-		noticeperiod = '30 days', jlptlanguage = 'N2', skills = 'Go, Postgres' WHERE id = $1`, f.candidateID)
+		noticeperiod = '30 days' WHERE id = $1`, f.candidateID)
+
+	_, err := db.Exec(`INSERT INTO candidate_language_expertise
+		(tenant_id, candidate_id, language, proficiency_framework, proficiency_level)
+		VALUES ($1, $2, 'Japanese', 'JLPT', 'N2')`,
+		"asg_tenant_a", f.candidateID)
+	if err != nil {
+		t.Fatalf("insert candidate language expertise failed: %v", err)
+	}
+
+	_, err = db.Exec(`INSERT INTO candidate_expertise
+		(tenant_id, candidate_id, skill, category, proficiency_level)
+		VALUES ($1, $2, 'Go', 'Programming', 'Expert'),
+		       ($1, $2, 'Postgres', 'Database', 'Advanced')`,
+		"asg_tenant_a", f.candidateID)
+	if err != nil {
+		t.Fatalf("insert candidate technical expertise failed: %v", err)
+	}
 
 	svc := NewService(NewPostgresRepository(db), db)
 	a, err := svc.CreateAssignment("asg_tenant_a", f.userID, CreateInput{CandidateID: f.candidateID, RequirementID: f.requirementID})
@@ -92,8 +108,6 @@ func TestSnapshot_CandidateDataCapturedCorrectly(t *testing.T) {
 		"currentCtc":   {snap.CurrentCTC, "20 LPA"},
 		"expectedCtc":  {snap.ExpectedCTC, "28 LPA"},
 		"noticePeriod": {snap.NoticePeriod, "30 days"},
-		"jlptLanguage": {snap.JLPTLanguage, "N2"},
-		"skills":       {snap.Skills, "Go, Postgres"},
 		"status":       {snap.Status, "active"},
 	}
 	for field, c := range cases {
@@ -103,6 +117,72 @@ func TestSnapshot_CandidateDataCapturedCorrectly(t *testing.T) {
 	}
 	if snap.ID != f.candidateID {
 		t.Errorf("snapshot.id = %d, want %d", snap.ID, f.candidateID)
+	}
+
+	if len(snap.LanguageExpertise) != 1 {
+		t.Fatalf("snapshot language expertise count = %d, want 1", len(snap.LanguageExpertise))
+	}
+	lang := snap.LanguageExpertise[0]
+	if lang.Language != "Japanese" || lang.ProficiencyFramework != "JLPT" || lang.ProficiencyLevel != "N2" {
+		t.Errorf("language expertise snapshot = %+v, want Japanese/JLPT/N2", lang)
+	}
+
+	if len(snap.TechnicalExpertise) != 2 {
+		t.Fatalf("snapshot technical expertise count = %d, want 2", len(snap.TechnicalExpertise))
+	}
+	if snap.TechnicalExpertise[0].Skill != "Go" ||
+		snap.TechnicalExpertise[0].Category != "Programming" ||
+		snap.TechnicalExpertise[0].ProficiencyLevel != "Expert" {
+		t.Errorf("first technical expertise = %+v", snap.TechnicalExpertise[0])
+	}
+	if snap.TechnicalExpertise[1].Skill != "Postgres" ||
+		snap.TechnicalExpertise[1].Category != "Database" ||
+		snap.TechnicalExpertise[1].ProficiencyLevel != "Advanced" {
+		t.Errorf("second technical expertise = %+v", snap.TechnicalExpertise[1])
+	}
+}
+
+// TestSnapshot_EmptyExpertiseIsCapturedAsEmptyArrays verifies candidates
+// without expertise still produce a valid snapshot with empty expertise
+// collections rather than failing or retaining removed legacy fields.
+func TestSnapshot_EmptyExpertiseIsCapturedAsEmptyArrays(t *testing.T) {
+	db := setupAssignmentTestDB(t)
+	defer db.Close()
+
+	f := seedFixtures(t, db, "asg_tenant_a")
+	svc := NewService(NewPostgresRepository(db), db)
+
+	a, err := svc.CreateAssignment("asg_tenant_a", f.userID, CreateInput{
+		CandidateID:   f.candidateID,
+		RequirementID: f.requirementID,
+	})
+	if err != nil {
+		t.Fatalf("CreateAssignment failed: %v", err)
+	}
+	if _, err := svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusScreening); err != nil {
+		t.Fatalf("draft->screening failed: %v", err)
+	}
+	a, err = svc.TransitionAssignment("asg_tenant_a", f.userID, a.ID, StatusSubmitted)
+	if err != nil {
+		t.Fatalf("screening->submitted failed: %v", err)
+	}
+
+	var snap CandidateSnapshotData
+	if err := json.Unmarshal(a.CandidateSnapshot, &snap); err != nil {
+		t.Fatalf("could not unmarshal candidate snapshot: %v", err)
+	}
+
+	if snap.LanguageExpertise == nil {
+		t.Error("LanguageExpertise is nil, want empty collection")
+	}
+	if len(snap.LanguageExpertise) != 0 {
+		t.Errorf("LanguageExpertise count = %d, want 0", len(snap.LanguageExpertise))
+	}
+	if snap.TechnicalExpertise == nil {
+		t.Error("TechnicalExpertise is nil, want empty collection")
+	}
+	if len(snap.TechnicalExpertise) != 0 {
+		t.Errorf("TechnicalExpertise count = %d, want 0", len(snap.TechnicalExpertise))
 	}
 }
 
@@ -167,7 +247,14 @@ func TestSnapshot_UnchangedAfterSourceRecordsModified(t *testing.T) {
 	defer db.Close()
 
 	f := seedFixtures(t, db, "asg_tenant_a")
-	db.Exec(`UPDATE candidates SET name = 'Original Name', skills = 'Original Skills' WHERE id = $1`, f.candidateID)
+	db.Exec(`UPDATE candidates SET name = 'Original Name' WHERE id = $1`, f.candidateID)
+	_, err := db.Exec(`INSERT INTO candidate_expertise
+		(tenant_id, candidate_id, skill, category, proficiency_level)
+		VALUES ($1, $2, 'Go', 'Programming', 'Advanced')`,
+		"asg_tenant_a", f.candidateID)
+	if err != nil {
+		t.Fatalf("insert original candidate expertise failed: %v", err)
+	}
 	db.Exec(`UPDATE requirements SET title = 'Original Title', compensation = 'Original Comp' WHERE id = $1`, f.requirementID)
 
 	svc := NewService(NewPostgresRepository(db), db)
@@ -182,7 +269,8 @@ func TestSnapshot_UnchangedAfterSourceRecordsModified(t *testing.T) {
 	}
 
 	// Now mutate the live source records AFTER the snapshot was taken.
-	db.Exec(`UPDATE candidates SET name = 'Changed Name', skills = 'Changed Skills' WHERE id = $1`, f.candidateID)
+	db.Exec(`UPDATE candidates SET name = 'Changed Name' WHERE id = $1`, f.candidateID)
+	db.Exec(`UPDATE candidate_expertise SET proficiency_level = 'Expert' WHERE candidate_id = $1 AND skill = 'Go'`, f.candidateID)
 	db.Exec(`UPDATE requirements SET title = 'Changed Title', compensation = 'Changed Comp' WHERE id = $1`, f.requirementID)
 
 	// Advance the assignment further (interviewing) to prove later
@@ -194,8 +282,13 @@ func TestSnapshot_UnchangedAfterSourceRecordsModified(t *testing.T) {
 
 	var candSnap CandidateSnapshotData
 	json.Unmarshal(a.CandidateSnapshot, &candSnap)
-	if candSnap.Name != "Original Name" || candSnap.Skills != "Original Skills" {
-		t.Errorf("candidate snapshot changed after source edit: name=%q skills=%q, want original values", candSnap.Name, candSnap.Skills)
+	if candSnap.Name != "Original Name" {
+		t.Errorf("candidate snapshot changed after source edit: name=%q, want original value", candSnap.Name)
+	}
+	if len(candSnap.TechnicalExpertise) != 1 ||
+		candSnap.TechnicalExpertise[0].Skill != "Go" ||
+		candSnap.TechnicalExpertise[0].ProficiencyLevel != "Advanced" {
+		t.Errorf("candidate technical expertise snapshot changed after source edit: %+v", candSnap.TechnicalExpertise)
 	}
 
 	var reqSnap RequirementSnapshotData
@@ -383,5 +476,3 @@ func TestSnapshot_CrossTenantSubmissionDoesNotLeakOrCapture(t *testing.T) {
 		t.Error("Tenant B's assignment was snapshotted by a cross-tenant Tenant A submission attempt")
 	}
 }
-
-var _ = sql.ErrNoRows // keep database/sql import even if future edits trim direct usage above
