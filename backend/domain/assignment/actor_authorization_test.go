@@ -1,6 +1,7 @@
 package assignment
 
 import (
+	"database/sql"
 	"errors"
 	"testing"
 )
@@ -87,9 +88,7 @@ func TestChangeOwner_CrossTenantActorIsRejected(t *testing.T) {
 	}
 }
 
-func auditEventCount(t *testing.T, db interface {
-	QueryRow(query string, args ...interface{}) interface{ Scan(dest ...interface{}) error }
-}, tenantID string, entityID int) int {
+func auditEventCount(t *testing.T, db *sql.DB, tenantID string, entityID int) int {
 	t.Helper()
 
 	// Kept as a small local query helper so these regression tests verify the
