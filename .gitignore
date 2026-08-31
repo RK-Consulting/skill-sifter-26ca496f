@@ -33,3 +33,4 @@ backend/storage/resumes/
 
 # Backend build artifacts — never commit these
 backend/skillsifter
+backend/skill-sifter.exe

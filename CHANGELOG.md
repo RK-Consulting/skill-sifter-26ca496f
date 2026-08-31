@@ -4,6 +4,18 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-08-23
+
+### Added
+- Local, recruiter-assisted resume ingestion and search foundation, including resume metadata, extracted skills, activity records, and configurable local Ollama connectivity.
+- A V1 architecture and product-scope baseline, Codex engineering rules, ADR process, and a v0.4 architecture-foundation backlog.
+
+### Changed
+- The repository's current baseline is designated v0.3.0. v0.4.0 is reserved for the architecture-foundation milestone and is not a feature release.
+
+### Known limitations
+- The v0.4 backlog records unresolved tenant identity, migration, RBAC, and domain-model decisions. No later-milestone product feature is implied by this baseline.
+
 ## [0.2.0] - 2026-08-02
 
 ### Added

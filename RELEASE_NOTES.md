@@ -1,4 +1,6 @@
-# SkillSifter v0.2.0
+# SkillSifter v0.3.0
+
+This release designates the current repository baseline as v0.3.0 and includes the existing recruiter-assisted resume/AI foundation. The following v0.2.0 hardening work remains part of the baseline.
 
 This release hardens the v0.1.0 baseline: real role-based access control, a working test suite for the first time, and — critically — several core features (Candidates, Jobs, Daily Tasks) that were silently broken and are now fixed and verified.
 

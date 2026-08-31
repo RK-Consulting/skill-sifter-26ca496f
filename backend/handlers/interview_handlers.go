@@ -10,24 +10,26 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// GetInterviews retrieves all interviews for a company
+// GetInterviews retrieves all interviews for the authenticated tenant.
+// Scoped by tenant_id (ADR 0001), not company_name.
 func GetInterviews(w http.ResponseWriter, r *http.Request) {
-	// Get company name from context
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 
 	interviews := []models.Interview{}
-	rows, err := db.DB.Query("SELECT * FROM interviews WHERE company_name = $1", companyName)
+	rows, err := db.DB.Query(`
+		SELECT id, candidate_id, candidate_name, position, interview_date,
+			status, feedback, last_modified, tenant_id, company_name
+		FROM interviews WHERE tenant_id = $1`, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching interviews")
 		return
 	}
 	defer rows.Close()
 
-	// Scan rows into interviews slice
 	for rows.Next() {
 		var i models.Interview
 		err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position,
-			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.CompanyName)
+			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.TenantID, &i.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
 			return
@@ -42,7 +44,9 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetInterviewByID retrieves a single interview by ID
+// GetInterviewByID retrieves a single interview by ID, scoped to the
+// authenticated tenant. An interview ID belonging to another tenant returns
+// 404, identically to a nonexistent ID (ADR 0001).
 func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -51,16 +55,17 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get company name from context
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 
 	var interview models.Interview
-	err = db.DB.QueryRow(
-		"SELECT * FROM interviews WHERE id = $1 AND company_name = $2",
-		id, companyName,
+	err = db.DB.QueryRow(`
+		SELECT id, candidate_id, candidate_name, position, interview_date,
+			status, feedback, last_modified, tenant_id, company_name
+		FROM interviews WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
 	).Scan(&interview.ID, &interview.CandidateID, &interview.CandidateName, &interview.Position,
 		&interview.InterviewDate, &interview.Status, &interview.Feedback,
-		&interview.LastModified, &interview.CompanyName)
+		&interview.LastModified, &interview.TenantID, &interview.CompanyName)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Interview not found")
@@ -74,7 +79,8 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// ScheduleInterview creates a new interview
+// ScheduleInterview creates a new interview under the authenticated tenant.
+// tenant_id is always derived from context, never from the request payload.
 func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	var interview models.Interview
 	err := json.NewDecoder(r.Body).Decode(&interview)
@@ -84,17 +90,17 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Set company name from the authenticated user
+	interview.TenantID = r.Context().Value("tenantID").(string)
 	interview.CompanyName = r.Context().Value("companyName").(string)
 
-	// Insert interview into database
 	var id int
 	err = db.DB.QueryRow(
-		`INSERT INTO interviews (candidate_id, candidate_name, position, interview_date, status, feedback, company_name) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7) 
+		`INSERT INTO interviews (candidate_id, candidate_name, position, interview_date, status, feedback, tenant_id, company_name) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
 		RETURNING id`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
-		interview.InterviewDate, interview.Status, interview.Feedback, interview.CompanyName,
+		interview.InterviewDate, interview.Status, interview.Feedback,
+		interview.TenantID, interview.CompanyName,
 	).Scan(&id)
 
 	if err != nil {
@@ -111,7 +117,9 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// UpdateInterview updates an existing interview
+// UpdateInterview updates an existing interview, scoped to the
+// authenticated tenant. An interview ID belonging to another tenant affects
+// zero rows.
 func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -128,23 +136,28 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Ensure company name matches authenticated user's company
-	interview.CompanyName = r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
+	interview.TenantID = tenantID
 	interview.ID = id
 
-	// Update interview in database
-	_, err = db.DB.Exec(
+	result, err := db.DB.Exec(
 		`UPDATE interviews 
 		SET candidate_id = $1, candidate_name = $2, position = $3, interview_date = $4, 
 			status = $5, feedback = $6, last_modified = NOW() 
-		WHERE id = $7 AND company_name = $8`,
+		WHERE id = $7 AND tenant_id = $8`,
 		interview.CandidateID, interview.CandidateName, interview.Position,
 		interview.InterviewDate, interview.Status, interview.Feedback,
-		interview.ID, interview.CompanyName,
+		interview.ID, tenantID,
 	)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating interview")
+		return
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		respondWithError(w, http.StatusNotFound, "Interview not found")
 		return
 	}
 
@@ -155,7 +168,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteInterview deletes an interview
+// DeleteInterview deletes an interview, scoped to the authenticated tenant.
 func DeleteInterview(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -164,13 +177,11 @@ func DeleteInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get company name from context
-	companyName := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 
-	// Delete interview from database
 	result, err := db.DB.Exec(
-		"DELETE FROM interviews WHERE id = $1 AND company_name = $2",
-		id, companyName,
+		"DELETE FROM interviews WHERE id = $1 AND tenant_id = $2",
+		id, tenantID,
 	)
 
 	if err != nil {

@@ -49,7 +49,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 |---|---|
 | `main` (`main.go`) | Wires up the router, middleware chain, CORS policy, and starts the HTTP server. |
 | `auth` | JWT issuance/validation (`golang-jwt/jwt/v5`), `AuthMiddleware` (validates bearer tokens), `RoleMiddleware` (role allow-listing). |
-| `db` | Database connection setup (`InitDB`), schema bootstrap (`InitializeSchema`), and environment variable helpers. |
+| `db` | Database connection setup (`InitDB`), schema migration (`ApplyMigrations`), and environment variable helpers. |
 | `handlers` | One file per resource (`candidate_handlers.go`, `job_handlers.go`, `interview_handlers.go`, `daily_job_handlers.go`, `business_dev_handlers.go`, `auth_handlers.go`, `report_handler.go`) plus `common.go` for shared JSON response helpers. |
 | `models` | Plain Go structs for every resource, plus response envelopes (`ApiResponse`, `TokenResponse`, report DTOs). |
 
@@ -64,7 +64,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 
 ### 3.3 Data tier
 
-Single PostgreSQL database (`backend/database/schema.sql`), initialized automatically on backend startup via `db.InitializeSchema()` (idempotent `CREATE TABLE IF NOT EXISTS` statements) and also mountable directly into the Postgres container as an init script in Docker Compose.
+Single PostgreSQL database, initialized automatically on backend startup via `db.ApplyMigrations()` (which runs ordered SQL migrations from `backend/database/migrations/`) — the migration sequence is the authoritative schema definition.
 
 Core tables: `companies`, `roles`, `users`, `candidates`, `jobs`, `daily_jobs`, `interviews`, `business_dev`. See §5 for the tenancy model and §6 for the full entity diagram.
 
@@ -115,7 +115,7 @@ Three containers, orchestrated via `docker-compose.yml`:
 
 | Service | Image / Build | Notes |
 |---|---|---|
-| `postgres` | `postgres:15-alpine` | Persists to a named volume (`pgdata`); mounts `schema.sql` as a Docker init script; has a healthcheck (`pg_isready`) gating backend startup. |
+| `postgres` | `postgres:15-alpine` | Persists to a named volume (`pgdata`); has a healthcheck (`pg_isready`) gating backend startup. Schema is initialized by the backend via migrations on startup. |
 | `backend` | Built from `backend/Dockerfile` (`golang:1.21-alpine`) | Compiles `main.go` to a binary and runs it directly; waits for Postgres to be healthy. |
 | `frontend` | Built from root `Dockerfile` (multi-stage: `node:18-alpine` build → `nginx:alpine` serve) | Vite build output served by Nginx; Nginx config adds gzip and a SPA `try_files` fallback so client-side routing works on refresh. |
 
