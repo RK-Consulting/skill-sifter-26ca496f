@@ -54,12 +54,17 @@ func newCorrelationID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// recordAuditEventTx inserts one audit_events row within tx. tenantID and
-// actorUserID must always come from authenticated context — this function
-// has no way to enforce that itself (it just writes what it's given), so
-// every caller in this package is responsible for that, matching how
-// tenant/actor identity is handled everywhere else in this codebase (see
-// #33/#34: never accepted from request payloads).
+// recordAuditEventTx inserts one audit_events row within tx. Before writing,
+// it verifies that actorUserID belongs to tenantID. This is a defense-in-depth
+// check at the audit boundary: TransitionAssignment and ChangeOwner perform
+// their mutations in the same transaction, so an invalid cross-tenant actor
+// causes the audit write to fail and the caller's transaction to roll back,
+// leaving both the mutation and audit trail unchanged.
+//
+// tenantID and actorUserID must still come from authenticated request context;
+// this check does not replace authentication or future role-based
+// authorization. It enforces the ADR 0003 tenant-membership invariant for
+// every assignment audit event emitted by this package.
 //
 // metadata is marshaled to JSON here; pass a small struct or map — never
 // an entire Assignment/Candidate/Requirement (ADR 0006 section 3
@@ -71,6 +76,14 @@ func newCorrelationID() (string, error) {
 // is how that's enforced at the application layer, consistent with how
 // the table's own migration comment documents this.
 func recordAuditEventTx(tx *sql.Tx, tenantID string, actorUserID int, entityID int, action AuditAction, correlationID string, metadata interface{}) error {
+	var actorExists bool
+	if err := tx.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2)`, actorUserID, tenantID).Scan(&actorExists); err != nil {
+		return err
+	}
+	if !actorExists {
+		return ErrUserNotFound
+	}
+
 	metadataJSON, err := json.Marshal(metadata)
 	if err != nil {
 		return err
