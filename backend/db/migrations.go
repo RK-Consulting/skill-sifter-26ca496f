@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"crypto/sha256"
-	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -261,7 +260,3 @@ func applySchemaDefinition(f schemaDefinition) error {
 
 	return nil
 }
-
-// Keep database/sql referenced for callers/tests that use the package's DB
-// type without importing database/sql themselves.
-var _ *sql.DB
