@@ -17,7 +17,7 @@ import (
 // Migrations are ordered by their numeric filename prefix, recorded in
 // schema_migrations, and protected by content checksums. Concurrent
 // application startups are serialized with a PostgreSQL advisory lock.
-var migrationSeqPattern = regexp.MustCompile(`^(\d+)_`)
+var migrationSeqPattern = regexp.MustCompile(`^(\\d+)_`)
 
 const migrationLockKey = "skill-sifter:migrations"
 
