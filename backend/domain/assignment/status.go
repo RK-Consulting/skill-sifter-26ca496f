@@ -2,10 +2,8 @@ package assignment
 
 import "fmt"
 
-// Status is the Recruitment Assignment lifecycle state, per ADR 0003
-// section 4. It is intentionally its own type (not a bare string) so the
-// compiler catches accidental use of an arbitrary string where a validated
-// Status is expected.
+// Status is the Recruitment Assignment lifecycle state defined by ADR 0003.
+// It is intentionally distinct from candidate master status.
 type Status string
 
 const (
@@ -19,9 +17,6 @@ const (
 	StatusWithdrawn    Status = "withdrawn"
 )
 
-// allStatuses is the complete, closed set of valid values — must stay in
-// sync with the recruitment_assignments_status_valid CHECK constraint in
-// 008_recruitment_assignment_domain.sql.
 var allStatuses = map[Status]bool{
 	StatusDraft:        true,
 	StatusScreening:    true,
@@ -33,44 +28,38 @@ var allStatuses = map[Status]bool{
 	StatusWithdrawn:    true,
 }
 
-// terminalStatuses are the outcomes ADR 0003 section 4 designates as
-// terminal: they must not be moved backward through ordinary API
-// operations.
 var terminalStatuses = map[Status]bool{
 	StatusJoined:    true,
 	StatusRejected:  true,
 	StatusWithdrawn: true,
 }
 
-// allowedTransitions encodes ADR 0003 section 4's transition table exactly.
-// This is the single source of truth for what transitions are legal — no
-// other code (handlers, services) should independently decide this.
+// allowedTransitions is the single authoritative workflow matrix.
+// Business outcomes are explicit; no generic back-transition is permitted.
 var allowedTransitions = map[Status][]Status{
 	StatusDraft:        {StatusScreening},
 	StatusScreening:    {StatusSubmitted, StatusRejected, StatusWithdrawn},
 	StatusSubmitted:    {StatusInterviewing, StatusRejected, StatusWithdrawn},
 	StatusInterviewing: {StatusOffered, StatusRejected, StatusWithdrawn},
 	StatusOffered:      {StatusJoined, StatusRejected, StatusWithdrawn},
-	StatusJoined:       {}, // terminal
-	StatusRejected:     {}, // terminal
-	StatusWithdrawn:    {}, // terminal
+	StatusJoined:       {},
+	StatusRejected:     {},
+	StatusWithdrawn:    {},
 }
 
-// Valid reports whether s is one of the closed set of known statuses.
 func (s Status) Valid() bool {
 	return allStatuses[s]
 }
 
-// IsTerminal reports whether s is a terminal outcome (ADR 0003 section 4).
 func (s Status) IsTerminal() bool {
 	return terminalStatuses[s]
 }
 
-// CanTransition reports whether moving from `from` to `to` is a legal
-// transition per ADR 0003 section 4. This is the conceptual
-// `CanTransition(from, to) bool` mechanism: the one place that knows the
-// workflow rules, so handlers and other callers never need to.
+// CanTransition is the single source of truth for legal assignment transitions.
 func CanTransition(from, to Status) bool {
+	if !from.Valid() || !to.Valid() {
+		return false
+	}
 	for _, allowed := range allowedTransitions[from] {
 		if allowed == to {
 			return true
@@ -79,10 +68,15 @@ func CanTransition(from, to Status) bool {
 	return false
 }
 
-// TransitionError describes why a requested transition was rejected. It
-// carries the attempted from/to so callers (eventually HTTP handlers) can
-// render a specific, useful error without re-deriving the workflow logic
-// themselves.
+// AllowedTransitions returns a copy of the legal target states for from.
+// Returning a copy prevents callers from mutating the workflow definition.
+func AllowedTransitions(from Status) []Status {
+	allowed := allowedTransitions[from]
+	result := make([]Status, len(allowed))
+	copy(result, allowed)
+	return result
+}
+
 type TransitionError struct {
 	From   Status
 	To     Status
