@@ -12,17 +12,12 @@ const (
 	maxLimit     = 100
 )
 
-// Pagination describes the bounded pagination contract for V1 collection APIs.
-// Page is 1-based and Limit is capped server-side.
 type Pagination struct {
 	Page  int `json:"page"`
 	Limit int `json:"limit"`
 	Total int `json:"total"`
 }
 
-// PaginatedResponse is the additive V1 response shape for collection APIs.
-// It preserves the existing success/message/data envelope and adds pagination
-// metadata without breaking existing response consumers.
 type PaginatedResponse struct {
 	Success    bool        `json:"success"`
 	Message    string      `json:"message"`
@@ -30,9 +25,9 @@ type PaginatedResponse struct {
 	Pagination Pagination  `json:"pagination"`
 }
 
-// parsePagination applies the canonical V1 page/limit contract.
-// Missing parameters use safe defaults. Invalid or out-of-range values are
-// rejected instead of silently changing the caller's requested page.
+// parsePagination applies the canonical V1 page/limit contract. Missing
+// parameters use safe defaults; invalid values and offsets that cannot be
+// represented by the platform int type are rejected.
 func parsePagination(r *http.Request) (Pagination, error) {
 	page := defaultPage
 	limit := defaultLimit
@@ -51,6 +46,11 @@ func parsePagination(r *http.Request) (Pagination, error) {
 			return Pagination{}, fmt.Errorf("limit must be between 1 and %d", maxLimit)
 		}
 		limit = parsed
+	}
+
+	maxInt := int(^uint(0) >> 1)
+	if page > ((maxInt / limit) + 1) {
+		return Pagination{}, fmt.Errorf("page is too large")
 	}
 
 	return Pagination{Page: page, Limit: limit}, nil
