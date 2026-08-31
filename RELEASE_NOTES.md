@@ -1,36 +1,148 @@
-# SkillSifter v0.3.0
+# SkillSifter v0.4.0
 
-This release designates the current repository baseline as v0.3.0 and includes the existing recruiter-assisted resume/AI foundation. The following v0.2.0 hardening work remains part of the baseline.
+## Recruitment Assignment State Machine
 
-This release hardens the v0.1.0 baseline: real role-based access control, a working test suite for the first time, and — critically — several core features (Candidates, Jobs, Daily Tasks) that were silently broken and are now fixed and verified.
+SkillSifter v0.4.0 is a significant backend maturity release focused on recruitment assignment workflow integrity, tenant isolation, candidate expertise, audit enforcement, and automated CI.
+
+The release establishes recruitment assignments as a controlled domain workflow rather than a loosely coordinated set of handler operations. State transitions, authorization boundaries, snapshots, and audit behavior are now explicitly protected and covered by regression tests.
 
 ## Highlights
 
-**Candidates, Jobs, and Daily Tasks are now genuinely functional.** Each had a different root cause — a stale schema mismatch, a scan-count bug introduced by this release's own RBAC migration, and a missing API route respectively — but the practical effect was the same: core parts of the app appeared to work but silently failed. All three are now fixed and confirmed working end to end.
+**Recruitment assignment state machine.**
 
-**Role-based access control is real, not just data.** Previously, the `roles` table defined permissions that were never actually checked in code. This release adds a real delete/edit hierarchy (an Admin can never be removed, by anyone; a Manager can only be removed by an Admin) and scopes job management to Manager/Admin roles, matching the permissions the system always claimed to enforce.
+- Formalized the recruitment assignment lifecycle and valid state transitions.
+- Enforced state-transition rules through the assignment domain.
+- Prevented invalid or unsupported assignment transitions.
+- Strengthened assignment state and snapshot handling.
+- Added regression coverage for transition behavior and state integrity.
 
-**The Dashboard's Recent Activity is real data.** It previously showed the same three fabricated entries to every user, regardless of what had actually happened in their account. It now shows real, timestamp-sorted events from across candidates, jobs, business development, daily tasks, and interviews.
+**Tenant-aware assignment authorization.**
 
-**There is now a real, working test gate.** Zero automated tests existed before this release. `infra/scripts/test.sh` runs the full backend (format, vet, build, test) and frontend (lint, test, build) suite in one command, and `deploy.sh` now runs this gate automatically before ever touching the live service — a broken deploy is refused, not shipped.
+- Assignment actors are explicitly validated against the assignment tenant.
+- Cross-tenant assignment actors are rejected.
+- Tenant isolation is enforced at the assignment domain boundary.
+- Prevents an actor belonging to another tenant from being used in assignment operations.
+
+**Audit integrity.**
+
+- Assignment audit records enforce tenant-aware actor relationships.
+- Audit operations validate that the actor belongs to the same tenant as the assignment.
+- Added regression coverage for cross-tenant audit actors.
+- Strengthened the assignment history so audit events cannot be associated with an unauthorized tenant actor.
+
+**Candidate expertise model.**
+
+- Added generic candidate technical expertise support.
+- Added candidate language expertise support.
+- Added proficiency frameworks and proficiency levels.
+- Added tenant-aware persistence for candidate expertise.
+- Added uniqueness constraints and supporting indexes.
+- Removed obsolete candidate expertise columns in favor of dedicated expertise tables.
+
+**Candidate status.**
+
+Candidate status is now explicitly constrained to:
+
+- `active`
+- `inactive`
+- `blacklisted`
+- `archived`
+
+Invalid candidate status values are rejected at the database level.
+
+## Database
+
+Migration `009_candidate_expertise.sql` introduces the new candidate expertise model and removes the obsolete `jlptlanguage` and `skills` candidate columns.
+
+New tables:
+
+- `candidate_language_expertise`
+- `candidate_expertise`
+
+The new expertise tables are tenant-aware, reference the candidate and company, enforce uniqueness, and include indexes for tenant/candidate access. fileciteturn441file0L2-L10
 
 ## Security
 
-- The JWT signing secret was still hardcoded in source, despite having been "fixed" in an earlier commit — the actual code change had never been applied. This is now genuinely fixed, and the exposed secret has been rotated.
-- A `.env` file containing a leaked secret value had been accidentally committed to the repository; it has been removed and `.gitignore` corrected.
+- Assignment actors are tenant-scoped.
+- Cross-tenant assignment actors are rejected.
+- Assignment audit actors are tenant-scoped.
+- Cross-tenant audit relationships are rejected.
+- Candidate expertise persistence is tenant-scoped.
 
-## Known limitations in this release
+## Testing & CI
 
-Being upfront about what's still broken or unfinished, rather than implying full coverage:
+The release includes expanded automated regression coverage across:
 
-- The candidate-sources report (`/api/reports/sources`) currently errors — it references a database column that doesn't exist.
-- Interview display and scheduling have not yet been verified working.
-- The Dashboard's Hiring Trend chart, Candidate Sources chart, and Recruitment Pipeline widget are not yet wired to real data.
-- CORS origins are still largely hardcoded in source, not environment-configurable.
-- There is no automated CI (e.g. GitHub Actions) — the test gate is real, but currently run manually rather than triggered automatically on push.
+- Assignment domain services
+- Assignment state transitions
+- Assignment snapshots
+- Assignment handlers
+- Candidate handlers
+- Tenant isolation
+- Assignment actor authorization
+- Assignment audit enforcement
 
-See [CHANGELOG.md](CHANGELOG.md) for the complete, itemized list of changes.
+### Backend CI
 
-## Upgrade notes
+GitHub Actions validates:
 
-This release includes three new database migrations (skill aliases, job ownership, candidates timestamp), applied automatically by `deploy.sh` in order. No manual database steps are required.
+- Go formatting
+- `go build ./...`
+- `go vet ./...`
+- `go test ./...`
+
+### Frontend CI
+
+GitHub Actions validates:
+
+- dependency installation with `npm ci`
+- ESLint
+- Vitest
+- production build
+
+Backend and frontend CI are maintained as separate workflows so each side of the application has an independent, maintainable verification pipeline.
+
+## Verification
+
+The v0.4.0 implementation passed the local verification gate:
+
+- Backend build: PASS
+- Backend vet: PASS
+- Backend tests: PASS
+- Frontend lint: PASS
+- Frontend tests: PASS
+- Frontend production build: PASS
+- GitHub Actions Backend CI: PASS
+- GitHub Actions Frontend CI: PASS
+
+## Release Scope
+
+This release focuses on:
+
+- recruitment assignment domain hardening
+- controlled assignment state transitions
+- tenant isolation
+- assignment actor authorization
+- audit integrity
+- candidate expertise
+- candidate status constraints
+- backend and frontend CI foundations
+
+Continuous deployment is intentionally **not** part of v0.4.0. CD will be introduced separately when the deployment workflow is ready.
+
+## Upgrade Notes
+
+Apply database migrations in the normal migration sequence before using the new candidate expertise functionality.
+
+No special manual application-level migration procedure is required beyond the project's existing migration process.
+
+There is no legacy compatibility or data migration for the obsolete candidate `jlptlanguage` and `skills` columns; the new expertise model is the authoritative representation.
+
+## Release Reference
+
+- Version: `v0.4.0`
+- Release date: `2026-08-31`
+- Release target: `main`
+- Feature milestone: Recruitment Assignment State Machine
+
+See [CHANGELOG.md](CHANGELOG.md) for the itemized change history.
