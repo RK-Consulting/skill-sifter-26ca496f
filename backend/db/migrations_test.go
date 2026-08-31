@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -30,13 +31,18 @@ func setupMigrationsTestDB(t *testing.T) *sql.DB {
 		t.Skipf("skipping migration runner test: could not open test DB connection: %v", err)
 	}
 	if err := testDB.Ping(); err != nil {
+		testDB.Close()
 		t.Skipf("skipping migration runner test: test DB not reachable (%v)", err)
 	}
 
 	// Fully reset tracking + any tables the scratch migrations below create,
 	// so each test starts from a clean slate regardless of execution order.
-	testDB.Exec(`DROP TABLE IF EXISTS schema_migrations`)
-	testDB.Exec(`DROP TABLE IF EXISTS migration_runner_probe`)
+	if _, err := testDB.Exec(`DROP TABLE IF EXISTS schema_migrations`); err != nil {
+		t.Fatalf("could not reset schema_migrations: %v", err)
+	}
+	if _, err := testDB.Exec(`DROP TABLE IF EXISTS migration_runner_probe`); err != nil {
+		t.Fatalf("could not reset migration_runner_probe: %v", err)
+	}
 
 	return testDB
 }
@@ -59,7 +65,7 @@ func writeScratchMigration(t *testing.T, dir, filename, sql string) {
 
 // TestApplyMigrations_FreshInstall verifies that on a database with no
 // migration history, every migration file is applied in ascending numeric
-// order and recorded.
+// order, recorded, and assigned a checksum.
 func TestApplyMigrations_FreshInstall(t *testing.T) {
 	testDB := setupMigrationsTestDB(t)
 	defer testDB.Close()
@@ -81,6 +87,14 @@ func TestApplyMigrations_FreshInstall(t *testing.T) {
 		t.Errorf("probe row count = %d, want 1 (migration 002 should have run)", count)
 	}
 
+	var checksumCount int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM schema_migrations WHERE checksum IS NOT NULL`).Scan(&checksumCount); err != nil {
+		t.Fatalf("could not query migration checksums: %v", err)
+	}
+	if checksumCount != 2 {
+		t.Errorf("checksum row count = %d, want 2", checksumCount)
+	}
+
 	applied, err := appliedVersions()
 	if err != nil {
 		t.Fatalf("appliedVersions failed: %v", err)
@@ -92,9 +106,7 @@ func TestApplyMigrations_FreshInstall(t *testing.T) {
 
 // TestApplyMigrations_UpgradeOnlyRunsPending verifies that re-running the
 // migrator after some migrations are already applied only executes the
-// pending ones, and does not re-execute (and thus does not fail on) an
-// already-applied migration whose effects (e.g. CREATE TABLE without IF NOT
-// EXISTS) would error if run twice.
+// pending ones and verifies the checksum of the existing migration.
 func TestApplyMigrations_UpgradeOnlyRunsPending(t *testing.T) {
 	testDB := setupMigrationsTestDB(t)
 	defer testDB.Close()
@@ -107,10 +119,6 @@ func TestApplyMigrations_UpgradeOnlyRunsPending(t *testing.T) {
 		t.Fatalf("first run failed: %v", err)
 	}
 
-	// Add a second migration and a duplicate of the first migration's
-	// CREATE TABLE (without IF NOT EXISTS) — if the runner re-applied
-	// 001 on the second run, this would fail with "relation already
-	// exists". It must not, because 001 is already recorded as applied.
 	writeScratchMigration(t, dir, "002_add_column.sql", `ALTER TABLE migration_runner_probe ADD COLUMN extra TEXT;`)
 
 	if err := applyMigrationsFromDir(dir); err != nil {
@@ -131,9 +139,33 @@ func TestApplyMigrations_UpgradeOnlyRunsPending(t *testing.T) {
 	}
 }
 
+// TestApplyMigrations_ChecksumMismatchFails verifies that an applied
+// migration cannot be changed silently after it has been recorded.
+func TestApplyMigrations_ChecksumMismatchFails(t *testing.T) {
+	testDB := setupMigrationsTestDB(t)
+	defer testDB.Close()
+	DB = testDB
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "001_create_probe.sql")
+	writeScratchMigration(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
+
+	if err := applyMigrationsFromDir(dir); err != nil {
+		t.Fatalf("initial migration run failed: %v", err)
+	}
+
+	if err := os.WriteFile(path, []byte(`CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, changed TEXT);`), 0644); err != nil {
+		t.Fatalf("could not modify migration: %v", err)
+	}
+
+	if err := applyMigrationsFromDir(dir); err == nil {
+		t.Fatal("migration runner accepted modified applied migration")
+	}
+}
+
 // TestDiscoverMigrations_DuplicateSequenceFails verifies that two files
 // claiming the same numeric prefix produce a deterministic error rather
-// than an arbitrary pick (ADR 0007).
+// than an arbitrary pick.
 func TestDiscoverMigrations_DuplicateSequenceFails(t *testing.T) {
 	dir := t.TempDir()
 	writeScratchMigration(t, dir, "003_first.sql", `SELECT 1;`)
@@ -179,5 +211,72 @@ func TestApplyMigrations_FailureStopsAndDoesNotRecord(t *testing.T) {
 	}
 	if exists {
 		t.Error("migration_runner_probe table exists, meaning 002 ran despite 001 failing")
+	}
+}
+
+// TestMigrationLockSerializesRunners verifies that two migration runners
+// cannot enter the protected section at the same time.
+func TestMigrationLockSerializesRunners(t *testing.T) {
+	testDB := setupMigrationsTestDB(t)
+	defer testDB.Close()
+	DB = testDB
+
+	firstEntered := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	secondEntered := make(chan struct{})
+	firstDone := make(chan error, 1)
+	secondDone := make(chan error, 1)
+
+	go func() {
+		firstDone <- withMigrationLock(func() error {
+			close(firstEntered)
+			<-releaseFirst
+			return nil
+		})
+	}()
+
+	select {
+	case <-firstEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first migration runner did not acquire lock")
+	}
+
+	go func() {
+		secondDone <- withMigrationLock(func() error {
+			close(secondEntered)
+			return nil
+		})
+	}()
+
+	select {
+	case <-secondEntered:
+		t.Fatal("second migration runner entered while first still held lock")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	close(releaseFirst)
+
+	select {
+	case err := <-firstDone:
+		if err != nil {
+			t.Fatalf("first migration runner failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("first migration runner did not finish")
+	}
+
+	select {
+	case <-secondEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second migration runner did not acquire lock after first released it")
+	}
+
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("second migration runner failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second migration runner did not finish")
 	}
 }
