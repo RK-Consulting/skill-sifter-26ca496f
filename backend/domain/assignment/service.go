@@ -82,6 +82,29 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	}
 	defer tx.Rollback()
 
+	// Atomically claim the candidate. PostgreSQL locks the candidate row for
+	// the UPDATE, so concurrent attempts against the same candidate cannot
+	// both observe an available engagement.
+	result, err := tx.Exec(`
+		UPDATE candidates
+		SET active_recruitment_engagements = TRUE
+		WHERE id = $1
+		  AND tenant_id = $2
+		  AND status = $3
+		  AND active_recruitment_engagements = FALSE`,
+		input.CandidateID, tenantID, eligibleCandidateStatus,
+	)
+	if err != nil {
+		return nil, err
+	}
+	claimed, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if claimed == 0 {
+		return nil, ErrCandidateAlreadyEngaged
+	}
+
 	err = tx.QueryRow(`
 		INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -90,13 +113,8 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	).Scan(&a.ID, &a.CreatedAt, &a.LastModified)
 	if err != nil {
 		var pqErr *pq.Error
-		if errors.As(err, &pqErr) {
-			switch {
-			case pqErr.Code == "23505":
-				return nil, ErrDuplicateAssignment
-			case pqErr.Code == "23514" && pqErr.Constraint == "candidate_active_recruitment_engagement":
-				return nil, ErrCandidateAlreadyEngaged
-			}
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, ErrDuplicateAssignment
 		}
 		return nil, err
 	}
@@ -262,6 +280,17 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 	}
 	if affected == 0 {
 		return nil, ErrNotFound
+	}
+
+	// Terminal negative/non-active outcomes release the candidate for a
+	// future recruitment engagement in this tenant database.
+	if newStatus == StatusJoined || newStatus == StatusRejected || newStatus == StatusWithdrawn {
+		if _, err := tx.Exec(`
+			UPDATE candidates
+			SET active_recruitment_engagements = FALSE
+			WHERE id = $1 AND tenant_id = $2`, a.CandidateID, tenantID); err != nil {
+			return nil, err
+		}
 	}
 
 	correlationID, err := newCorrelationID()
