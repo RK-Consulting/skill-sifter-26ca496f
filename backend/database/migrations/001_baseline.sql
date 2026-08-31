@@ -1,11 +1,10 @@
--- Create companies/tenants table
+-- SkillSifter initial schema
 CREATE TABLE IF NOT EXISTS companies (
     id VARCHAR(255) PRIMARY KEY,
     name VARCHAR(255) NOT NULL UNIQUE,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Create roles table with predefined roles
 CREATE TABLE IF NOT EXISTS roles (
     id SERIAL PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -13,15 +12,13 @@ CREATE TABLE IF NOT EXISTS roles (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Insert default roles
-INSERT INTO roles (name, permissions, created_at) VALUES 
+INSERT INTO roles (name, permissions, created_at) VALUES
 ('admin', '["all"]', NOW()),
 ('manager', '["manage_candidates", "manage_jobs", "manage_interviews", "view_reports"]', NOW()),
 ('recruiter', '["view_candidates", "add_candidates", "view_jobs", "schedule_interviews"]', NOW()),
 ('team_leader', '["view_candidates", "add_candidates", "view_jobs", "manage_team"]', NOW())
 ON CONFLICT (name) DO NOTHING;
 
--- Create users table with role and company name (changed from company_id)
 CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL,
@@ -32,7 +29,6 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Create candidates table
 CREATE TABLE IF NOT EXISTS candidates (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
@@ -44,13 +40,10 @@ CREATE TABLE IF NOT EXISTS candidates (
     currentctc VARCHAR(100),
     expectedctc VARCHAR(100),
     noticeperiod VARCHAR(100),
-    jlptlanguage VARCHAR(100),
-    skills VARCHAR(100),
     jobdescription VARCHAR(500),
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create jobs table
 CREATE TABLE IF NOT EXISTS jobs (
     id SERIAL PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -64,7 +57,6 @@ CREATE TABLE IF NOT EXISTS jobs (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create daily_jobs table
 CREATE TABLE IF NOT EXISTS daily_jobs (
     id SERIAL PRIMARY KEY,
     jd_no INTEGER NOT NULL,
@@ -75,7 +67,6 @@ CREATE TABLE IF NOT EXISTS daily_jobs (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create interviews table
 CREATE TABLE IF NOT EXISTS interviews (
     id SERIAL PRIMARY KEY,
     candidate_id INTEGER REFERENCES candidates(id),
@@ -88,18 +79,6 @@ CREATE TABLE IF NOT EXISTS interviews (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Create business_dev table. Originally this recreated the table
--- unconditionally ("DROP TABLE IF EXISTS business_dev; CREATE TABLE
--- business_dev (...)") on the assumption this always runs against an
--- empty/fresh database. That assumption is false: on an existing
--- installation upgrading to the new deterministic migration runner (see
--- backend/db/migrations.go), this file executes for the first time against
--- a database that may already have a populated business_dev table (e.g.
--- created by the lazy CREATE TABLE IF NOT EXISTS fallback previously in
--- handlers/business_dev_handlers.go). The DROP would have destroyed that
--- data. Changed to CREATE TABLE IF NOT EXISTS, matching every other
--- statement in this file, so this migration is safe to run against a
--- brand-new database and an existing one alike.
 CREATE TABLE IF NOT EXISTS business_dev (
     id SERIAL PRIMARY KEY,
     client_name VARCHAR(255) NOT NULL,
@@ -112,9 +91,7 @@ CREATE TABLE IF NOT EXISTS business_dev (
     company_name VARCHAR(255) NOT NULL
 );
 
--- Drop unused index
 DROP INDEX IF EXISTS idx_users_role;
--- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_candidates_company ON candidates(company_name);
 CREATE INDEX IF NOT EXISTS idx_jobs_company ON jobs(company_name);
 CREATE INDEX IF NOT EXISTS idx_daily_jobs_company ON daily_jobs(company_name);
