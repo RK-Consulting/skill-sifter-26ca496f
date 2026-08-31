@@ -1,202 +1,542 @@
 # SkillSifter
 
-**Current baseline: v0.3.0** · [Changelog](CHANGELOG.md)
+**Open-source, multi-tenant Applicant Tracking System (ATS) for staffing and recruitment teams.**
 
-The approved V1 target architecture, scope, governance rules, and ADR process are documented in [`docs/architecture/v1-baseline.md`](docs/architecture/v1-baseline.md), [`docs/product/v1-scope.md`](docs/product/v1-scope.md), [`CODEX_ENGINEERING_RULES.md`](CODEX_ENGINEERING_RULES.md), and [`docs/architecture/ADRs/`](docs/architecture/ADRs/). The exact current-release designation is tracked for reconciliation in [`ISSUES.md`](ISSUES.md).
+[![Backend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml)
+[![Frontend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml)
+[![Status](https://img.shields.io/badge/status-active%20development-blue.svg)](#project-status)
 
-SkillSifter is a multi-tenant Applicant Tracking System (ATS) for staffing and recruitment teams. It lets a recruiting company manage candidates, job openings, daily job assignments, interviews, and business-development leads, all scoped per company (tenant) with role-based access control.
+SkillSifter is a full-stack recruitment platform designed to help staffing organizations manage candidates, requirements, recruitment assignments, interviews, and related operational workflows in a secure multi-tenant environment.
 
-The project is a full-stack app: a **React + TypeScript** SPA frontend (in `frontend/`) and a **Go** REST API backend (in `backend/`), backed by **PostgreSQL**.
+The project combines a **Go REST API**, **React + TypeScript frontend**, and **PostgreSQL** database, with automated backend and frontend CI through GitHub Actions.
 
-## Features
+> **Current release:** `v0.3.0`  
+> **Current development:** Recruitment Assignment domain and state-machine work  
+> **Project status:** Active development
 
-Status reflects what's actually verified working as of v0.2.0, not just what's designed — see [`docs/features.md`](docs/features.md) for the full page-by-page audit.
+---
 
-- ✅ **Authentication & Authorization** — JWT-based login/register, role-based access (`admin`, `manager`, `recruiter`, `team_leader`) enforced via middleware, with a delete/edit hierarchy (Admin undeletable, Manager deletable only by Admin)
-- ✅ **Multi-tenancy** — every core resource scoped by `company_name`
-- ✅ **Candidate management** — add, view, update, delete; fields include position, location, experience, CTC, notice period, skills
-- ✅ **Job management** — post and track job openings, scoped to Manager/Admin roles (`manage_jobs` permission)
-- ✅ **Daily job tracking** — assign and track daily tasks, with a real assignee dropdown
-- ✅ **Business development** — track clients, partners, and contacts
-- ✅ **Dashboard: Recent Activity** — real, timestamp-sorted feed across candidates/jobs/business-dev/daily-tasks/interviews
-- ⚠️ **Interview scheduling** — display and scheduling not yet verified working, under investigation
-- ⚠️ **Reports** — Total Candidates works; source-distribution report currently errors (missing schema column); hiring-trend chart wiring not yet confirmed
-- ⚠️ **Dashboard: charts & pipeline** — Hiring Trend chart, Candidate Sources chart, and Recruitment Pipeline widget are not yet wired to real data
-- **Dashboard UI** — built with shadcn/ui, Radix primitives, Tailwind CSS, and Recharts
+## ✨ What is SkillSifter?
 
-## Tech Stack
+SkillSifter is being built as a practical ATS platform for staffing and recruitment organizations.
 
-**Frontend**
-- React 18 + TypeScript
-- Vite (build tool/dev server)
-- React Router
-- TanStack Query (React Query) for data fetching/caching
-- Axios for HTTP requests
-- shadcn/ui + Radix UI + Tailwind CSS
-- React Hook Form + Zod for forms/validation
-- Recharts for charts
+The platform is centered around a few core concepts:
 
-**Backend**
-- Go 1.21
-- `gorilla/mux` for routing
-- `golang-jwt/jwt` for JWT auth
-- `lib/pq` (PostgreSQL driver)
-- `rs/cors` for CORS handling
-- PostgreSQL database
+- **Candidates** — maintain candidate profiles and recruitment information
+- **Requirements** — manage client/job requirements
+- **Recruitment assignments** — connect candidates with requirements through controlled assignment workflows
+- **Candidate expertise** — maintain structured technical and language expertise
+- **Interviews** — manage interview-related recruitment activity
+- **Business development** — maintain recruitment business-development information
+- **Multi-tenancy** — isolate organizational data by tenant
+- **Role-based access control** — control access according to user roles and permissions
+- **Resume processing** — support resume ingestion, parsing and recruiter-assisted search
+- **Auditability** — maintain important operational history and assignment activity
 
-**Infra**
-- Docker & Docker Compose (Postgres + Go API + Nginx-served frontend)
-- Nginx (serves the built frontend, handles SPA routing + gzip/caching)
+The architecture is intentionally modular so individual domains can evolve without turning the application into a tightly coupled monolith.
 
-## Project Structure
+---
 
+## 🚀 Current Capabilities
+
+### Candidate Management
+
+- Candidate creation and management
+- Candidate profile information
+- Tenant-scoped candidate access
+- Candidate status management
+- Structured technical expertise
+- Structured language expertise
+- Resume association
+
+### Recruitment Requirements
+
+- Requirement management
+- Client/requirement domain separation
+- Requirement status lifecycle
+- Structured requirement information
+- Tenant-scoped requirement access
+
+### Recruitment Assignments
+
+The recruitment-assignment domain is currently under active development.
+
+Current work includes:
+
+- Candidate-to-requirement assignment
+- Assignment lifecycle
+- Assignment state transitions
+- Tenant isolation
+- Actor validation
+- Assignment audit records
+- Immutable candidate snapshots
+- Immutable requirement snapshots
+- Transactional state changes
+
+### Resume Intelligence
+
+- Resume ingestion foundation
+- Resume metadata
+- Resume parsing status
+- Extracted technical expertise
+- Recruiter-assisted resume search
+- Local AI/Ollama integration foundation
+
+### Authentication & Authorization
+
+- JWT-based authentication
+- Role-based authorization
+- Tenant-aware access control
+- Protected API routes
+- Administrative user management
+
+### CI
+
+The repository has separate CI pipelines for the two major application layers:
+
+- **Backend CI** — Go formatting, build, `go vet`, and tests
+- **Frontend CI** — dependency installation, ESLint, Vitest tests, and production build
+
+Pull requests targeting `main` are protected by required backend and frontend CI checks.
+
+---
+
+## 🧱 Architecture
+
+SkillSifter follows a modular full-stack architecture:
+
+```text
+┌─────────────────────────────────────────────┐
+│                 Frontend                    │
+│                                             │
+│ React + TypeScript + Vite                   │
+│ React Router + TanStack Query               │
+│ shadcn/ui + Radix UI + Tailwind CSS        │
+└──────────────────────┬──────────────────────┘
+                       │
+                       │ REST / JSON
+                       ▼
+┌─────────────────────────────────────────────┐
+│                  Backend                    │
+│                                             │
+│ Go REST API                                 │
+│ Authentication / Authorization              │
+│ Domain services                             │
+│ Recruitment workflows                       │
+│ Resume processing                           │
+│ Audit / tenant isolation                    │
+└──────────────────────┬──────────────────────┘
+                       │
+                       │ SQL
+                       ▼
+┌─────────────────────────────────────────────┐
+│                PostgreSQL                   │
+│                                             │
+│ Tenant data                                 │
+│ Candidates                                  │
+│ Requirements                                │
+│ Assignments                                 │
+│ Expertise                                   │
+│ Resumes                                     │
+│ Audit data                                  │
+└─────────────────────────────────────────────┘
 ```
+
+Database schema changes are maintained through versioned migrations under:
+
+```text
+backend/database/migrations/
+```
+
+The migration set is treated as the authoritative database schema source.
+
+---
+
+## 🛠️ Technology Stack
+
+### Frontend
+
+- React 18
+- TypeScript
+- Vite
+- React Router
+- TanStack Query
+- Axios
+- shadcn/ui
+- Radix UI
+- Tailwind CSS
+- React Hook Form
+- Zod
+- Recharts
+- Vitest
+
+### Backend
+
+- Go
+- `gorilla/mux`
+- PostgreSQL
+- `lib/pq`
+- JWT authentication
+- CORS
+- Standard Go testing tooling
+
+### Infrastructure
+
+- Docker
+- Docker Compose
+- PostgreSQL
+- Nginx
+- GitHub Actions
+- Linux deployment tooling
+
+---
+
+## 📁 Repository Structure
+
+```text
 .
-├── backend/                  # Go REST API
-│   ├── auth/                 # JWT auth & role middleware
-│   ├── db/                   # DB connection + env helpers + migrations
+├── backend/
+│   ├── auth/                       # Authentication and authorization
+│   ├── db/                         # Database connection and migration support
 │   ├── database/
-│   │   └── migrations/        # Versioned schema migrations (authoritative schema source)
-│   ├── docs/                  # Swagger spec + design doc
-│   ├── handlers/               # HTTP handlers (candidates, jobs, interviews, etc.), with tests
-│   ├── models/                 # Data models
-│   ├── main.go                  # Entry point, routes, server bootstrap
+│   │   └── migrations/             # Authoritative versioned database schema
+│   ├── domain/
+│   │   └── assignment/             # Recruitment assignment domain
+│   ├── handlers/                   # HTTP/API handlers
+│   ├── models/                     # Application data models
+│   ├── docs/                       # Backend API documentation
+│   ├── main.go                     # API entry point
+│   ├── go.mod
 │   └── Dockerfile
-├── frontend/                  # React SPA
+│
+├── frontend/
 │   ├── src/
-│   │   ├── components/         # UI components (dashboard, layout, shadcn ui)
-│   │   ├── hooks/                # Custom hooks
-│   │   ├── pages/                # Route-level pages (Candidates, Jobs, Interviews, Reports, ...)
-│   │   ├── services/             # API client (Axios) + service wrappers
-│   │   └── test/                  # Vitest setup + tests
-│   ├── Dockerfile
-│   ├── nginx.conf
-│   └── package.json
-├── infra/                     # Deployment infrastructure, versioned
-│   ├── nginx/                  # Reverse proxy config
-│   ├── systemd/                 # Service unit
+│   │   ├── components/             # Reusable UI components
+│   │   ├── hooks/                  # React hooks
+│   │   ├── pages/                  # Application pages
+│   │   ├── services/               # API clients/services
+│   │   └── test/                   # Frontend tests
+│   ├── public/
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── vite.config.ts
+│   └── Dockerfile
+│
+├── infra/
+│   ├── nginx/
+│   ├── systemd/
 │   └── scripts/
-│       ├── bootstrap.sh          # One-time server setup
-│       ├── deploy.sh             # Repeatable deploy — runs the test gate first
-│       └── test.sh               # Full backend + frontend test/build gate
-├── docs/                       # Architecture decisions, feature audit
-├── docker-compose.yml           # Postgres + backend + frontend services (local dev)
+│
+├── docs/
+│   ├── architecture/
+│   ├── product/
+│   └── project/
+│
+├── .github/
+│   └── workflows/
+│       ├── backend-ci.yml
+│       └── frontend-ci.yml
+│
+├── docker-compose.yml
 ├── CHANGELOG.md
+├── CONTRIBUTING.md
+├── CODE_OF_CONDUCT.md
 └── README.md
 ```
 
-## API Overview
+---
 
-The backend exposes a JSON REST API (mounted both at root and under `/api` for compatibility).
+## ⚡ Getting Started
 
-**Public routes**
-- `GET /`, `GET /api` — API welcome message
-- `GET /health-check`, `GET /ping` — health checks
-- `POST /auth/register` — register a new user
-- `POST /auth/login` — log in, returns a JWT
+### Prerequisites
 
-**Protected routes** (require `Authorization: Bearer <token>`)
-- `GET/POST /api/candidates`, `GET/PUT/DELETE /api/candidates/{id}`
-- `GET/POST /api/jobs`, `GET/PUT/DELETE /api/jobs/{id}`
-- `GET/POST /api/daily-jobs`, `GET/PUT/DELETE /api/daily-jobs/{id}`
-- `GET/POST /api/interviews`, `GET/PUT/DELETE /api/interviews/{id}`
-- `GET/POST /api/business-dev`, `GET/PUT/DELETE /api/business-dev/{id}`
-- `GET /api/reports/hiring`, `GET /api/reports/sources`
+For local development:
 
-**Admin-only routes** (role: `admin`)
-- `GET/POST /api/admin/users`, `PUT/DELETE /api/admin/users/{id}`
+- Go
+- Node.js
+- npm
+- PostgreSQL
 
-A Swagger spec is available at `backend/docs/swagger.yaml`.
+Docker is recommended for running the complete application stack.
 
-## Data Model
+### Option 1 — Docker Compose
 
-Core tables (defined in `backend/database/migrations/`):
-- `companies` — tenants
-- `roles` — predefined roles with permission sets
-- `users` — belongs to a company, has a role
-- `candidates`, `jobs`, `daily_jobs`, `interviews`, `business_dev` — all scoped by `company_name`
-
-## Getting Started
-
-### Option 1: Docker Compose (recommended)
-
-This spins up Postgres, the Go API, and the Nginx-served frontend together.
-
-```sh
-git clone <this-repo-url>
+```bash
+git clone https://github.com/RK-Consulting/skill-sifter-26ca496f.git
 cd skill-sifter-26ca496f
+
 docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
-- Backend API: http://localhost:8080
-- Postgres: localhost:5432 (db: `skillsifter`, user/pass: `postgres`/`postgres`)
+The application stack consists of:
 
-The Postgres container starts with an empty database; the Go backend applies all migrations from `backend/database/migrations/` on startup via `db.ApplyMigrations()`.
+```text
+Frontend → Nginx
+              ↓
+          Go API
+              ↓
+         PostgreSQL
+```
 
-> Note: the `docker-compose.yml` frontend build sets `VITE_API_URL=https://api.skillsifter.in` by default — override this env var for local development if you want the containerized frontend to talk to your local backend instead.
+### Option 2 — Run Backend Locally
 
-### Option 2: Run locally without Docker
-
-**Prerequisites:** Node.js & npm, Go 1.21+, PostgreSQL.
-
-**Backend**
-```sh
+```bash
 cd backend
-# Set env vars (or rely on defaults in db/env.go), e.g.:
-export DB_HOST=localhost
-export DB_PORT=5432
-export DB_USER=postgres
-export DB_PASSWORD=postgres
-export DB_NAME=skillsifter
-export PORT=8080
 
 go mod download
 go run main.go
 ```
-The backend calls `db.InitDB()` and `db.ApplyMigrations()` on startup, so it will create/verify the schema automatically.
 
-**Frontend**
-```sh
+The backend initializes the database and applies the versioned migrations during startup.
+
+### Run Frontend Locally
+
+```bash
 cd frontend
+
 npm install
-# Create a .env file with:
-# VITE_API_URL=http://localhost:8080
 npm run dev
 ```
-The frontend will be available at http://localhost:5173.
 
-## Testing
+The development frontend is served by Vite.
 
-Run the full backend + frontend gate (gofmt, vet, build, test on the backend; lint, test, build on the frontend) in one command:
-```sh
+---
+
+## 🧪 Testing
+
+### Backend
+
+From `backend/`:
+
+```bash
+go build ./...
+go vet ./...
+go test ./...
+```
+
+### Frontend
+
+From `frontend/`:
+
+```bash
+npm ci
+npm run lint
+npm run test
+npm run build
+```
+
+### Full Local Gate
+
+The repository also provides a combined test/build gate:
+
+```bash
 bash infra/scripts/test.sh
 ```
-This is the same gate `deploy.sh` runs automatically before touching the live service on every deploy.
 
-## Configuration
+The goal is simple:
 
-The backend reads configuration from environment variables (with fallbacks defined in `backend/db/env.go`):
+> **If it does not pass locally, it should not pass CI.**
 
-| Variable      | Purpose                        | Default (compose) |
-|---------------|---------------------------------|--------------------|
-| `PORT`        | API server port                | `8080`             |
-| `DB_HOST`     | Postgres host                  | `postgres`         |
-| `DB_PORT`     | Postgres port                  | `5432`             |
-| `DB_USER`     | Postgres user                  | `postgres`         |
-| `DB_PASSWORD` | Postgres password              | `postgres`         |
-| `DB_NAME`     | Postgres database name         | `skillsifter`      |
+---
 
-The frontend reads `VITE_API_URL` at build time to know where the API lives.
+## 🔄 Continuous Integration
 
-## Security Notes
+SkillSifter uses separate GitHub Actions workflows for maintainability.
 
-A few things worth flagging before using this in production:
+### Backend CI
 
-- **JWT secret is hardcoded** in `backend/auth/auth.go` (`skill_sifter_secret_key`). This should be moved to an environment variable before any real deployment.
-- **CORS origins are hardcoded** in `backend/main.go` (`skillsifter.in` domains + localhost). Update as needed for your deployment.
-- A compiled binary (`backend/skillsifter`) appears to be checked into the repo — consider adding it to `.gitignore`.
+```text
+Pull Request / Push
+        ↓
+   Go formatting
+        ↓
+      Build
+        ↓
+       Vet
+        ↓
+      Tests
+        ↓
+       PASS
+```
 
-## License
+Workflow:
 
-No license file is currently present in the repository. Add one (e.g. MIT, Apache-2.0) if you intend to open-source this project.
+```text
+.github/workflows/backend-ci.yml
+```
+
+### Frontend CI
+
+```text
+Pull Request / Push
+        ↓
+     npm ci
+        ↓
+       Lint
+        ↓
+       Test
+        ↓
+      Build
+        ↓
+       PASS
+```
+
+Workflow:
+
+```text
+.github/workflows/frontend-ci.yml
+```
+
+Both checks are required for changes targeting `main`.
+
+---
+
+## 🔐 Development & Branch Protection
+
+The `main` branch is protected.
+
+Changes are expected to follow:
+
+```text
+Feature Branch
+      ↓
+Pull Request
+      ↓
+Backend CI ──────┐
+                 ├──→ All checks pass
+Frontend CI ─────┘
+      ↓
+Review
+      ↓
+Merge
+```
+
+Direct unverified changes to `main` are intentionally restricted.
+
+The project keeps governance lightweight: automation is used where it provides a clear engineering benefit without creating unnecessary process overhead.
+
+---
+
+## 📚 Documentation
+
+Additional project documentation is organized under `docs/`.
+
+Useful areas include:
+
+- Architecture
+- Product scope
+- Architecture decisions
+- Engineering principles
+- Release process
+- Versioning
+- Project backlog
+
+The documentation evolves alongside the implementation.
+
+For API details, see:
+
+```text
+backend/docs/swagger.yaml
+```
+
+---
+
+## 📌 Project Status
+
+SkillSifter is **active development software**.
+
+The project is progressing incrementally toward a production-ready V1 platform.
+
+Current development is focused on strengthening the recruitment domain, particularly:
+
+- Assignment lifecycle
+- Assignment state transitions
+- Candidate/requirement snapshots
+- Tenant isolation
+- Auditability
+- Structured candidate expertise
+- CI enforcement
+
+The repository should therefore be considered **pre-1.0** and subject to API, schema and architectural changes.
+
+---
+
+## 🗺️ Roadmap
+
+The project is being developed in incremental checkpoints rather than attempting to implement the entire product in one release.
+
+Broad priorities include:
+
+- [x] Core ATS foundation
+- [x] Authentication and authorization
+- [x] Multi-tenant foundation
+- [x] Candidate management
+- [x] Requirement domain foundation
+- [x] Structured candidate expertise foundation
+- [x] Recruitment assignment foundation
+- [x] Assignment tenant isolation
+- [x] Assignment audit foundation
+- [x] Backend CI
+- [x] Frontend CI
+- [x] Protected `main`
+- [ ] Complete recruitment assignment state machine
+- [ ] Production hardening
+- [ ] Expanded automated test coverage
+- [ ] V1 release preparation
+- [ ] Production release
+
+The detailed implementation roadmap is maintained separately from this README.
+
+---
+
+## 📦 Releases
+
+SkillSifter follows:
+
+- **Semantic Versioning**
+- **Keep a Changelog**
+- Incremental development checkpoints
+
+See:
+
+- [`CHANGELOG.md`](CHANGELOG.md)
+- [`docs/project/`](docs/project/)
+
+### Current Release
+
+**v0.3.0**
+
+The current development branch contains work beyond the last documented release and is intentionally not represented as a new release until the corresponding checkpoint is completed and released.
+
+---
+
+## 🤝 Contributing
+
+Contributions, bug reports and engineering discussions are welcome.
+
+Before contributing, please read:
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+
+For architectural changes, review the existing project documentation before introducing new patterns or dependencies.
+
+---
+
+## 📄 License
+
+A project license has not yet been finalized.
+
+Until a license is added to the repository, the source code should not be assumed to be available for unrestricted redistribution or commercial use.
+
+---
+
+## ⭐ Project
+
+**SkillSifter**
+
+An open-source foundation for modern staffing and recruitment operations.
+
+Built with:
+
+**Go · React · TypeScript · PostgreSQL · Docker · GitHub Actions**
