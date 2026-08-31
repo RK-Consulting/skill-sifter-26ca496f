@@ -23,7 +23,8 @@ BEGIN
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'candidate % already has an active recruitment engagement', NEW.candidate_id
-            USING ERRCODE = '23514';
+            USING ERRCODE = '23514',
+                  CONSTRAINT = 'candidate_active_recruitment_engagement';
     END IF;
 
     RETURN NEW;
@@ -39,9 +40,8 @@ FOR EACH ROW
 EXECUTE FUNCTION claim_candidate_recruitment_engagement();
 
 -- Terminal assignment outcomes release the candidate for a future
--- recruitment engagement. Joined is terminal because the recruitment
--- engagement has concluded; rejected and withdrawn are negative terminal
--- outcomes.
+-- recruitment engagement. Joined, rejected and withdrawn are terminal
+-- outcomes in the assignment lifecycle.
 CREATE OR REPLACE FUNCTION release_candidate_recruitment_engagement()
 RETURNS TRIGGER AS $$
 BEGIN
