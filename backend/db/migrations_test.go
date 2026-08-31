@@ -5,15 +5,15 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	_ "github.com/lib/pq"
 )
 
-// setupMigrationsTestDB connects to a real Postgres instance and points the
-// package-level DB at it, mirroring the pattern already used in
-// handlers/candidate_handlers_test.go. Skips (does not fail) if no test
-// database is reachable.
-func setupMigrationsTestDB(t *testing.T) *sql.DB {
+// setupSchemaTestDB connects to a real Postgres instance and points the
+// package-level DB at it. Tests always begin with a clean schema-version table
+// and scratch probe table.
+func setupSchemaTestDB(t *testing.T) *sql.DB {
 	t.Helper()
 
 	host := getenvDefault("TEST_DB_HOST", "localhost")
@@ -27,16 +27,19 @@ func setupMigrationsTestDB(t *testing.T) *sql.DB {
 
 	testDB, err := sql.Open("postgres", connStr)
 	if err != nil {
-		t.Skipf("skipping migration runner test: could not open test DB connection: %v", err)
+		t.Skipf("skipping schema initialization test: could not open test DB connection: %v", err)
 	}
 	if err := testDB.Ping(); err != nil {
-		t.Skipf("skipping migration runner test: test DB not reachable (%v)", err)
+		testDB.Close()
+		t.Skipf("skipping schema initialization test: test DB not reachable (%v)", err)
 	}
 
-	// Fully reset tracking + any tables the scratch migrations below create,
-	// so each test starts from a clean slate regardless of execution order.
-	testDB.Exec(`DROP TABLE IF EXISTS schema_migrations`)
-	testDB.Exec(`DROP TABLE IF EXISTS migration_runner_probe`)
+	if _, err := testDB.Exec(`DROP TABLE IF EXISTS schema_versions`); err != nil {
+		t.Fatalf("could not reset schema_versions: %v", err)
+	}
+	if _, err := testDB.Exec(`DROP TABLE IF EXISTS migration_runner_probe`); err != nil {
+		t.Fatalf("could not reset migration_runner_probe: %v", err)
+	}
 
 	return testDB
 }
@@ -48,29 +51,24 @@ func getenvDefault(key, fallback string) string {
 	return fallback
 }
 
-// writeScratchMigration writes a single migration file into a temp dir for
-// use by these tests, never touching the real migrations directory.
-func writeScratchMigration(t *testing.T, dir, filename, sql string) {
+func writeScratchSchemaDefinition(t *testing.T, dir, filename, sqlText string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, filename), []byte(sql), 0644); err != nil {
-		t.Fatalf("could not write scratch migration %s: %v", filename, err)
+	if err := os.WriteFile(filepath.Join(dir, filename), []byte(sqlText), 0644); err != nil {
+		t.Fatalf("could not write scratch schema definition %s: %v", filename, err)
 	}
 }
 
-// TestApplyMigrations_FreshInstall verifies that on a database with no
-// migration history, every migration file is applied in ascending numeric
-// order and recorded.
-func TestApplyMigrations_FreshInstall(t *testing.T) {
-	testDB := setupMigrationsTestDB(t)
+func TestInitializeSchema_FreshInstall(t *testing.T) {
+	testDB := setupSchemaTestDB(t)
 	defer testDB.Close()
 	DB = testDB
 
 	dir := t.TempDir()
-	writeScratchMigration(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
-	writeScratchMigration(t, dir, "002_seed_probe.sql", `INSERT INTO migration_runner_probe (note) VALUES ('seeded by 002');`)
+	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
+	writeScratchSchemaDefinition(t, dir, "002_seed_probe.sql", `INSERT INTO migration_runner_probe (note) VALUES ('seeded by 002');`)
 
-	if err := applyMigrationsFromDir(dir); err != nil {
-		t.Fatalf("applyMigrationsFromDir failed on fresh install: %v", err)
+	if err := initializeSchemaFromDir(dir); err != nil {
+		t.Fatalf("initializeSchemaFromDir failed on fresh install: %v", err)
 	}
 
 	var count int
@@ -78,99 +76,100 @@ func TestApplyMigrations_FreshInstall(t *testing.T) {
 		t.Fatalf("could not query probe table: %v", err)
 	}
 	if count != 1 {
-		t.Errorf("probe row count = %d, want 1 (migration 002 should have run)", count)
+		t.Errorf("probe row count = %d, want 1", count)
 	}
 
-	applied, err := appliedVersions()
-	if err != nil {
-		t.Fatalf("appliedVersions failed: %v", err)
+	var checksumCount int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM schema_versions WHERE checksum IS NOT NULL`).Scan(&checksumCount); err != nil {
+		t.Fatalf("could not query schema checksums: %v", err)
 	}
-	if !applied[1] || !applied[2] {
-		t.Errorf("appliedVersions = %v, want both 1 and 2 recorded", applied)
+	if checksumCount != 2 {
+		t.Errorf("checksum row count = %d, want 2", checksumCount)
 	}
 }
 
-// TestApplyMigrations_UpgradeOnlyRunsPending verifies that re-running the
-// migrator after some migrations are already applied only executes the
-// pending ones, and does not re-execute (and thus does not fail on) an
-// already-applied migration whose effects (e.g. CREATE TABLE without IF NOT
-// EXISTS) would error if run twice.
-func TestApplyMigrations_UpgradeOnlyRunsPending(t *testing.T) {
-	testDB := setupMigrationsTestDB(t)
+func TestInitializeSchema_OnlyRunsPending(t *testing.T) {
+	testDB := setupSchemaTestDB(t)
 	defer testDB.Close()
 	DB = testDB
 
 	dir := t.TempDir()
-	writeScratchMigration(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
+	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
 
-	if err := applyMigrationsFromDir(dir); err != nil {
+	if err := initializeSchemaFromDir(dir); err != nil {
 		t.Fatalf("first run failed: %v", err)
 	}
 
-	// Add a second migration and a duplicate of the first migration's
-	// CREATE TABLE (without IF NOT EXISTS) — if the runner re-applied
-	// 001 on the second run, this would fail with "relation already
-	// exists". It must not, because 001 is already recorded as applied.
-	writeScratchMigration(t, dir, "002_add_column.sql", `ALTER TABLE migration_runner_probe ADD COLUMN extra TEXT;`)
+	writeScratchSchemaDefinition(t, dir, "002_add_column.sql", `ALTER TABLE migration_runner_probe ADD COLUMN extra TEXT;`)
 
-	if err := applyMigrationsFromDir(dir); err != nil {
-		t.Fatalf("upgrade run (only 002 pending) failed: %v", err)
+	if err := initializeSchemaFromDir(dir); err != nil {
+		t.Fatalf("second run failed: %v", err)
 	}
 
-	applied, err := appliedVersions()
-	if err != nil {
-		t.Fatalf("appliedVersions failed: %v", err)
+	var count int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM schema_versions`).Scan(&count); err != nil {
+		t.Fatalf("could not count schema versions: %v", err)
 	}
-	if len(applied) != 2 || !applied[1] || !applied[2] {
-		t.Errorf("appliedVersions = %v, want exactly {1,2}", applied)
+	if count != 2 {
+		t.Errorf("schema version count = %d, want 2", count)
 	}
 
-	// Restart again with no new files: must be a no-op, not an error.
-	if err := applyMigrationsFromDir(dir); err != nil {
+	if err := initializeSchemaFromDir(dir); err != nil {
 		t.Fatalf("no-op restart failed: %v", err)
 	}
 }
 
-// TestDiscoverMigrations_DuplicateSequenceFails verifies that two files
-// claiming the same numeric prefix produce a deterministic error rather
-// than an arbitrary pick (ADR 0007).
-func TestDiscoverMigrations_DuplicateSequenceFails(t *testing.T) {
-	dir := t.TempDir()
-	writeScratchMigration(t, dir, "003_first.sql", `SELECT 1;`)
-	writeScratchMigration(t, dir, "003_second.sql", `SELECT 2;`)
-
-	_, err := discoverMigrations(dir)
-	if err == nil {
-		t.Fatal("discoverMigrations did not fail on duplicate sequence prefix")
-	}
-}
-
-// TestApplyMigrations_FailureStopsAndDoesNotRecord verifies that a failing
-// migration is not recorded as applied, and that a later migration (which
-// would otherwise succeed) never runs.
-func TestApplyMigrations_FailureStopsAndDoesNotRecord(t *testing.T) {
-	testDB := setupMigrationsTestDB(t)
+func TestInitializeSchema_ChecksumMismatchFails(t *testing.T) {
+	testDB := setupSchemaTestDB(t)
 	defer testDB.Close()
 	DB = testDB
 
 	dir := t.TempDir()
-	writeScratchMigration(t, dir, "001_broken.sql", `SELECT * FROM this_table_does_not_exist;`)
-	writeScratchMigration(t, dir, "002_would_succeed.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
+	path := filepath.Join(dir, "001_create_probe.sql")
+	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
 
-	err := applyMigrationsFromDir(dir)
-	if err == nil {
-		t.Fatal("applyMigrationsFromDir succeeded despite a failing migration")
+	if err := initializeSchemaFromDir(dir); err != nil {
+		t.Fatalf("initial schema initialization failed: %v", err)
 	}
 
-	applied, aerr := appliedVersions()
-	if aerr != nil {
-		t.Fatalf("appliedVersions failed: %v", aerr)
+	if err := os.WriteFile(path, []byte(`CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, changed TEXT);`), 0644); err != nil {
+		t.Fatalf("could not modify schema definition: %v", err)
 	}
-	if applied[1] {
-		t.Error("failed migration 001 was recorded as applied")
+
+	if err := initializeSchemaFromDir(dir); err == nil {
+		t.Fatal("schema initializer accepted modified applied definition")
 	}
-	if applied[2] {
-		t.Error("migration 002 ran despite migration 001 failing first")
+}
+
+func TestDiscoverSchemaDefinitions_DuplicateSequenceFails(t *testing.T) {
+	dir := t.TempDir()
+	writeScratchSchemaDefinition(t, dir, "003_first.sql", `SELECT 1;`)
+	writeScratchSchemaDefinition(t, dir, "003_second.sql", `SELECT 2;`)
+
+	if _, err := discoverSchemaDefinitions(dir); err == nil {
+		t.Fatal("discoverSchemaDefinitions did not fail on duplicate sequence prefix")
+	}
+}
+
+func TestInitializeSchema_FailureStopsAndDoesNotRecord(t *testing.T) {
+	testDB := setupSchemaTestDB(t)
+	defer testDB.Close()
+	DB = testDB
+
+	dir := t.TempDir()
+	writeScratchSchemaDefinition(t, dir, "001_broken.sql", `SELECT * FROM this_table_does_not_exist;`)
+	writeScratchSchemaDefinition(t, dir, "002_would_succeed.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
+
+	if err := initializeSchemaFromDir(dir); err == nil {
+		t.Fatal("initializeSchemaFromDir succeeded despite a failing definition")
+	}
+
+	var count int
+	if err := DB.QueryRow(`SELECT COUNT(*) FROM schema_versions`).Scan(&count); err != nil {
+		t.Fatalf("could not count schema versions: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("schema version count = %d, want 0", count)
 	}
 
 	var exists bool
@@ -178,6 +177,71 @@ func TestApplyMigrations_FailureStopsAndDoesNotRecord(t *testing.T) {
 		t.Fatalf("could not check probe table existence: %v", err)
 	}
 	if exists {
-		t.Error("migration_runner_probe table exists, meaning 002 ran despite 001 failing")
+		t.Error("probe table exists, meaning definition 002 ran despite 001 failing")
+	}
+}
+
+func TestSchemaLockSerializesInitializers(t *testing.T) {
+	testDB := setupSchemaTestDB(t)
+	defer testDB.Close()
+	DB = testDB
+
+	firstEntered := make(chan struct{})
+	releaseFirst := make(chan struct{})
+	secondEntered := make(chan struct{})
+	firstDone := make(chan error, 1)
+	secondDone := make(chan error, 1)
+
+	go func() {
+		firstDone <- withSchemaLock(func() error {
+			close(firstEntered)
+			<-releaseFirst
+			return nil
+		})
+	}()
+
+	select {
+	case <-firstEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("first schema initializer did not acquire lock")
+	}
+
+	go func() {
+		secondDone <- withSchemaLock(func() error {
+			close(secondEntered)
+			return nil
+		})
+	}()
+
+	select {
+	case <-secondEntered:
+		t.Fatal("second schema initializer entered while first still held lock")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	close(releaseFirst)
+
+	select {
+	case err := <-firstDone:
+		if err != nil {
+			t.Fatalf("first schema initializer failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("first schema initializer did not finish")
+	}
+
+	select {
+	case <-secondEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("second schema initializer did not acquire lock after first released it")
+	}
+
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("second schema initializer failed: %v", err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second schema initializer did not finish")
 	}
 }

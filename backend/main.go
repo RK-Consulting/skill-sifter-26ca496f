@@ -90,32 +90,18 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes", handlers.ListResumes).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
-	// Issue #34 / ADR 0002: Client and Requirement domain. New V1 domain work
-	// is introduced under /api/v1 per ADR 0008 ("New V1 endpoints must be
-	// introduced under /api/v1/..."); the existing /api namespace above is
-	// untouched, and `jobs` remains available there unchanged (ADR 0002:
-	// jobs is retained as a temporary compatibility model, not replaced).
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
 	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
-
-	// Issue #35 / ADR 0003 checkpoint 3: HTTP API only. Lifecycle transition
-	// endpoints, snapshot capture, and audit-event writing are explicitly
-	// deferred to later checkpoints — UpdateAssignment here only supports
-	// reassigning owner_user_id (see handlers/assignment_handlers.go).
 	setupResourceRoutes(apiV1, "/assignments", handlers.GetAssignments, managerOnly(handlers.AddAssignment), handlers.GetAssignmentByID, managerOnly(handlers.UpdateAssignment), managerOnly(handlers.DeleteAssignment))
-	// Checkpoint 4: dedicated lifecycle-transition endpoint, deliberately
-	// separate from PUT /assignments/{id} so owner mutation and lifecycle
-	// transition stay two distinct concepts. Snapshot capture and audit
-	// events remain deferred.
 	apiV1.HandleFunc("/assignments/{id}/transition", managerOnly(handlers.TransitionAssignment)).Methods("POST", "OPTIONS")
 }
 func main() {
 	db.InitDB()
 	defer db.DB.Close()
-	if err := db.ApplyMigrations(); err != nil {
-		log.Fatalf("Migration failed: %v", err)
+	if err := db.InitializeSchema(); err != nil {
+		log.Fatalf("Schema initialization failed: %v", err)
 	}
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware)

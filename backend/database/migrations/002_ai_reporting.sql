@@ -1,6 +1,5 @@
--- SkillSifter v0.3.0: reporting + local AI resume ingestion
+-- SkillSifter reporting + local AI resume ingestion
 ALTER TABLE candidates ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
-ALTER TABLE candidates ALTER COLUMN skills TYPE TEXT;
 
 CREATE TABLE IF NOT EXISTS resumes (
     id SERIAL PRIMARY KEY,
