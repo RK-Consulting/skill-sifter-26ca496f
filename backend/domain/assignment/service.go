@@ -14,61 +14,30 @@ import (
 // callers (eventually HTTP handlers) can map each to the right response
 // without string-matching.
 var (
-	ErrCandidateNotFound    = errors.New("candidate not found")
-	ErrCandidateNotEligible = errors.New("candidate is not eligible for a new assignment")
-	ErrRequirementNotFound  = errors.New("requirement not found")
-	ErrUserNotFound         = errors.New("user not found")
+	ErrCandidateNotFound       = errors.New("candidate not found")
+	ErrCandidateNotEligible    = errors.New("candidate is not eligible for a new assignment")
+	ErrCandidateAlreadyEngaged = errors.New("candidate already has an active recruitment engagement")
+	ErrRequirementNotFound     = errors.New("requirement not found")
+	ErrUserNotFound            = errors.New("user not found")
 )
 
-// eligibleCandidateStatus is the only candidate status a new assignment
-// may be created against, per ADR 0004 section 2 ("A candidate in
-// inactive, blacklisted, or archived status is not eligible for a new
-// recruitment submission by default").
 const eligibleCandidateStatus = "active"
 
-// Service enforces the business rules around Assignment creation and
-// retrieval: tenant consistency across candidate/requirement/owner/creator,
-// candidate eligibility, and the no-duplicate-assignment rule (delegated to
-// the repository's database constraint). It is the only place these rules
-// live — Repository knows nothing about them, and future handlers should
-// not reimplement them.
 type Service struct {
 	repo Repository
-	db   *sql.DB // for tenant-membership lookups against candidates/requirements/users, which are outside recruitment_assignments and therefore outside Repository's responsibility
+	db   *sql.DB
 }
 
-// NewService constructs a Service. dbConn is used only for the
-// cross-entity tenant/eligibility checks below (candidates, requirements,
-// users) — all recruitment_assignments persistence goes through repo.
 func NewService(repo Repository, dbConn *sql.DB) *Service {
 	return &Service{repo: repo, db: dbConn}
 }
 
-// CreateInput is the validated set of inputs needed to create an
-// assignment. It deliberately does not include TenantID or
-// CreatedByUserID — those come from authenticated context, passed
-// separately to CreateAssignment, never from caller-supplied input (same
-// convention as #33/#34: tenant and actor identity are never accepted as
-// request data).
 type CreateInput struct {
 	CandidateID   int
 	RequirementID int
-	// OwnerUserID may be zero, in which case the assignment's owner
-	// defaults to the actor (the user creating the assignment).
-	OwnerUserID int
+	OwnerUserID   int
 }
 
-// CreateAssignment validates tenant consistency and candidate eligibility,
-// then creates a new draft-status assignment. tenantID and actorUserID
-// must come from authenticated request context.
-//
-// Persistence (the assignment INSERT) and the assignment.created audit
-// event are written inside a single database transaction, so either both
-// land or neither does. Validation (candidate eligibility, tenant
-// membership checks) runs beforehand, outside the transaction, unchanged
-// from checkpoints 2-5 — only the final persist step gained transactional
-// scope, to avoid unnecessarily restructuring logic that was already
-// correct.
 func (s *Service) CreateAssignment(tenantID string, actorUserID int, input CreateInput) (*Assignment, error) {
 	ownerUserID := input.OwnerUserID
 	if ownerUserID == 0 {
@@ -86,12 +55,6 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	if err := s.requireRequirementInTenant(input.RequirementID, tenantID); err != nil {
 		return nil, err
 	}
-
-	// Both the owner and the creator must belong to the assignment's
-	// tenant (ADR 0003 section 3: "Both users must belong to the
-	// assignment tenant"). actorUserID is re-checked defensively even
-	// though it comes from an authenticated JWT, matching the same
-	// paranoid-verification pattern used for client ownership in #34.
 	if err := s.requireUserInTenant(ownerUserID, tenantID); err != nil {
 		return nil, err
 	}
@@ -117,13 +80,42 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+	defer tx.Rollback()
 
-	// Same INSERT Repository.Create issues, duplicated here rather than
-	// reused, because Repository's interface operates on *sql.DB and has
-	// no transaction-scoped variant — the same precedent already set by
-	// TransitionAssignment (checkpoint 4/5), which does its own tx-scoped
-	// SQL rather than going through Repository for the same reason.
+	// Atomically claim the candidate. PostgreSQL locks the candidate row for
+	// the UPDATE, so concurrent attempts against the same candidate cannot
+	// both observe an available engagement. An exact duplicate pair is allowed
+	// to reach the assignment UNIQUE constraint so ErrDuplicateAssignment is
+	// preserved; a different requirement receives ErrCandidateAlreadyEngaged.
+	result, err := tx.Exec(`
+		UPDATE candidates
+		SET active_recruitment_engagements = TRUE
+		WHERE id = $1
+		  AND tenant_id = $2
+		  AND status = $3
+		  AND (
+			active_recruitment_engagements = FALSE
+			OR EXISTS (
+				SELECT 1
+				FROM recruitment_assignments
+				WHERE tenant_id = $2
+				  AND candidate_id = $1
+				  AND requirement_id = $4
+			)
+		  )`,
+		input.CandidateID, tenantID, eligibleCandidateStatus, input.RequirementID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	claimed, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if claimed == 0 {
+		return nil, ErrCandidateAlreadyEngaged
+	}
+
 	err = tx.QueryRow(`
 		INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -132,7 +124,7 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	).Scan(&a.ID, &a.CreatedAt, &a.LastModified)
 	if err != nil {
 		var pqErr *pq.Error
-		if errors.As(err, &pqErr) && pqErr.Code == "23505" { // unique_violation
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
 			return nil, ErrDuplicateAssignment
 		}
 		return nil, err
@@ -152,41 +144,24 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	return a, nil
 }
 
-// GetAssignment retrieves an assignment scoped to tenantID. Returns
-// ErrNotFound if it doesn't exist in that tenant (including if it exists
-// in a different tenant — see Repository.GetByID's documentation).
 func (s *Service) GetAssignment(tenantID string, id int) (*Assignment, error) {
 	return s.repo.GetByID(tenantID, id)
 }
 
-// ListAssignments returns every assignment belonging to tenantID.
 func (s *Service) ListAssignments(tenantID string) ([]*Assignment, error) {
 	return s.repo.ListByTenant(tenantID)
 }
 
-// DeleteAssignment removes the assignment with the given id, scoped to
-// tenantID. Returns ErrNotFound if it doesn't exist in that tenant.
 func (s *Service) DeleteAssignment(tenantID string, id int) error {
 	return s.repo.Delete(tenantID, id)
 }
 
-// ChangeOwner reassigns an existing assignment's owner. This is
-// deliberately the only mutation exposed via UpdateAssignment/PUT in
-// checkpoint 3: lifecycle status transitions go through
-// TransitionAssignment instead (checkpoint 4), keeping owner mutation and
-// lifecycle transition as two distinct concepts rather than letting
-// arbitrary status values enter the PUT payload.
-//
-// The owner-reassignment UPDATE and the assignment.owner_changed audit
-// event are written inside a single database transaction, so either both
-// land or neither does. tenantID and actorUserID must come from
-// authenticated request context.
 func (s *Service) ChangeOwner(tenantID string, actorUserID int, id int, newOwnerUserID int) (*Assignment, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+	defer tx.Rollback()
 
 	row := tx.QueryRow(`SELECT `+assignmentSelectColumns+`
 		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
@@ -239,44 +214,12 @@ func (s *Service) ChangeOwner(tenantID string, actorUserID int, id int, newOwner
 	return a, nil
 }
 
-// TransitionAssignment moves an existing assignment to newStatus,
-// enforcing ADR 0003's transition rules via Assignment.TransitionTo, and
-// persists the result. It is the ONLY way an assignment's status changes
-// via the service layer — no other Service method touches Status. Returns
-// ErrNotFound if the assignment doesn't exist in tenantID (including if it
-// exists in a different tenant), or a *TransitionError if newStatus is not
-// a legal transition from the assignment's current status. tenantID and
-// actorUserID must come from authenticated request context.
-//
-// At formal submission (transitioning into StatusSubmitted), this captures
-// immutable candidate/requirement snapshots per ADR 0003 section 6. The
-// fetch-current-assignment, capture-snapshot, persist-new-status, and
-// audit-event steps all happen inside a single database transaction
-// (SELECT ... FOR UPDATE, then UPDATE, then the audit INSERT(s)), so all
-// of it is atomic: if anything fails partway, the whole attempt rolls back
-// and the assignment is left exactly as it was — never partially
-// transitioned, partially snapshotted, or transitioned-without-an-audit-
-// trail. If a snapshot already exists (SnapshotCreatedAt is already set),
-// it is never recaptured or overwritten — this should not be reachable in
-// ordinary use anyway, since screening -> submitted is the only transition
-// into StatusSubmitted in the lifecycle, but the guard is explicit rather
-// than assumed.
-//
-// Exactly one audit event is recorded for the transition itself (its
-// action name selected by the target status, per ADR 0006 section 4), and
-// — only when a snapshot is actually captured during this specific call,
-// never merely because the target is StatusSubmitted — a second,
-// assignment.snapshot_created event, sharing the same correlation_id as
-// the transition event so they can be grouped as one business operation.
-// An illegal transition or a not-found/cross-tenant assignment returns an
-// error before any audit event is written, and the deferred rollback
-// ensures nothing partial is left if the audit INSERT itself fails.
 func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int, newStatus Status) (*Assignment, error) {
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
-	defer tx.Rollback() // no-op once Commit succeeds; rolls back on any early return
+	defer tx.Rollback()
 
 	row := tx.QueryRow(`SELECT `+assignmentSelectColumns+`
 		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
@@ -288,7 +231,6 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 	}
 
 	fromStatus := a.Status
-
 	if err := a.TransitionTo(newStatus); err != nil {
 		return nil, err
 	}
@@ -351,11 +293,21 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 		return nil, ErrNotFound
 	}
 
+	// Terminal negative/non-active outcomes release the candidate for a
+	// future recruitment engagement in this tenant database.
+	if newStatus == StatusJoined || newStatus == StatusRejected || newStatus == StatusWithdrawn {
+		if _, err := tx.Exec(`
+			UPDATE candidates
+			SET active_recruitment_engagements = FALSE
+			WHERE id = $1 AND tenant_id = $2`, a.CandidateID, tenantID); err != nil {
+			return nil, err
+		}
+	}
+
 	correlationID, err := newCorrelationID()
 	if err != nil {
 		return nil, err
 	}
-
 	if action, ok := auditActionForStatus[newStatus]; ok {
 		if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, action, correlationID, map[string]string{
 			"from": string(fromStatus),
@@ -364,11 +316,7 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 			return nil, err
 		}
 	}
-
 	if snapshotJustCaptured {
-		// Deliberately minimal metadata: no candidate/requirement content,
-		// per ADR 0006 section 3 — this event documents THAT a snapshot
-		// was taken, not what it contains.
 		if err := recordAuditEventTx(tx, tenantID, actorUserID, a.ID, AuditAssignmentSnapshotCreated, correlationID, map[string]string{}); err != nil {
 			return nil, err
 		}
@@ -377,7 +325,6 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-
 	return a, nil
 }
 

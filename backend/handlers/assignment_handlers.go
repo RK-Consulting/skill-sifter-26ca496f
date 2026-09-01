@@ -13,22 +13,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// assignmentService constructs a fresh assignment.Service backed by the
-// current db.DB on every call, rather than caching one at package-init
-// time. db.DB is reassigned in tests (and could in principle be
-// reconnected in production), so caching a Service pointing at a stale
-// *sql.DB would silently operate against the wrong connection.
 func assignmentService() *assignment.Service {
 	return assignment.NewService(assignment.NewPostgresRepository(db.DB), db.DB)
 }
 
-// assignmentResponse is the HTTP wire format for an Assignment,
-// deliberately separate from the domain type (assignment.Assignment has no
-// JSON tags on purpose — see domain/assignment/assignment.go). Submission
-// snapshot fields are intentionally omitted from this checkpoint's
-// response: snapshot capture is not implemented yet (Issue #35 checkpoint
-// 3 scope), so every assignment's snapshots are always nil regardless of
-// status, and exposing three always-null fields would be noise.
 type assignmentResponse struct {
 	ID              int       `json:"id"`
 	TenantID        string    `json:"tenantId"`
@@ -55,22 +43,18 @@ func toAssignmentResponse(a *assignment.Assignment) assignmentResponse {
 	}
 }
 
-// respondWithAssignmentError maps the domain/service error vocabulary onto
-// HTTP status codes. This is the one place that mapping lives, so it stays
-// consistent across all five handlers below rather than being reimplemented
-// per handler.
 func respondWithAssignmentError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, assignment.ErrNotFound):
 		respondWithError(w, http.StatusNotFound, "Assignment not found")
 	case errors.Is(err, assignment.ErrCandidateNotFound):
-		// 404, not 403: must not disclose whether that candidate ID exists
-		// in another tenant (same convention as #33/#34).
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
 	case errors.Is(err, assignment.ErrRequirementNotFound):
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 	case errors.Is(err, assignment.ErrUserNotFound):
 		respondWithError(w, http.StatusNotFound, "User not found")
+	case errors.Is(err, assignment.ErrCandidateAlreadyEngaged):
+		respondWithError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, assignment.ErrCandidateNotEligible):
 		respondWithError(w, http.StatusUnprocessableEntity, err.Error())
 	case errors.Is(err, assignment.ErrDuplicateAssignment):
@@ -78,11 +62,6 @@ func respondWithAssignmentError(w http.ResponseWriter, err error) {
 	default:
 		var transitionErr *assignment.TransitionError
 		if errors.As(err, &transitionErr) {
-			// A genuine state conflict, not a malformed request: the
-			// target status is a recognized value (validated earlier in
-			// TransitionAssignment, before this error can occur), but not
-			// a legal transition from the assignment's current status, or
-			// the assignment is already in a terminal state.
 			respondWithError(w, http.StatusConflict, err.Error())
 			return
 		}
@@ -90,8 +69,6 @@ func respondWithAssignmentError(w http.ResponseWriter, err error) {
 	}
 }
 
-// GetAssignments retrieves all recruitment assignments for the
-// authenticated tenant. Scoped by tenant_id (ADR 0001), not company_name.
 func GetAssignments(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
@@ -113,9 +90,6 @@ func GetAssignments(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetAssignmentByID retrieves a single assignment by ID, scoped to the
-// authenticated tenant. An assignment ID belonging to another tenant
-// returns 404, identically to a nonexistent ID.
 func GetAssignmentByID(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -139,23 +113,12 @@ func GetAssignmentByID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// addAssignmentRequest is the create request body. TenantID and
-// CreatedByUserID are deliberately absent — those always come from
-// authenticated context (see AddAssignment), never from the request.
 type addAssignmentRequest struct {
 	CandidateID   int `json:"candidateId"`
 	RequirementID int `json:"requirementId"`
-	// OwnerUserID may be omitted, in which case the assignment's owner
-	// defaults to the authenticated actor (enforced by
-	// assignment.Service.CreateAssignment, not here).
-	OwnerUserID int `json:"ownerUserId,omitempty"`
+	OwnerUserID   int `json:"ownerUserId,omitempty"`
 }
 
-// AddAssignment creates a new recruitment assignment under the
-// authenticated tenant. All business rules (tenant consistency, candidate
-// eligibility, duplicate-pair rejection) live in assignment.Service — this
-// handler only translates the HTTP request into a service call and the
-// result back into an HTTP response.
 func AddAssignment(w http.ResponseWriter, r *http.Request) {
 	var req addAssignmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -193,22 +156,10 @@ func AddAssignment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// updateAssignmentRequest is the update request body. This checkpoint
-// intentionally supports ONLY reassigning the owner — status (lifecycle)
-// transitions are explicitly out of scope for this checkpoint (Issue #35),
-// and candidate_id/requirement_id are the assignment's identity (enforced
-// by the database's UNIQUE(candidate_id, requirement_id) constraint) and
-// are not mutable via this endpoint. A candidateId/requirementId/status in
-// the request body is accepted for forward JSON compatibility but silently
-// ignored, matching how other handlers in this codebase ignore unknown/
-// not-yet-supported fields rather than rejecting the whole request.
 type updateAssignmentRequest struct {
 	OwnerUserID int `json:"ownerUserId"`
 }
 
-// UpdateAssignment reassigns an existing assignment's owner, scoped to the
-// authenticated tenant. An assignment ID belonging to another tenant
-// affects nothing (assignment.Service.ChangeOwner returns ErrNotFound).
 func UpdateAssignment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -245,8 +196,6 @@ func UpdateAssignment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteAssignment deletes an assignment, scoped to the authenticated
-// tenant.
 func DeleteAssignment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
@@ -268,24 +217,10 @@ func DeleteAssignment(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// transitionAssignmentRequest is the request body for the dedicated
-// lifecycle-transition endpoint. This is deliberately a separate endpoint
-// from UpdateAssignment/PUT (which only reassigns owner) rather than
-// letting arbitrary status values enter the PUT payload — keeping owner
-// mutation and lifecycle transition as two distinct concepts.
 type transitionAssignmentRequest struct {
 	Status string `json:"status"`
 }
 
-// TransitionAssignment moves an assignment to a new lifecycle status,
-// scoped to the authenticated tenant. All transition-legality rules (ADR
-// 0003 section 4) live in assignment.Assignment.TransitionTo via
-// assignment.Service.TransitionAssignment — this handler validates only
-// that the request is well-formed (a non-empty, recognized status value)
-// before delegating, so "not a recognized status at all" (400, malformed
-// request) stays distinct from "a recognized status but not a legal
-// transition from here" (409, domain conflict), which is everything
-// TransitionAssignment itself can return.
 func TransitionAssignment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
