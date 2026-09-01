@@ -14,6 +14,8 @@ import (
 
 const assignmentTestDBName = "skillsifter_assignment_test"
 
+var assignmentTestDatabaseName = assignmentTestDBName
+
 func getenvOr(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -51,15 +53,9 @@ func seedFixtures(t *testing.T, testDB *sql.DB, tenantID string) fixtures {
 }
 
 func TestMain(m *testing.M) {
-	assignmentDBName := getenvOr("SKILLSIFTER_ASSIGNMENT_TEST_DB", assignmentTestDBName)
-	// Keep the assignment integration suite completely isolated from the
-	// handler suite, which uses TEST_DB_NAME=skillsifter_test in CI.
-	if err := os.Setenv("TEST_DB_NAME", assignmentDBName); err != nil {
-		fmt.Fprintf(os.Stderr, "assignment test database environment setup failed: %v\n", err)
-		os.Exit(1)
-	}
+	assignmentTestDatabaseName = getenvOr("SKILLSIFTER_ASSIGNMENT_TEST_DB", assignmentTestDBName)
 
-	testDB, err := openAssignmentIntegrationDB(assignmentDBName)
+	testDB, err := openAssignmentIntegrationDB(assignmentTestDatabaseName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "assignment test database bootstrap failed: %v\n", err)
 		os.Exit(1)
@@ -106,7 +102,7 @@ func openAssignmentIntegrationDB(dbname string) (*sql.DB, error) {
 		}
 	}
 
-	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s search_path=public sslmode=disable", host, port, user, password, dbname)
 	testDB, err := sql.Open("postgres", conn)
 	if err != nil {
 		return nil, err
