@@ -36,6 +36,10 @@ func seedFixtures(t *testing.T, testDB *sql.DB, tenantID string) fixtures {
 	n := atomic.AddInt64(&seedFixturesCounter, 1)
 	unique := fmt.Sprintf("%s_%d", tenantID, n)
 	var f fixtures
+
+	if _, err := testDB.Exec(`INSERT INTO companies (id, name) VALUES ($1, $1) ON CONFLICT (id) DO NOTHING`, tenantID); err != nil {
+		t.Fatalf("seedFixtures: could not insert company: %v", err)
+	}
 	if err := testDB.QueryRow(`INSERT INTO users (username,email,password,role,tenant_id,company_name) VALUES ($1,$2,'x','recruiter',$3,$3) RETURNING id`, "user_"+unique, unique+"user@test.com", tenantID).Scan(&f.userID); err != nil {
 		t.Fatalf("seedFixtures: could not insert user: %v", err)
 	}
