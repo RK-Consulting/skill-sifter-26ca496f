@@ -78,18 +78,29 @@ func openAssignmentIntegrationDB() (*sql.DB, error) {
 	dbname := getenvOr("TEST_DB_NAME", "skillsifter_assignment_test")
 	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 	testDB, err := sql.Open("postgres", conn)
-	if err != nil { return nil, err }
-	if err := testDB.Ping(); err != nil { testDB.Close(); return nil, err }
+	if err != nil {
+		return nil, err
+	}
+	if err := testDB.Ping(); err != nil {
+		testDB.Close()
+		return nil, err
+	}
 	return testDB, nil
 }
 
 func chdirToBackendRoot() error {
 	wd, err := os.Getwd()
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	for {
-		if _, err := os.Stat(filepath.Join(wd, "go.mod")); err == nil { return os.Chdir(wd) }
+		if _, err := os.Stat(filepath.Join(wd, "go.mod")); err == nil {
+			return os.Chdir(wd)
+		}
 		parent := filepath.Dir(wd)
-		if parent == wd { return fmt.Errorf("could not locate backend go.mod from %q", wd) }
+		if parent == wd {
+			return fmt.Errorf("could not locate backend go.mod from %q", wd)
+		}
 		wd = parent
 	}
 }
