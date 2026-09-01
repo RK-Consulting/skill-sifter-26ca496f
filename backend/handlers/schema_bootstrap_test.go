@@ -11,18 +11,15 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const handlerTestSchema = "handler_test"
-
-// TestMain runs the handler integration suite against a clean database schema
-// produced by the application's authoritative migration runner. The test DB
-// schema is isolated from other Go packages because `go test ./...` may run
-// integration packages concurrently against the same PostgreSQL database.
+// TestMain prepares the handler integration database from the application's
+// authoritative schema definitions. The assignment package uses a separate
+// database, so handler helpers that connect to TEST_DB_NAME can safely use the
+// public schema without racing another package's schema reset.
 func TestMain(m *testing.M) {
 	testDB, err := openHandlerTestDB()
 	if err != nil {
-		// Preserve the existing convention: integration tests may skip when
-		// PostgreSQL is unavailable.
-		os.Exit(m.Run())
+		fmt.Fprintf(os.Stderr, "handler test database bootstrap failed: %v\n", err)
+		os.Exit(1)
 	}
 	defer testDB.Close()
 
@@ -31,7 +28,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if _, err := testDB.Exec(`DROP SCHEMA handler_test CASCADE; CREATE SCHEMA handler_test;`); err != nil {
+	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
 		fmt.Fprintf(os.Stderr, "handler test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -52,25 +49,9 @@ func openHandlerTestDB() (*sql.DB, error) {
 	password := getenvOr("TEST_DB_PASSWORD", "postgres")
 	dbname := getenvOr("TEST_DB_NAME", "skillsifter_test")
 
-	baseConn := "host=" + host + " port=" + port + " user=" + user +
+	conn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=" + dbname + " sslmode=disable"
-
-	adminDB, err := sql.Open("postgres", baseConn)
-	if err != nil {
-		return nil, err
-	}
-	if err := adminDB.Ping(); err != nil {
-		adminDB.Close()
-		return nil, err
-	}
-	if _, err := adminDB.Exec(`CREATE SCHEMA IF NOT EXISTS handler_test`); err != nil {
-		adminDB.Close()
-		return nil, err
-	}
-	adminDB.Close()
-
-	connStr := baseConn + " search_path=" + handlerTestSchema
-	testDB, err := sql.Open("postgres", connStr)
+	testDB, err := sql.Open("postgres", conn)
 	if err != nil {
 		return nil, err
 	}
