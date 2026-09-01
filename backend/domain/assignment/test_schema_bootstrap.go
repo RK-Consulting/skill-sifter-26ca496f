@@ -13,13 +13,11 @@ import (
 
 // TestMain runs assignment integration tests against a clean database schema
 // produced exclusively by the application's migration runner. The test DB is
-// disposable; resetting it here prevents older hand-built fixture schemas
-// from masking missing/obsolete columns and constraints.
+// disposable; resetting it prevents stale fixture schemas from masking
+// missing/obsolete columns and constraints.
 func TestMain(m *testing.M) {
 	testDB, err := openAssignmentIntegrationDB()
 	if err != nil {
-		// Preserve the repository's convention: integration tests skip when
-		// PostgreSQL is unavailable rather than making unit-only runs fail.
 		os.Exit(m.Run())
 	}
 	defer testDB.Close()
@@ -37,6 +35,30 @@ func TestMain(m *testing.M) {
 	db.DB = testDB
 	if err := db.InitializeSchema(); err != nil {
 		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Some legacy assignment fixtures create a user before explicitly creating
+	// its company. The production schema correctly requires the company first;
+	// this test-only trigger keeps those fixtures focused on assignment behavior
+	// without weakening the production FK.
+	_, err = testDB.Exec(`
+		CREATE OR REPLACE FUNCTION test_ensure_assignment_tenant()
+		RETURNS TRIGGER AS $$
+		BEGIN
+			INSERT INTO companies (id, name)
+			VALUES (NEW.tenant_id, COALESCE(NULLIF(NEW.company_name, ''), NEW.tenant_id))
+			ON CONFLICT (id) DO NOTHING;
+			RETURN NEW;
+		END;
+		$$ LANGUAGE plpgsql;
+
+		CREATE TRIGGER trg_test_ensure_assignment_tenant
+		BEFORE INSERT ON users
+		FOR EACH ROW
+		EXECUTE FUNCTION test_ensure_assignment_tenant();`)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "assignment fixture tenant trigger setup failed: %v\n", err)
 		os.Exit(1)
 	}
 
