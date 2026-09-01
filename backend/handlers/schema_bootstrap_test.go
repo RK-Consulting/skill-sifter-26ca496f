@@ -11,20 +11,26 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TestMain makes the handler integration suite use the authoritative database
-// migrations before any package-local fixture setup runs. This prevents
-// CREATE TABLE IF NOT EXISTS test fixtures from preserving obsolete schemas.
+// TestMain runs the handler integration suite against a clean database schema
+// produced by the application's authoritative migration runner. The test DB
+// is disposable, so resetting it prevents stale CREATE TABLE IF NOT EXISTS
+// fixtures from preserving obsolete columns or constraints between runs.
 func TestMain(m *testing.M) {
 	testDB, err := openHandlerTestDB()
 	if err != nil {
-		// The existing integration tests intentionally skip when PostgreSQL is
-		// unavailable. Keep that behavior for local unit-only runs.
+		// Preserve the existing convention: integration tests may skip when
+		// PostgreSQL is unavailable.
 		os.Exit(m.Run())
 	}
 	defer testDB.Close()
 
 	if err := chdirHandlerTestToBackendRoot(); err != nil {
 		fmt.Fprintf(os.Stderr, "handler test schema bootstrap: %v\n", err)
+		os.Exit(1)
+	}
+
+	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+		fmt.Fprintf(os.Stderr, "handler test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -69,7 +75,7 @@ func chdirHandlerTestToBackendRoot() error {
 		}
 		parent := filepath.Dir(wd)
 		if parent == wd {
-			return fmt.Errorf("could not locate backend go.mod from %q", wd)
+			return fmt.Errorf("could not locate handler backend go.mod from %q", wd)
 		}
 		wd = parent
 	}
