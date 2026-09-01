@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"testing"
 
 	"github.com/RK-Consulting/skill-sifter/db"
 	_ "github.com/lib/pq"
@@ -19,7 +20,7 @@ func getenvOr(key, fallback string) string {
 
 // TestMain runs assignment integration tests against a clean database schema
 // produced exclusively by the application's migration runner.
-func TestMain(m interface{ Run() int }) {
+func TestMain(m *testing.M) {
 	testDB, err := openAssignmentIntegrationDB()
 	if err != nil {
 		os.Exit(m.Run())
