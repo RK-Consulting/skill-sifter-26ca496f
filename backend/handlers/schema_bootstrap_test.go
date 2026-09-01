@@ -11,12 +11,19 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// TestMain prepares the handler integration database from the application's
-// authoritative schema definitions. The assignment package uses a separate
-// database, so handler helpers that connect to TEST_DB_NAME can safely use the
-// public schema without racing another package's schema reset.
+const handlerTestDBName = "skillsifter_handler_test"
+
+// TestMain gives the handler integration suite its own PostgreSQL database.
+// This prevents package-level integration tests from racing with the db and
+// assignment packages when `go test ./...` runs packages concurrently.
 func TestMain(m *testing.M) {
-	testDB, err := openHandlerTestDB()
+	handlerDBName := getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName)
+	if err := os.Setenv("TEST_DB_NAME", handlerDBName); err != nil {
+		fmt.Fprintf(os.Stderr, "handler test database environment setup failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	testDB, err := openHandlerTestDB(handlerDBName)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "handler test database bootstrap failed: %v\n", err)
 		os.Exit(1)
@@ -42,12 +49,32 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-func openHandlerTestDB() (*sql.DB, error) {
+func openHandlerTestDB(dbname string) (*sql.DB, error) {
 	host := getenvOr("TEST_DB_HOST", "localhost")
 	port := getenvOr("TEST_DB_PORT", "5432")
 	user := getenvOr("TEST_DB_USER", "postgres")
 	password := getenvOr("TEST_DB_PASSWORD", "postgres")
-	dbname := getenvOr("TEST_DB_NAME", "skillsifter_test")
+
+	adminConn := "host=" + host + " port=" + port + " user=" + user +
+		" password=" + password + " dbname=postgres sslmode=disable"
+	adminDB, err := sql.Open("postgres", adminConn)
+	if err != nil {
+		return nil, err
+	}
+	defer adminDB.Close()
+	if err := adminDB.Ping(); err != nil {
+		return nil, err
+	}
+
+	var exists bool
+	if err := adminDB.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbname).Scan(&exists); err != nil {
+		return nil, err
+	}
+	if !exists {
+		if _, err := adminDB.Exec(`CREATE DATABASE "` + dbname + `"`); err != nil {
+			return nil, err
+		}
+	}
 
 	conn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=" + dbname + " sslmode=disable"
