@@ -11,10 +11,12 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const handlerTestSchema = "handler_test"
+
 // TestMain runs the handler integration suite against a clean database schema
 // produced by the application's authoritative migration runner. The test DB
-// is disposable, so resetting it prevents stale CREATE TABLE IF NOT EXISTS
-// fixtures from preserving obsolete columns or constraints between runs.
+// schema is isolated from other Go packages because `go test ./...` may run
+// integration packages concurrently against the same PostgreSQL database.
 func TestMain(m *testing.M) {
 	testDB, err := openHandlerTestDB()
 	if err != nil {
@@ -29,7 +31,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+	if _, err := testDB.Exec(`DROP SCHEMA handler_test CASCADE; CREATE SCHEMA handler_test;`); err != nil {
 		fmt.Fprintf(os.Stderr, "handler test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -50,9 +52,24 @@ func openHandlerTestDB() (*sql.DB, error) {
 	password := getenvOr("TEST_DB_PASSWORD", "postgres")
 	dbname := getenvOr("TEST_DB_NAME", "skillsifter_test")
 
-	connStr := "host=" + host + " port=" + port + " user=" + user +
+	baseConn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=" + dbname + " sslmode=disable"
 
+	adminDB, err := sql.Open("postgres", baseConn)
+	if err != nil {
+		return nil, err
+	}
+	if err := adminDB.Ping(); err != nil {
+		adminDB.Close()
+		return nil, err
+	}
+	if _, err := adminDB.Exec(`CREATE SCHEMA IF NOT EXISTS handler_test`); err != nil {
+		adminDB.Close()
+		return nil, err
+	}
+	adminDB.Close()
+
+	connStr := baseConn + " search_path=" + handlerTestSchema
 	testDB, err := sql.Open("postgres", connStr)
 	if err != nil {
 		return nil, err
