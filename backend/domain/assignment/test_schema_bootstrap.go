@@ -12,6 +12,8 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const assignmentTestSchema = "assignment_test"
+
 func getenvOr(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -58,7 +60,7 @@ func TestMain(m *testing.M) {
 		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap: %v\n", err)
 		os.Exit(1)
 	}
-	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+	if _, err := testDB.Exec(`DROP SCHEMA assignment_test CASCADE; CREATE SCHEMA assignment_test;`); err != nil {
 		fmt.Fprintf(os.Stderr, "assignment test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
@@ -76,7 +78,23 @@ func openAssignmentIntegrationDB() (*sql.DB, error) {
 	user := getenvOr("TEST_DB_USER", "postgres")
 	password := getenvOr("TEST_DB_PASSWORD", "postgres")
 	dbname := getenvOr("TEST_DB_NAME", "skillsifter_assignment_test")
-	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+	baseConn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
+
+	adminDB, err := sql.Open("postgres", baseConn)
+	if err != nil {
+		return nil, err
+	}
+	if err := adminDB.Ping(); err != nil {
+		adminDB.Close()
+		return nil, err
+	}
+	if _, err := adminDB.Exec(`CREATE SCHEMA IF NOT EXISTS assignment_test`); err != nil {
+		adminDB.Close()
+		return nil, err
+	}
+	adminDB.Close()
+
+	conn := baseConn + " search_path=" + assignmentTestSchema
 	testDB, err := sql.Open("postgres", conn)
 	if err != nil {
 		return nil, err
