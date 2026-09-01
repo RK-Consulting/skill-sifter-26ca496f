@@ -12,7 +12,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-const assignmentTestSchema = "assignment_test"
+const assignmentTestDBName = "skillsifter_assignment_test"
 
 func getenvOr(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -51,50 +51,62 @@ func seedFixtures(t *testing.T, testDB *sql.DB, tenantID string) fixtures {
 }
 
 func TestMain(m *testing.M) {
-	testDB, err := openAssignmentIntegrationDB()
+	assignmentDBName := getenvOr("SKILLSIFTER_ASSIGNMENT_TEST_DB", assignmentTestDBName)
+	// Keep the assignment integration suite completely isolated from the
+	// handler suite, which uses TEST_DB_NAME=skillsifter_test in CI.
+	if err := os.Setenv("TEST_DB_NAME", assignmentDBName); err != nil {
+		fmt.Fprintf(os.Stderr, "assignment test database environment setup failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	testDB, err := openAssignmentIntegrationDB(assignmentDBName)
 	if err != nil {
-		os.Exit(m.Run())
+		fmt.Fprintf(os.Stderr, "assignment test database bootstrap failed: %v\n", err)
+		os.Exit(1)
 	}
 	defer testDB.Close()
+
 	if err := chdirToBackendRoot(); err != nil {
 		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap: %v\n", err)
 		os.Exit(1)
 	}
-	if _, err := testDB.Exec(`DROP SCHEMA assignment_test CASCADE; CREATE SCHEMA assignment_test;`); err != nil {
-		fmt.Fprintf(os.Stderr, "assignment test database reset failed: %v\n", err)
-		os.Exit(1)
-	}
+
 	db.DB = testDB
 	if err := db.InitializeSchema(); err != nil {
 		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap failed: %v\n", err)
 		os.Exit(1)
 	}
+
 	os.Exit(m.Run())
 }
 
-func openAssignmentIntegrationDB() (*sql.DB, error) {
+func openAssignmentIntegrationDB(dbname string) (*sql.DB, error) {
 	host := getenvOr("TEST_DB_HOST", "localhost")
 	port := getenvOr("TEST_DB_PORT", "5432")
 	user := getenvOr("TEST_DB_USER", "postgres")
 	password := getenvOr("TEST_DB_PASSWORD", "postgres")
-	dbname := getenvOr("TEST_DB_NAME", "skillsifter_assignment_test")
-	baseConn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 
-	adminDB, err := sql.Open("postgres", baseConn)
+	adminConn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=postgres sslmode=disable", host, port, user, password)
+	adminDB, err := sql.Open("postgres", adminConn)
 	if err != nil {
 		return nil, err
 	}
+	defer adminDB.Close()
 	if err := adminDB.Ping(); err != nil {
-		adminDB.Close()
 		return nil, err
 	}
-	if _, err := adminDB.Exec(`CREATE SCHEMA IF NOT EXISTS assignment_test`); err != nil {
-		adminDB.Close()
-		return nil, err
-	}
-	adminDB.Close()
 
-	conn := baseConn + " search_path=" + assignmentTestSchema
+	var exists bool
+	if err := adminDB.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbname).Scan(&exists); err != nil {
+		return nil, err
+	}
+	if !exists {
+		if _, err := adminDB.Exec(`CREATE DATABASE "` + dbname + `"`); err != nil {
+			return nil, err
+		}
+	}
+
+	conn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
 	testDB, err := sql.Open("postgres", conn)
 	if err != nil {
 		return nil, err
