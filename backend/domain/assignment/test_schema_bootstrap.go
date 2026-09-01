@@ -5,17 +5,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"testing"
 
 	"github.com/RK-Consulting/skill-sifter/db"
 	_ "github.com/lib/pq"
 )
 
+func getenvOr(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
 // TestMain runs assignment integration tests against a clean database schema
-// produced exclusively by the application's migration runner. The test DB is
-// disposable; resetting it prevents stale fixture schemas from masking
-// missing/obsolete columns and constraints.
-func TestMain(m *testing.M) {
+// produced exclusively by the application's migration runner.
+func TestMain(m interface{ Run() int }) {
 	testDB, err := openAssignmentIntegrationDB()
 	if err != nil {
 		os.Exit(m.Run())
@@ -38,10 +42,6 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	// Some legacy assignment fixtures create a user before explicitly creating
-	// its company. The production schema correctly requires the company first;
-	// this test-only trigger keeps those fixtures focused on assignment behavior
-	// without weakening the production FK.
 	_, err = testDB.Exec(`
 		CREATE OR REPLACE FUNCTION test_ensure_assignment_tenant()
 		RETURNS TRIGGER AS $$
