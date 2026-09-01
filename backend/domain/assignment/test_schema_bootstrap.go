@@ -11,38 +11,32 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// TestMain runs assignment integration tests against a clean database schema
+// produced exclusively by the application's migration runner. The test DB is
+// disposable; resetting it here prevents older hand-built fixture schemas
+// from masking missing/obsolete columns and constraints.
 func TestMain(m *testing.M) {
 	testDB, err := openAssignmentIntegrationDB()
 	if err != nil {
+		// Preserve the repository's convention: integration tests skip when
+		// PostgreSQL is unavailable rather than making unit-only runs fail.
 		os.Exit(m.Run())
 	}
 	defer testDB.Close()
 
-	wd, err := os.Getwd()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	if err := chdirToBackendRoot(); err != nil {
+		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap: %v\n", err)
 		os.Exit(1)
 	}
-	for {
-		if _, statErr := os.Stat(filepath.Join(wd, "go.mod")); statErr == nil {
-			break
-		}
-		parent := filepath.Dir(wd)
-		if parent == wd {
-			fmt.Fprintln(os.Stderr, "could not locate backend go.mod")
-			os.Exit(1)
-		}
-		wd = parent
-	}
-	if err := os.Chdir(wd); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+
+	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+		fmt.Fprintf(os.Stderr, "assignment test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
 
 	db.DB = testDB
 	if err := db.InitializeSchema(); err != nil {
-		fmt.Fprintf(os.Stderr, "assignment integration schema setup failed: %v
-", err)
+		fmt.Fprintf(os.Stderr, "assignment test schema bootstrap failed: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -66,4 +60,21 @@ func openAssignmentIntegrationDB() (*sql.DB, error) {
 		return nil, err
 	}
 	return testDB, nil
+}
+
+func chdirToBackendRoot() error {
+	wd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(wd, "go.mod")); err == nil {
+			return os.Chdir(wd)
+		}
+		parent := filepath.Dir(wd)
+		if parent == wd {
+			return fmt.Errorf("could not locate backend go.mod from %q", wd)
+		}
+		wd = parent
+	}
 }
