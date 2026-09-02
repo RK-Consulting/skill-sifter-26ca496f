@@ -4,6 +4,34 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.3] - 2026-09-02
+
+### Added
+- Combined CP11 Production Quality Gate and CP12 Recruitment Workflow UAT / Go-Live Readiness checkpoint.
+- Added a concise go-live readiness matrix covering the recruiter workflow from candidate through commercial/joining.
+
+### Changed
+- Confirmed the existing backend and frontend GitHub Actions workflows are sufficient for the release quality gate.
+- Backend CI validates formatting, repository/migration structure, schema definitions, build, vet, tests, and coverage reporting.
+- Frontend CI validates dependency installation, lint, tests, and production build.
+- CP12 uses existing automated regression coverage plus focused manual recruiter UAT rather than introducing heavyweight browser-test infrastructure.
+- Continuous deployment remains separate from this release.
+
+### Security
+- Release readiness explicitly requires tenant-isolation and role-authorization validation across the recruitment workflow.
+- Assignment actor authorization and audit tenant enforcement remain covered by regression tests.
+
+### Testing
+- Existing backend regression coverage includes candidate, assignment, state-transition, snapshot, audit, authorization, and tenant-isolation paths.
+- Existing frontend CI validates lint, tests, and production build.
+- Manual recruiter UAT remains the final product-level gate before production cutover.
+
+### Release Scope
+- CP11 and CP12 are completed as one release checkpoint.
+- No v0.5.2 release is created.
+- No new observability, distributed infrastructure, CD system, or speculative performance framework is introduced.
+- Production performance and reliability work will be driven by real usage evidence.
+
 ## [0.4.0] - 2026-08-31
 
 ### Added
