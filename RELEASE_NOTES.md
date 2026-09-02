@@ -1,3 +1,94 @@
+# SkillSifter v0.5.3
+
+## CP11 + CP12 — Production Quality and Go-Live Readiness
+
+SkillSifter v0.5.3 closes the CP11 Production Quality Gate and CP12 Recruitment Workflow UAT / Go-Live Readiness checkpoints together. No v0.5.2 release is created.
+
+This is a lean stabilization release. It does not add new platform infrastructure or speculative engineering. The focus is verification of the existing recruitment workflow, CI quality gate, tenant isolation, authorization, and regression safety.
+
+## Highlights
+
+**Production quality gate.**
+
+- Backend CI validates formatting, repository structure, migration structure, schema definitions, build, vet, tests, and coverage reporting.
+- Frontend CI validates dependency installation, lint, tests, and production build.
+- Backend and frontend workflows remain separate and intentionally simple.
+- Continuous deployment remains outside this release.
+
+**Recruitment workflow readiness.**
+
+The target workflow is:
+
+```text
+Candidate → Candidate expertise → Requirement → Assignment
+→ Screening → Submission → Interview → Decision → Commercial / Joining
+```
+
+Existing automated regression coverage protects the most important backend workflow boundaries, including assignment state transitions, snapshots, audit integrity, tenant isolation, and authorization.
+
+**Focused UAT.**
+
+- Added a concise go-live readiness matrix for the recruiter workflow.
+- Product-owner/recruiter UAT remains the final application-level validation before production cutover.
+- UAT failures are treated as real product bugs and fixed narrowly, with regression coverage added when appropriate.
+
+## Security
+
+- Tenant isolation remains a release gate.
+- Assignment actors must belong to the assignment tenant.
+- Assignment audit actors remain tenant-scoped.
+- Role authorization remains part of the recruitment workflow validation.
+
+## Testing & CI
+
+The release preserves the existing CI quality gate rather than introducing a heavier pipeline.
+
+### Backend CI
+
+- Go formatting
+- repository/migration structure validation
+- schema definition validation
+- `go build ./...`
+- `go vet ./...`
+- `go test ./...` with coverage
+- coverage summary publication
+
+### Frontend CI
+
+- `npm ci`
+- lint
+- tests
+- production build
+
+## Release Scope
+
+- CP11 and CP12 are delivered as one release.
+- No v0.5.2 intermediate release.
+- No new observability platform, distributed tracing, CD system, or speculative performance framework.
+- Production performance and reliability work will be driven by real usage evidence.
+
+## Go-Live Gate
+
+Before production cutover:
+
+1. CI must be green.
+2. Database schema validation must be green.
+3. No known blocking regression may remain in the recruitment workflow.
+4. Manual recruiter UAT must be completed against the running application.
+5. Tenant isolation and role authorization must be explicitly exercised.
+
+## Operating Principle
+
+```text
+LEAN → STABLE → LIVE → OBSERVE → FIX → OPTIMIZE → EXPAND
+```
+
+Only production evidence should justify additional performance, observability, infrastructure, or architectural work.
+
+See [`docs/release/v0.5.3-go-live-readiness.md`](docs/release/v0.5.3-go-live-readiness.md) for the detailed checkpoint matrix.
+
+---
+
 # SkillSifter v0.4.0
 
 ## Recruitment Assignment State Machine
@@ -59,7 +150,7 @@ New tables:
 - `candidate_language_expertise`
 - `candidate_expertise`
 
-The new expertise tables are tenant-aware, reference the candidate and company, enforce uniqueness, and include indexes for tenant/candidate access. fileciteturn441file0L2-L10
+The new expertise tables are tenant-aware, reference the candidate and company, enforce uniqueness, and include indexes for tenant/candidate access.
 
 ## Security
 
