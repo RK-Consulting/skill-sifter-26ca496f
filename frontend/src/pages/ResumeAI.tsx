@@ -25,7 +25,7 @@ const ResumeAI = () => {
   const load = async () => {
     try {
       const response = (await resumeAIService.list()) as ApiResponse<ResumeRecord[]>;
-      setRows(response.data || []);
+      setRows(response.data?.data || []);
     } catch (error) {
       console.error(error);
     }
@@ -43,7 +43,7 @@ const ResumeAI = () => {
     setUploading(true);
     try {
       const response = (await resumeAIService.upload(files)) as ApiResponse<UploadResult[]>;
-      const data = response.data || [];
+      const data = response.data?.data || [];
       setResults(data);
       await load();
       toast.success(`Processed ${data.length} resume(s)`);
@@ -59,7 +59,7 @@ const ResumeAI = () => {
     setSearching(true);
     try {
       const response = (await resumeAIService.search(q)) as ApiResponse<ResumeResult[]>;
-      setResults(response.data || []);
+      setResults(response.data?.data || []);
     } catch (error: unknown) {
       toast.error(error instanceof Error ? error.message : 'Search failed');
     } finally {
