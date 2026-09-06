@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"time"
 )
 
 // AuditAction is one of the exact event names ADR 0006 section 4 defines
@@ -95,4 +96,81 @@ func recordAuditEventTx(tx *sql.Tx, tenantID string, actorUserID int, entityID i
 		tenantID, actorUserID, entityID, string(action), correlationID, metadataJSON,
 	)
 	return err
+}
+
+// --- Audit event read access (checkpoint 6 addition, ported forward) ---
+//
+// The functions above only ever write audit events (by design — see the
+// append-only note on recordAuditEventTx). The type and functions below add
+// the missing read side: fetching an entity's audit history back out, e.g.
+// to render an activity/audit trail in the UI. This is purely additive;
+// nothing above is modified, and the existing actor-tenant validation in
+// recordAuditEventTx is untouched.
+
+// AuditEvent represents a single immutable audit event record as read back
+// from the audit_events table.
+type AuditEvent struct {
+	ID            int
+	TenantID      string
+	ActorUserID   int
+	EntityType    string
+	EntityID      int
+	Action        string
+	OccurredAt    time.Time
+	CorrelationID *string
+	Metadata      json.RawMessage
+}
+
+// AuditEventRepository provides read access to audit events.
+type AuditEventRepository interface {
+	// GetByEntity returns all audit events for a given entity, most recent first.
+	GetByEntity(tenantID string, entityType string, entityID int) ([]*AuditEvent, error)
+}
+
+// PostgresAuditEventRepository is the AuditEventRepository implementation
+// backed by the audit_events table.
+type PostgresAuditEventRepository struct {
+	db *sql.DB
+}
+
+// NewPostgresAuditEventRepository constructs a PostgresAuditEventRepository.
+func NewPostgresAuditEventRepository(dbConn *sql.DB) *PostgresAuditEventRepository {
+	return &PostgresAuditEventRepository{db: dbConn}
+}
+
+// GetByEntity returns all audit events for a given entity, most recent
+// first. Read-only; there is no corresponding write method here by design
+// — see recordAuditEventTx for the (append-only) write path.
+func (r *PostgresAuditEventRepository) GetByEntity(tenantID string, entityType string, entityID int) ([]*AuditEvent, error) {
+	rows, err := r.db.Query(`
+		SELECT id, tenant_id, actor_user_id, entity_type, entity_id, action, occurred_at, correlation_id, metadata
+		FROM audit_events
+		WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3
+		ORDER BY occurred_at DESC`, tenantID, entityType, entityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []*AuditEvent
+	for rows.Next() {
+		e := &AuditEvent{}
+		var correlationID sql.NullString
+		var metadata []byte
+
+		if err := rows.Scan(&e.ID, &e.TenantID, &e.ActorUserID, &e.EntityType, &e.EntityID, &e.Action, &e.OccurredAt, &correlationID, &metadata); err != nil {
+			return nil, err
+		}
+
+		if correlationID.Valid {
+			e.CorrelationID = &correlationID.String
+		}
+		e.Metadata = metadata
+
+		results = append(results, e)
+	}
+	if results == nil {
+		results = []*AuditEvent{}
+	}
+	return results, rows.Err()
 }
