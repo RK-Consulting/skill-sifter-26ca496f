@@ -1,0 +1,22 @@
+-- Drop the unused skills tagging tables.
+--
+-- `skills` and `candidate_skills` were provisioned by an earlier design
+-- for normalized, confidence-scored resume-extracted skill tagging
+-- (distinct from `candidate_expertise`, which is curated technical/
+-- language expertise). That design was never wired up to any code path:
+-- no handler, service, or repository in this codebase reads or writes
+-- either table. Resume AI's actual skill-extraction path writes into
+-- `candidate_expertise` instead, tagged `category='resume_import'`.
+--
+-- Confirmed empty in production before this migration was written
+-- (SELECT COUNT(*) FROM skills / candidate_skills both returned 0).
+-- Decision: keep the existing candidate_expertise-based approach as the
+-- one authoritative skills-storage mechanism, and remove this unused,
+-- confusing dead schema rather than build it out. See project notes for
+-- the full option comparison (candidate_expertise vs. a normalized
+-- skills/candidate_skills model) if this is revisited in the future.
+--
+-- candidate_skills is dropped first since it may hold a foreign key
+-- into skills.
+DROP TABLE IF EXISTS candidate_skills;
+DROP TABLE IF EXISTS skills;
