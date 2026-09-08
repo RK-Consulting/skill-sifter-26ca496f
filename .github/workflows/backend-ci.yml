@@ -21,10 +21,32 @@ concurrency:
   group: backend-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  TEST_DB_HOST: localhost
+  TEST_DB_PORT: 5432
+  TEST_DB_USER: postgres
+  TEST_DB_PASSWORD: postgres
+  TEST_DB_NAME: skillsifter_test
+
 jobs:
   backend:
     name: Go Build, Vet & Test
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: skillsifter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d skillsifter_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
     defaults:
       run:
@@ -50,11 +72,29 @@ jobs:
             exit 1
           fi
 
+      - name: Validate repository structure
+        shell: bash
+        run: |
+          test -f go.mod
+          test -d database/migrations
+          test -f database/migrations/README.md
+          test -f ../.github/workflows/backend-ci.yml
+
+      - name: Validate schema definitions
+        run: go test ./db -run 'Test(DiscoverSchemaDefinitions|InitializeSchema)' -count=1
+
       - name: Build
         run: go build ./...
 
       - name: Vet
         run: go vet ./...
 
-      - name: Test
-        run: go test ./...
+      - name: Test with coverage
+        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+
+      - name: Publish coverage summary
+        shell: bash
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}')
+          echo "### Backend coverage" >> "$GITHUB_STEP_SUMMARY"
+          echo "Total statement coverage: **$total**" >> "$GITHUB_STEP_SUMMARY"
