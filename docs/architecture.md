@@ -49,7 +49,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 |---|---|
 | `main` (`main.go`) | Wires up the router, middleware chain, CORS policy, and starts the HTTP server. |
 | `auth` | JWT issuance/validation (`golang-jwt/jwt/v5`), `AuthMiddleware` (validates bearer tokens), `RoleMiddleware` (role allow-listing). |
-| `db` | Database connection setup (`InitDB`), schema migration (`ApplyMigrations`), and environment variable helpers. |
+| `db` | Database connection setup (`InitDB`), schema initialization (`InitializeSchema`), and environment variable helpers. |
 | `handlers` | One file per resource (`candidate_handlers.go`, `job_handlers.go`, `interview_handlers.go`, `daily_job_handlers.go`, `business_dev_handlers.go`, `auth_handlers.go`, `report_handler.go`) plus `common.go` for shared JSON response helpers. |
 | `models` | Plain Go structs for every resource, plus response envelopes (`ApiResponse`, `TokenResponse`, report DTOs). |
 
@@ -64,7 +64,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 
 ### 3.3 Data tier
 
-Single PostgreSQL database, initialized automatically on backend startup via `db.ApplyMigrations()` (which runs ordered SQL migrations from `backend/database/migrations/`) — the migration sequence is the authoritative schema definition.
+Single PostgreSQL database, initialized automatically on backend startup via `db.InitializeSchema()`. This reads numbered, ordered SQL files from `backend/database/migrations/` (the directory name predates the current terminology; the files themselves are called schema definitions, not migrations, per ADR 0007), tracks which have been applied in a `schema_versions` table, and verifies a checksum of each already-applied file against the filesystem on every startup — a mismatch (someone editing an already-applied file) is a hard startup error, not a silent skip. Only genuinely new, not-yet-applied files are executed, in order, on each startup. This is the single authoritative schema-definition mechanism; there is no separate schema.sql file and no other code path that creates or alters schema.
 
 Core tables: `companies`, `roles`, `users`, `candidates`, `jobs`, `daily_jobs`, `interviews`, `business_dev`. See §5 for the tenancy model and §6 for the full entity diagram.
 
@@ -111,17 +111,19 @@ Relationships are intentionally loose: most foreign keys (e.g. `interviews.candi
 
 ## 7. Deployment Architecture
 
-Three containers, orchestrated via `docker-compose.yml`:
+**As of ADR 0009, this section describes the target architecture, not the historical one.** Earlier versions of this document (and an earlier, now-removed `docker-compose.yml`) described a three-container model with `postgres`, `backend`, and `frontend` all orchestrated together, Postgres included. That model is deliberately superseded: **PostgreSQL is never run in Docker**, in any environment, for the data-safety reasons ADR 0009 documents — the database's lifecycle must never be coupled to the application container's lifecycle.
 
-| Service | Image / Build | Notes |
+| Component | Runs as | Notes |
 |---|---|---|
-| `postgres` | `postgres:15-alpine` | Persists to a named volume (`pgdata`); has a healthcheck (`pg_isready`) gating backend startup. Schema is initialized by the backend via migrations on startup. |
-| `backend` | Built from `backend/Dockerfile` (`golang:1.21-alpine`) | Compiles `main.go` to a binary and runs it directly; waits for Postgres to be healthy. |
-| `frontend` | Built from root `Dockerfile` (multi-stage: `node:18-alpine` build → `nginx:alpine` serve) | Vite build output served by Nginx; Nginx config adds gzip and a SPA `try_files` fallback so client-side routing works on refresh. |
+| Frontend | Cloudflare Pages | Built and deployed independently of the backend; auto-deploys on push. |
+| Backend (API) | Docker container | Built from `backend/Dockerfile`. Connects to PostgreSQL purely over the network via `DB_HOST`/`DB_PORT`/`DB_USER`/`DB_PASSWORD`/`DB_NAME` — no awareness of whether Postgres is local or remote. |
+| PostgreSQL | Native systemd service | Independent of any container; today on the same host as the backend container, with the explicit intent to move to its own dedicated host as the system scales — a `DB_HOST` change only, no application or image change required. |
 
 Backend configuration is entirely environment-variable driven (`PORT`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`), with sane local defaults baked into `db/env.go`. The frontend's API base URL is baked in at build time via `VITE_API_URL`.
 
 CORS is currently a hardcoded allow-list in `main.go` (`skillsifter.in` domains + common localhost dev ports), rather than environment-configurable — changing deployment domains requires a code change and rebuild.
+
+See ADR 0009 (`docs/architecture/ADRs/0009-docker-backend-architecture-and-deployment.md`) for the full rationale and the branch/deployment discipline (`dev`-first, no manual `docker run`/`docker compose up` on servers, git-driven CD only) that governs how this is implemented.
 
 ## 8. Cross-Cutting Concerns
 

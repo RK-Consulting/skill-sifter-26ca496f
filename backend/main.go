@@ -90,11 +90,23 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes", handlers.ListResumes).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
+	// Issue #34 / ADR 0002: Client and Requirement domain. New V1 domain work
+	// is introduced under /api/v1 per ADR 0008 ("New V1 endpoints must be
+	// introduced under /api/v1/..."); the existing /api namespace above is
+	// untouched, and `jobs` remains available there unchanged (ADR 0002:
+	// jobs is retained as a temporary compatibility model, not replaced).
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
 	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
+
+	// Issue #35 / ADR 0003: Recruitment Assignment lifecycle. UpdateAssignment
+	// supports only reassigning owner_user_id (see handlers/assignment_handlers.go);
+	// lifecycle status transitions go through the dedicated endpoint below.
 	setupResourceRoutes(apiV1, "/assignments", handlers.GetAssignments, managerOnly(handlers.AddAssignment), handlers.GetAssignmentByID, managerOnly(handlers.UpdateAssignment), managerOnly(handlers.DeleteAssignment))
+	// Dedicated lifecycle-transition endpoint, deliberately separate from
+	// PUT /assignments/{id} so owner mutation and lifecycle transition stay
+	// two distinct concepts.
 	apiV1.HandleFunc("/assignments/{id}/transition", managerOnly(handlers.TransitionAssignment)).Methods("POST", "OPTIONS")
 }
 func main() {
