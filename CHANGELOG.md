@@ -4,6 +4,26 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.5] - 2026-09-08
+
+### Added
+- ADR 0009: Docker backend architecture and dev-branch deployment strategy — establishes PostgreSQL as permanently independent of any container, backend as the sole containerized component, and git-driven CD discipline for the `dev` line.
+- Audit event read access (`AuditEventRepository.GetByEntity`) — the audit-events table previously supported writes only; this adds the ability to fetch an entity's audit history back out, e.g. for a future activity/audit-trail view.
+
+### Fixed
+- Resume AI: candidate resume list, search, and upload results were not rendering — the frontend expected a bare array from `resume-ai` endpoints, but the backend returns the standard `{success, message, data}` envelope. Frontend now unwraps `response.data.data` consistently across all three call sites.
+
+### Changed
+- `docs/architecture.md`: corrected a stale reference to `db.ApplyMigrations()` (renamed to `InitializeSchema()` after v0.4.0); rewrote the Deployment Architecture section, which still described the three-container `docker-compose` model with PostgreSQL running inside Docker — the exact pattern ADR 0009 supersedes.
+- Backported explanatory documentation (tenant-scoping rationale, error-mapping decisions, route organization) into `assignment_handlers.go`, `client_handlers.go`, and `main.go` from earlier development-branch work that had richer comments than what shipped.
+
+### Removed
+- Dropped the unused `skills` and `candidate_skills` tables. Both were provisioned by an earlier design for normalized, confidence-scored skill tagging, but no code path ever read or wrote either table — Resume AI's actual extraction path writes into `candidate_expertise` instead. Confirmed empty in production before removal. `candidate_expertise` remains the single authoritative skills-storage mechanism.
+
+### Process
+- Repository branch and tag hygiene: established a consistent `v<version>-dev` naming convention, removed several stale and inconsistently-named development branches and two malformed release tags that had accumulated outside that convention.
+
+
 ## [0.5.3] - 2026-09-02
 
 ### Added

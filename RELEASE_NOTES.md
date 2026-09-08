@@ -1,239 +1,48 @@
-# SkillSifter v0.5.3
+# SkillSifter v0.5.5
 
-## CP11 + CP12 — Production Quality and Go-Live Readiness
+## Docker Architecture Decision, Resume AI Fix, and Repository Cleanup
 
-SkillSifter v0.5.3 closes the CP11 Production Quality Gate and CP12 Recruitment Workflow UAT / Go-Live Readiness checkpoints together. No v0.5.2 release is created.
+SkillSifter v0.5.5 is a stabilization and cleanup release following a production incident on the DigitalOcean deployment. It establishes the target Docker/deployment architecture for future backend work (ADR 0009), fixes a broken Resume AI listing/search view, adds audit-event read access, corrects stale architecture documentation, and removes unused schema.
 
-This is a lean stabilization release. It does not add new platform infrastructure or speculative engineering. The focus is verification of the existing recruitment workflow, CI quality gate, tenant isolation, authorization, and regression safety.
-
-## Highlights
-
-**Production quality gate.**
-
-- Backend CI validates formatting, repository structure, migration structure, schema definitions, build, vet, tests, and coverage reporting.
-- Frontend CI validates dependency installation, lint, tests, and production build.
-- Backend and frontend workflows remain separate and intentionally simple.
-- Continuous deployment remains outside this release.
-
-**Recruitment workflow readiness.**
-
-The target workflow is:
-
-```text
-Candidate → Candidate expertise → Requirement → Assignment
-→ Screening → Submission → Interview → Decision → Commercial / Joining
-```
-
-Existing automated regression coverage protects the most important backend workflow boundaries, including assignment state transitions, snapshots, audit integrity, tenant isolation, and authorization.
-
-**Focused UAT.**
-
-- Added a concise go-live readiness matrix for the recruiter workflow.
-- Product-owner/recruiter UAT remains the final application-level validation before production cutover.
-- UAT failures are treated as real product bugs and fixed narrowly, with regression coverage added when appropriate.
-
-## Security
-
-- Tenant isolation remains a release gate.
-- Assignment actors must belong to the assignment tenant.
-- Assignment audit actors remain tenant-scoped.
-- Role authorization remains part of the recruitment workflow validation.
-
-## Testing & CI
-
-The release preserves the existing CI quality gate rather than introducing a heavier pipeline.
-
-### Backend CI
-
-- Go formatting
-- repository/migration structure validation
-- schema definition validation
-- `go build ./...`
-- `go vet ./...`
-- `go test ./...` with coverage
-- coverage summary publication
-
-### Frontend CI
-
-- `npm ci`
-- lint
-- tests
-- production build
-
-## Release Scope
-
-- CP11 and CP12 are delivered as one release.
-- No v0.5.2 intermediate release.
-- No new observability platform, distributed tracing, CD system, or speculative performance framework.
-- Production performance and reliability work will be driven by real usage evidence.
-
-## Go-Live Gate
-
-Before production cutover:
-
-1. CI must be green.
-2. Database schema validation must be green.
-3. No known blocking regression may remain in the recruitment workflow.
-4. Manual recruiter UAT must be completed against the running application.
-5. Tenant isolation and role authorization must be explicitly exercised.
-
-## Operating Principle
-
-```text
-LEAN → STABLE → LIVE → OBSERVE → FIX → OPTIMIZE → EXPAND
-```
-
-Only production evidence should justify additional performance, observability, infrastructure, or architectural work.
-
-See [`docs/release/v0.5.3-go-live-readiness.md`](docs/release/v0.5.3-go-live-readiness.md) for the detailed checkpoint matrix.
-
----
-
-# SkillSifter v0.4.0
-
-## Recruitment Assignment State Machine
-
-SkillSifter v0.4.0 is a significant backend maturity release focused on recruitment assignment workflow integrity, tenant isolation, candidate expertise, audit enforcement, and automated CI.
-
-The release establishes recruitment assignments as a controlled domain workflow rather than a loosely coordinated set of handler operations. State transitions, authorization boundaries, snapshots, and audit behavior are now explicitly protected and covered by regression tests.
+This release does not introduce new user-facing features. Backend containerization itself (per ADR 0009) is architecture and process, not yet implemented — that begins next on `v0.5.5-dev`.
 
 ## Highlights
 
-**Recruitment assignment state machine.**
+**Deployment architecture decision (ADR 0009).**
 
-- Formalized the recruitment assignment lifecycle and valid state transitions.
-- Enforced state-transition rules through the assignment domain.
-- Prevented invalid or unsupported assignment transitions.
-- Strengthened assignment state and snapshot handling.
-- Added regression coverage for transition behavior and state integrity.
+- PostgreSQL is established as permanently independent of any container, on this host or any future one — the database's lifecycle must never be coupled to the application container's lifecycle.
+- The backend is the only component intended to run in Docker going forward.
+- `dev`-branch work must deploy via git-driven CD only; manual `docker run` / `docker compose up` on a server is explicitly disallowed, directly addressing the root cause of the incident this release follows.
 
-**Tenant-aware assignment authorization.**
+**Resume AI fix.**
 
-- Assignment actors are explicitly validated against the assignment tenant.
-- Cross-tenant assignment actors are rejected.
-- Tenant isolation is enforced at the assignment domain boundary.
-- Prevents an actor belonging to another tenant from being used in assignment operations.
+- The Resumes tab, search, and upload-results view were silently broken: the frontend expected list endpoints to return a bare array, but `resume-ai` endpoints return the standard `{success, message, data}` envelope used elsewhere in the API. Fixed by unwrapping `response.data.data` at all three call sites.
 
-**Audit integrity.**
+**Audit event read access.**
 
-- Assignment audit records enforce tenant-aware actor relationships.
-- Audit operations validate that the actor belongs to the same tenant as the assignment.
-- Added regression coverage for cross-tenant audit actors.
-- Strengthened the assignment history so audit events cannot be associated with an unauthorized tenant actor.
+- Added `AuditEventRepository.GetByEntity`, so an assignment's audit history can be queried back out — previously the audit_events table supported writes only.
 
-**Candidate expertise model.**
+**Documentation corrections.**
 
-- Added generic candidate technical expertise support.
-- Added candidate language expertise support.
-- Added proficiency frameworks and proficiency levels.
-- Added tenant-aware persistence for candidate expertise.
-- Added uniqueness constraints and supporting indexes.
-- Removed obsolete candidate expertise columns in favor of dedicated expertise tables.
+- `docs/architecture.md` described a schema-initialization function (`ApplyMigrations`) that was renamed to `InitializeSchema` after v0.4.0, and a three-container `docker-compose` deployment model with PostgreSQL running inside Docker — both stale relative to the actual codebase and, in the deployment section's case, directly superseded by this release's own ADR 0009.
 
-**Candidate status.**
+**Repository hygiene.**
 
-Candidate status is now explicitly constrained to:
+- Standardized on a single `v<version>-dev` branch-naming convention.
+- Removed multiple stale, differently-named, or fully-superseded development and feature branches, and two malformed release tags, that had accumulated outside that convention.
 
-- `active`
-- `inactive`
-- `blacklisted`
-- `archived`
+## Removed
 
-Invalid candidate status values are rejected at the database level.
-
-## Database
-
-Migration `009_candidate_expertise.sql` introduces the new candidate expertise model and removes the obsolete `jlptlanguage` and `skills` candidate columns.
-
-New tables:
-
-- `candidate_language_expertise`
-- `candidate_expertise`
-
-The new expertise tables are tenant-aware, reference the candidate and company, enforce uniqueness, and include indexes for tenant/candidate access.
-
-## Security
-
-- Assignment actors are tenant-scoped.
-- Cross-tenant assignment actors are rejected.
-- Assignment audit actors are tenant-scoped.
-- Cross-tenant audit relationships are rejected.
-- Candidate expertise persistence is tenant-scoped.
+- Dropped the unused `skills` and `candidate_skills` tables. Confirmed empty in production; no code path ever used them. `candidate_expertise` remains the single authoritative skills-storage mechanism for both curated and Resume-AI-extracted skill data.
 
 ## Testing & CI
 
-The release includes expanded automated regression coverage across:
+No changes to the CI quality gate in this release. Existing backend and frontend regression coverage (formatting, build, vet, tests, lint) continues to gate every change, as in v0.5.3.
 
-- Assignment domain services
-- Assignment state transitions
-- Assignment snapshots
-- Assignment handlers
-- Candidate handlers
-- Tenant isolation
-- Assignment actor authorization
-- Assignment audit enforcement
+## Next
 
-### Backend CI
+`v0.5.5-dev` begins the actual Docker/CI/CD implementation work described by ADR 0009: a backend `Dockerfile`-based build, CI image publishing, and a git-driven deployment mechanism for the `dev` line, isolated from production until proven stable.
 
-GitHub Actions validates:
 
-- Go formatting
-- `go build ./...`
-- `go vet ./...`
-- `go test ./...`
-
-### Frontend CI
-
-GitHub Actions validates:
-
-- dependency installation with `npm ci`
-- ESLint
-- Vitest
-- production build
-
-Backend and frontend CI are maintained as separate workflows so each side of the application has an independent, maintainable verification pipeline.
-
-## Verification
-
-The v0.4.0 implementation passed the local verification gate:
-
-- Backend build: PASS
-- Backend vet: PASS
-- Backend tests: PASS
-- Frontend lint: PASS
-- Frontend tests: PASS
-- Frontend production build: PASS
-- GitHub Actions Backend CI: PASS
-- GitHub Actions Frontend CI: PASS
-
-## Release Scope
-
-This release focuses on:
-
-- recruitment assignment domain hardening
-- controlled assignment state transitions
-- tenant isolation
-- assignment actor authorization
-- audit integrity
-- candidate expertise
-- candidate status constraints
-- backend and frontend CI foundations
-
-Continuous deployment is intentionally **not** part of v0.4.0. CD will be introduced separately when the deployment workflow is ready.
-
-## Upgrade Notes
-
-Apply database migrations in the normal migration sequence before using the new candidate expertise functionality.
-
-No special manual application-level migration procedure is required beyond the project's existing migration process.
-
-There is no legacy compatibility or data migration for the obsolete candidate `jlptlanguage` and `skills` columns; the new expertise model is the authoritative representation.
-
-## Release Reference
-
-- Version: `v0.4.0`
-- Release date: `2026-08-31`
-- Release target: `main`
-- Feature milestone: Recruitment Assignment State Machine
 
 See [CHANGELOG.md](CHANGELOG.md) for the itemized change history.
