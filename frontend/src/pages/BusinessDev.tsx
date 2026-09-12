@@ -26,51 +26,13 @@ const BusinessDev = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Mock data as fallback if API fails
-  const mockBusinessDevs = [
-    { 
-      id: 1, 
-      clientName: "TechSolutions Inc", 
-      partnerName: "Innovate Partners", 
-      contactPerson: "John Smith", 
-      contactNumber: "+1 (555) 123-4567", 
-      contactEmail: "john.smith@techsolutions.com",
-      createdAt: "1 day ago" 
-    },
-    { 
-      id: 2, 
-      clientName: "Global Finance Group", 
-      partnerName: "Capital Ventures", 
-      contactPerson: "Sarah Johnson", 
-      contactNumber: "+1 (555) 987-6543", 
-      contactEmail: "sjohnson@globalfinance.com",
-      createdAt: "3 days ago" 
-    },
-    { 
-      id: 3, 
-      clientName: "Healthcare Systems", 
-      partnerName: "", 
-      contactPerson: "Michael Brown", 
-      contactNumber: "+1 (555) 456-7890", 
-      contactEmail: "mbrown@healthsystems.com",
-      createdAt: "1 week ago" 
-    },
-    { 
-      id: 4, 
-      clientName: "Retail Solutions", 
-      partnerName: "Shop Partners", 
-      contactPerson: "Emily Davis", 
-      contactNumber: "+1 (555) 234-5678", 
-      contactEmail: "edavis@retailsolutions.com",
-      createdAt: "2 weeks ago" 
-    },
-  ];
-
-  // Safely extract data with array check
+  // Safely extract the array from the API's {success, message, data}
+  // envelope. This never falls back to fabricated data — an unrecognized
+  // response shape is treated the same as "no data", not "fake data",
+  // so a user can never mistake placeholder content for real records.
   const safeGetData = (response: unknown): BusinessDev[] => {
-    if (!response) return mockBusinessDevs;
+    if (!response) return [];
 
-    // Check different response structures
     if (Array.isArray(response)) return response as BusinessDev[];
     if (typeof response === 'object' && response !== null && 'data' in response) {
       const inner = (response as { data: unknown }).data;
@@ -82,7 +44,7 @@ const BusinessDev = () => {
     }
 
     console.warn('Expected array data but received:', response);
-    return mockBusinessDevs;
+    return [];
   };
 
   // Fetch business dev data using React Query
@@ -177,7 +139,7 @@ const BusinessDev = () => {
                 </div>
               ) : isError ? (
                 <div className="h-64 flex items-center justify-center">
-                  <p className="text-red-500">Error loading data. Using local data as fallback.</p>
+                  <p className="text-red-500">Failed to load business contacts. Please refresh the page or try again.</p>
                 </div>
               ) : (
                 <Table>

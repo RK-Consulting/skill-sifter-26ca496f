@@ -65,32 +65,10 @@ const AddBusinessDev = () => {
     } catch (error: unknown) {
       console.error('Error saving business contact:', error);
       toast.error(getErrorMessage(error, 'Failed to add business contact'));
-      
-      // Fallback to localStorage for demo purposes if API fails
-      try {
-        // Get existing data from localStorage
-        const existingBusinessDevs = JSON.parse(localStorage.getItem('businessDevs') || '[]');
-        
-        // Create new business dev object
-        const newBusinessDev = {
-          id: Date.now(), // Use timestamp as ID for simplicity
-          clientName: data.clientName,
-          partnerName: data.partnerName || '',
-          contactPerson: data.contactPerson,
-          contactNumber: data.contactNumber,
-          contactEmail: data.contactEmail,
-          createdAt: 'Today', // For display purposes
-        };
-        
-        // Add to array and save back to localStorage
-        existingBusinessDevs.push(newBusinessDev);
-        localStorage.setItem('businessDevs', JSON.stringify(existingBusinessDevs));
-        
-        toast.success('Business contact saved locally (API connection failed)');
-        navigate('/business-dev');
-      } catch (localError) {
-        console.error('Error saving to localStorage:', localError);
-      }
+      // No fallback: if the save didn't reach the server, it isn't
+      // saved. Silently writing to localStorage here would tell the
+      // user this succeeded while the contact was never persisted to
+      // the database — indistinguishable from data loss.
     } finally {
       setIsSubmitting(false);
     }
