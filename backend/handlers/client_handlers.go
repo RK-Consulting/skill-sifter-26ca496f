@@ -47,11 +47,11 @@ func GetClients(w http.ResponseWriter, r *http.Request) {
 	var rowsQuery string
 	var rowsArgs []interface{}
 	if status == "" {
-		rowsQuery = `SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), created_at, updated_at, tenant_id
+		rowsQuery = `SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), COALESCE(partner_name, ''), COALESCE(contact_person, ''), created_at, updated_at, tenant_id
 			FROM clients WHERE tenant_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2 OFFSET $3`
 		rowsArgs = []interface{}{tenantID, pagination.Limit, paginationOffset(pagination)}
 	} else {
-		rowsQuery = `SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), created_at, updated_at, tenant_id
+		rowsQuery = `SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), COALESCE(partner_name, ''), COALESCE(contact_person, ''), created_at, updated_at, tenant_id
 			FROM clients WHERE tenant_id = $1 AND status = $2 ORDER BY created_at DESC, id DESC LIMIT $3 OFFSET $4`
 		rowsArgs = []interface{}{tenantID, status, pagination.Limit, paginationOffset(pagination)}
 	}
@@ -66,7 +66,7 @@ func GetClients(w http.ResponseWriter, r *http.Request) {
 	clients := []models.Client{}
 	for rows.Next() {
 		var c models.Client
-		if err := rows.Scan(&c.ID, &c.Name, &c.Status, &c.ContactEmail, &c.ContactPhone, &c.CreatedAt, &c.UpdatedAt, &c.TenantID); err != nil {
+		if err := rows.Scan(&c.ID, &c.Name, &c.Status, &c.ContactEmail, &c.ContactPhone, &c.PartnerName, &c.ContactPerson, &c.CreatedAt, &c.UpdatedAt, &c.TenantID); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning client row")
 			return
 		}
@@ -100,9 +100,9 @@ func GetClientByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	var c models.Client
 	err = db.DB.QueryRow(`
-		SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), created_at, updated_at, tenant_id
+		SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), COALESCE(partner_name, ''), COALESCE(contact_person, ''), created_at, updated_at, tenant_id
 		FROM clients WHERE id = $1 AND tenant_id = $2`, id, tenantID,
-	).Scan(&c.ID, &c.Name, &c.Status, &c.ContactEmail, &c.ContactPhone, &c.CreatedAt, &c.UpdatedAt, &c.TenantID)
+	).Scan(&c.ID, &c.Name, &c.Status, &c.ContactEmail, &c.ContactPhone, &c.PartnerName, &c.ContactPerson, &c.CreatedAt, &c.UpdatedAt, &c.TenantID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Client not found")
 		return
@@ -129,9 +129,9 @@ func AddClient(w http.ResponseWriter, r *http.Request) {
 	}
 	c.TenantID = r.Context().Value("tenantID").(string)
 	err := db.DB.QueryRow(`
-		INSERT INTO clients (name, status, contact_email, contact_phone, tenant_id)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, created_at, updated_at`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.TenantID).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
+		INSERT INTO clients (name, status, contact_email, contact_phone, partner_name, contact_person, tenant_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		RETURNING id, created_at, updated_at`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.PartnerName, c.ContactPerson, c.TenantID).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating client")
 		return
@@ -163,8 +163,8 @@ func UpdateClient(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	c.ID, c.TenantID = id, tenantID
 	result, err := db.DB.Exec(`
-		UPDATE clients SET name = $1, status = $2, contact_email = $3, contact_phone = $4, updated_at = NOW()
-		WHERE id = $5 AND tenant_id = $6`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.ID, tenantID)
+		UPDATE clients SET name = $1, status = $2, contact_email = $3, contact_phone = $4, partner_name = $5, contact_person = $6, updated_at = NOW()
+		WHERE id = $7 AND tenant_id = $8`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.PartnerName, c.ContactPerson, c.ID, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating client")
 		return

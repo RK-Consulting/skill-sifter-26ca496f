@@ -17,6 +17,8 @@ interface Client {
   status: string;
   contactEmail?: string;
   contactPhone?: string;
+  partnerName?: string;
+  contactPerson?: string;
   createdAt: string;
 }
 
@@ -56,6 +58,7 @@ const Clients = () => {
     return list.filter(
       (c) =>
         c.name.toLowerCase().includes(term) ||
+        (c.contactPerson ?? '').toLowerCase().includes(term) ||
         (c.contactEmail ?? '').toLowerCase().includes(term)
     );
   }, [data, searchTerm]);
@@ -105,8 +108,10 @@ const Clients = () => {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>Status</TableHead>
+                        <TableHead>Contact Person</TableHead>
                         <TableHead>Contact Email</TableHead>
                         <TableHead>Contact Phone</TableHead>
+                        <TableHead>Partner</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -120,8 +125,10 @@ const Clients = () => {
                                 {c.status}
                               </span>
                             </TableCell>
+                            <TableCell>{c.contactPerson || '—'}</TableCell>
                             <TableCell>{c.contactEmail || '—'}</TableCell>
                             <TableCell>{c.contactPhone || '—'}</TableCell>
+                            <TableCell>{c.partnerName || '—'}</TableCell>
                             <TableCell className="text-right">
                               <Button variant="ghost" size="sm" onClick={() => navigate(`/requirements?clientId=${c.id}`)}>
                                 <ChevronRight size={16} />
@@ -131,7 +138,7 @@ const Clients = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                             {searchTerm ? 'No clients found matching your search.' : 'No clients yet.'}
                           </TableCell>
                         </TableRow>

@@ -18,8 +18,10 @@ import { getErrorMessage } from '@/lib/utils';
 const formSchema = z.object({
   name: z.string().min(2, 'Client name is required'),
   status: z.enum(['prospect', 'active', 'inactive']).default('prospect'),
+  contactPerson: z.string().min(2, 'Contact person is required'),
   contactEmail: z.string().email('Invalid email').optional().or(z.literal('')),
   contactPhone: z.string().optional(),
+  partnerName: z.string().optional(),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -30,7 +32,7 @@ const AddClient = () => {
 
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
-    defaultValues: { name: '', status: 'prospect', contactEmail: '', contactPhone: '' },
+    defaultValues: { name: '', status: 'prospect', contactPerson: '', contactEmail: '', contactPhone: '', partnerName: '' },
   });
 
   const onSubmit = async (data: FormData) => {
@@ -80,6 +82,19 @@ const AddClient = () => {
                   />
                   <FormField
                     control={form.control}
+                    name="contactPerson"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Contact Person</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Jane Doe" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
                     name="status"
                     render={({ field }) => (
                       <FormItem>
@@ -116,6 +131,19 @@ const AddClient = () => {
                         <FormLabel>Contact Phone</FormLabel>
                         <FormControl>
                           <Input placeholder="+1 555 123 4567" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="partnerName"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Partner Name (Optional)</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Referring partner, if applicable" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

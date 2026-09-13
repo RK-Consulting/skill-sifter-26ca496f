@@ -134,14 +134,16 @@ type BusinessDev struct {
 // recruitment firm performs recruitment work for. Tenant-owned; status
 // lifecycle is Prospect -> Active -> Inactive.
 type Client struct {
-	ID           int       `json:"id" db:"id,primarykey,autoincrement"`
-	Name         string    `json:"name" db:"name,notnull"`
-	Status       string    `json:"status" db:"status,default:'prospect'"`
-	ContactEmail string    `json:"contactEmail,omitempty" db:"contact_email"`
-	ContactPhone string    `json:"contactPhone,omitempty" db:"contact_phone"`
-	CreatedAt    time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	UpdatedAt    time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
-	TenantID     string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
+	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
+	Name          string    `json:"name" db:"name,notnull"`
+	Status        string    `json:"status" db:"status,default:'prospect'"`
+	ContactEmail  string    `json:"contactEmail,omitempty" db:"contact_email"`
+	ContactPhone  string    `json:"contactPhone,omitempty" db:"contact_phone"`
+	PartnerName   string    `json:"partnerName,omitempty" db:"partner_name"`
+	ContactPerson string    `json:"contactPerson,omitempty" db:"contact_person"`
+	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 
 // Requirement model. ADR 0002: a Requirement is the authoritative
