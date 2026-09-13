@@ -316,4 +316,71 @@ export const reportService = {
   },
 };
 
+// --- V1 domain services (ADR 0008: /api/v1) ---
+// These call /api/v1/... directly (not the bare resource path) because
+// the request interceptor above only auto-prepends /api/ when the URL is
+// missing it entirely; passing the full /api/v1/... path here avoids that
+// rewrite so it isn't collapsed back to /api/....
+
+export const clientService = {
+  // Paginated (ADR 0008). page/limit are 1-indexed; status is optional.
+  getAllClients: async (params?: { page?: number; limit?: number; status?: string }) => {
+    return api.get('/api/v1/clients', { params });
+  },
+  getClientById: async (id: number) => {
+    return api.get(`/api/v1/clients/${id}`);
+  },
+  createClient: async (client: Record<string, unknown>) => {
+    return api.post('/api/v1/clients', client);
+  },
+  updateClient: async (id: number, client: Record<string, unknown>) => {
+    return api.put(`/api/v1/clients/${id}`, client);
+  },
+  deleteClient: async (id: number) => {
+    return api.delete(`/api/v1/clients/${id}`);
+  },
+};
+
+export const requirementService = {
+  // Not paginated — GetRequirements returns the full tenant list.
+  getAllRequirements: async () => {
+    return api.get('/api/v1/requirements');
+  },
+  getRequirementById: async (id: number) => {
+    return api.get(`/api/v1/requirements/${id}`);
+  },
+  createRequirement: async (requirement: Record<string, unknown>) => {
+    return api.post('/api/v1/requirements', requirement);
+  },
+  updateRequirement: async (id: number, requirement: Record<string, unknown>) => {
+    return api.put(`/api/v1/requirements/${id}`, requirement);
+  },
+  deleteRequirement: async (id: number) => {
+    return api.delete(`/api/v1/requirements/${id}`);
+  },
+};
+
+export const assignmentV1Service = {
+  // Not paginated — GetAssignments returns the full tenant list.
+  getAllAssignments: async () => {
+    return api.get('/api/v1/assignments');
+  },
+  getAssignmentById: async (id: number) => {
+    return api.get(`/api/v1/assignments/${id}`);
+  },
+  createAssignment: async (assignment: { candidateId: number; requirementId: number; ownerUserId?: number }) => {
+    return api.post('/api/v1/assignments', assignment);
+  },
+  // Owner reassignment only — lifecycle status changes go through transitionAssignment.
+  updateAssignmentOwner: async (id: number, ownerUserId: number) => {
+    return api.put(`/api/v1/assignments/${id}`, { ownerUserId });
+  },
+  deleteAssignment: async (id: number) => {
+    return api.delete(`/api/v1/assignments/${id}`);
+  },
+  transitionAssignment: async (id: number, status: string) => {
+    return api.post(`/api/v1/assignments/${id}/transition`, { status });
+  },
+};
+
 export default api;
