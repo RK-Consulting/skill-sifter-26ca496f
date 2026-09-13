@@ -10,8 +10,8 @@ SkillSifter is a full-stack recruitment platform designed to help staffing organ
 
 The project combines a **Go REST API**, **React + TypeScript frontend**, and **PostgreSQL** database, with automated backend and frontend verification through GitHub Actions.
 
-> **Current release:** `v0.5.3`  
-> **Release focus:** CP11 Production Quality + CP12 Recruitment Workflow UAT / Go-Live Readiness  
+> **Current release:** `v0.5.6`  
+> **Release focus:** Business Dev consolidated into Client, Assignments UI removed, navbar overflow fix  
 > **Project status:** Active development / pre-1.0
 
 ---
@@ -24,8 +24,9 @@ The platform is centered around the recruitment lifecycle:
 
 - **Candidates** — maintain candidate profiles and recruitment information
 - **Candidate expertise** — maintain structured technical and language expertise
+- **Clients** — manage client records, including partner and contact-person details
 - **Requirements** — manage client/job requirements
-- **Recruitment assignments** — connect candidates with requirements through controlled assignment workflows
+- **Recruitment assignments** — connect candidates with requirements through controlled assignment workflows (backend domain; day-to-day recruiter matching now happens via Daily Tasks, see below)
 - **Screening and submission** — support recruiter-driven candidate progression
 - **Interviews** — manage interview-related recruitment activity
 - **Decision and commercial workflow** — support later-stage recruitment progression toward joining
@@ -51,6 +52,12 @@ The architecture is intentionally modular so individual domains can evolve witho
 - Resume association and metadata
 - Recruitment activity tracking
 
+### Client Management
+
+- Client record management, including partner name and contact person (merged in from the former standalone Business Dev module in v0.5.6)
+- Paginated client listing
+- Tenant-scoped client access
+
 ### Recruitment Requirements
 
 - Requirement management
@@ -61,7 +68,7 @@ The architecture is intentionally modular so individual domains can evolve witho
 
 ### Recruitment Assignment
 
-Recruitment assignments are now treated as a controlled domain workflow rather than a loosely coordinated set of handler operations.
+Recruitment assignments remain a controlled domain workflow in the backend rather than a loosely coordinated set of handler operations. As of v0.5.6, the dedicated Assignments frontend tab has been removed as redundant with Daily Tasks, which already covers recruiter-driven candidate-requirement matching day to day; the backend assignment domain and its guarantees below are unaffected.
 
 Current capabilities include:
 
@@ -101,7 +108,7 @@ Decision
 Commercial / Joining
 ```
 
-The v0.5.3 release focuses on validating this workflow through automated regression coverage and focused recruiter UAT rather than introducing unnecessary browser-test or infrastructure complexity.
+Day-to-day recruiter matching is handled through Daily Tasks rather than a separate Assignments tab, following the v0.5.6 consolidation.
 
 ### Resume Intelligence
 
@@ -387,7 +394,7 @@ The engineering principle is simple:
 
 > **If it does not pass locally, it should not pass CI.**
 
-The v0.5.3 release continues to favor a small, repeatable quality gate over unnecessary testing infrastructure.
+The project continues to favor a small, repeatable quality gate over unnecessary testing infrastructure.
 
 ---
 
@@ -534,16 +541,15 @@ SkillSifter is **active development software** and remains **pre-1.0**.
 
 The project has progressed beyond the initial ATS foundation into recruitment workflow hardening and production-readiness validation.
 
-### v0.5.3 Status
+### v0.5.6 Status
 
-The current release combines two checkpoints:
+The current release is a navigation and domain-model cleanup pass:
 
-- **CP11 — Production Quality Gate**
-- **CP12 — Recruitment Workflow UAT / Go-Live Readiness**
+- Business Dev's unique fields (partner name, contact person) are now part of Client, and the standalone Business Dev tab is removed.
+- The Assignments frontend tab is removed as redundant with Daily Tasks.
+- Navbar overflow is fixed so all tabs and actions remain reachable as the tab count grows.
 
-The release confirms the existing CI and regression infrastructure as the quality gate and adds a focused go-live readiness process for the recruiter workflow.
-
-The final application-level gate remains manual recruiter UAT against the running application before production cutover.
+The go-live readiness work established in CP11/CP12 (v0.5.3) remains the standing quality bar; the final application-level gate remains manual recruiter UAT against the running application before production cutover.
 
 ### Current Engineering Priorities
 
@@ -614,20 +620,20 @@ SkillSifter follows:
 - **Keep a Changelog**
 - Incremental development checkpoints
 
-### Current Release — v0.5.3
+### Current Release — v0.5.6
 
-**Released:** September 2, 2026
+**Released:** September 13, 2026
 
-v0.5.3 combines CP11 Production Quality and CP12 Recruitment Workflow UAT / Go-Live Readiness.
+v0.5.6 consolidates the Business Dev module into Client (`partner_name`, `contact_person` are now Client fields), removes the redundant Assignments frontend tab in favor of Daily Tasks, and fixes navbar overflow so navigation stays usable as the tab count grows.
 
-The release is intentionally a **lean stabilization release**. It does not introduce a new observability platform, distributed tracing infrastructure, continuous-deployment system, or speculative performance framework.
-
-No `v0.5.2` release was created; the CP11 and CP12 checkpoints were delivered together as v0.5.3.
+The backend `BusinessDev` struct and table remain in place but are now unused by the frontend — flagged for a future cleanup pass.
 
 ### Release History
 
 | Release | Focus |
 |---|---|
+| `v0.5.6` | Business Dev merged into Client, Assignments UI removed, navbar overflow fix |
+| `v0.5.5` | Docker architecture decision (ADR 0009), Resume AI fix, audit read access, unused-table cleanup |
 | `v0.5.3` | CP11 Production Quality + CP12 Go-Live Readiness |
 | `v0.5.1` | Recruitment workflow stabilization and verification |
 | `v0.4.0` | Recruitment Assignment State Machine, tenant isolation, audit integrity, candidate expertise, CI foundations |
