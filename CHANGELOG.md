@@ -4,6 +4,25 @@ All notable changes to SkillSifter are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project uses [Semantic Versioning](https://semver.org/).
 
+## [0.5.6] - 2026-09-13
+
+### Removed
+- Assignments module (`Assignments.tsx`, `AddAssignment.tsx`) — redundant with Daily Tasks, which already covers candidate-requirement matching for internal recruiter workflows.
+- Business Dev frontend module (`BusinessDev.tsx`, `AddBusinessDev.tsx`) — its two unique fields (`partnerName`, `contactPerson`) are now part of the Client model instead.
+
+### Changed
+- `Client` model and `client_handlers.go`: added optional `partner_name` and `contact_person` fields, absorbing Business Dev's distinguishing data onto the Client record.
+- `Clients.tsx` / `AddClient.tsx`: updated to display and capture the new partner/contact fields.
+- Navbar: nav-links section is now independently scrollable, keeping the logo and right-side actions (Add Candidate, Logout) pinned and visible as the number of tabs grows.
+
+### Migration
+- `013_client_partner_and_contact_person.sql` — adds `partner_name` and `contact_person` columns to `clients`. No data migration required (pre-release, no production client data to carry over).
+
+### Known limitations
+- The backend `BusinessDev` struct and its underlying table remain in place, now unused by the frontend — candidate for cleanup in a future release, similar to the `skills`/`candidate_skills` table removal in v0.5.5.
+
+
+
 ## [0.5.5] - 2026-09-08
 
 ### Added
