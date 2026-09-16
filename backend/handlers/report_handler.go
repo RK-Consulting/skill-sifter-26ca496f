@@ -40,6 +40,8 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	switch period {
 	case "daily":
 		trunc, since, label = "day", "30 days", "2006-01-02"
+	case "weekly":
+		trunc, since, label = "week", "26 weeks", "2006-01-02"
 	case "monthly":
 		trunc, since, label = "month", "12 months", "2006-01"
 	case "quarterly":
@@ -47,7 +49,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	case "yearly":
 		trunc, since, label = "year", "5 years", "2006"
 	default:
-		respondWithError(w, 400, "period must be daily, monthly, quarterly or yearly")
+		respondWithError(w, 400, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
 	}
 	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='JOBS_INSERT') jobs,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)

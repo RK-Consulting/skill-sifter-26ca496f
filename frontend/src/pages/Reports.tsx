@@ -5,7 +5,7 @@ import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import { resumeAIService, PeriodRow, ActivityRow } from '@/services/resumeAIService';
 
-const periods = ['daily', 'monthly', 'quarterly', 'yearly'];
+const periods = ['daily', 'weekly', 'monthly', 'quarterly', 'yearly'];
 
 const Reports = () => {
   const [period, setPeriod] = useState('monthly');
