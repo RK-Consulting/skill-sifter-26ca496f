@@ -48,17 +48,11 @@ const formSchema = z.object({
   experience: z.string().min(1, {
     message: "Experience is required",
   }),
-  salary: z.string().min(1, {
-    message: "Salary is required",
-  }),
   
   description: z.string().min(10, {
     message: "Job description must be at least 10 characters",
   }),
   budget: z.string().optional(),
-  position: z.string().min(2, {
-    message: "Position must be at least 2 characters",
-  }),
   language: z.string().optional(),
   certification: z.string().optional(),
   noticePeriod: z.string().optional(),
@@ -87,9 +81,7 @@ const AddJob = () => {
       jdNo: "",
       clientName: "",
       experience: "",
-      salary: "",
       budget: "",
-      position: "",
       language: "",
       certification: "",
       noticePeriod: "",
@@ -110,11 +102,9 @@ const AddJob = () => {
         location: values.location,
         status: 'open', // Default status
         description: `
-Position: ${values.position}
 JD Number: ${values.jdNo}
 Client: ${values.clientName}
 Experience Required: ${values.experience}
-Salary Range: ${values.salary}
 ${values.budget ? `Budget: ${values.budget}` : ''}
 ${values.language ? `Language Requirements: ${values.language}` : ''}
 ${values.certification ? `Certifications: ${values.certification}` : ''}
@@ -240,19 +230,6 @@ ${values.description}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <FormField
                       control={form.control}
-                      name="position"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Position</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter position" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
                       name="location"
                       render={({ field }) => (
                         <FormItem>
@@ -296,19 +273,6 @@ ${values.description}
                   </div>
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <FormField
-                      control={form.control}
-                      name="salary"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Salary Range</FormLabel>
-                          <FormControl>
-                            <Input placeholder="e.g., $80,000-$100,000" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
                     <FormField
                       control={form.control}
                       name="budget"
