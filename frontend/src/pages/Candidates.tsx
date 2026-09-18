@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
@@ -23,7 +23,7 @@ interface Candidate {
   name: string;
   role: string;
   location: string;
-  status: string;
+  pipelineStage: string;
   date: string;
   email: string;
   phone?: string;
@@ -35,11 +35,10 @@ interface Candidate {
   skills?: string;
 }
 
-// Shape actually returned by GET /api/candidates as of the schema-mismatch
-// fix (docs/architecture.md). Note there is currently no `status` or
-// `source` field on the backend — status filtering/updating in this page is
-// client-side only until the candidate_statuses/status_id design (section
-// 12.5/13.6) is actually implemented.
+// Shape actually returned by GET /api/candidates. `status` is the ADR 0004
+// eligibility gate (active/inactive/blacklisted/archived) — not shown on
+// this page. `pipelineStage` is the recruitment-funnel stage the Actions
+// menu below actually reads and writes.
 interface ApiCandidate {
   id: number;
   name: string;
@@ -52,6 +51,7 @@ interface ApiCandidate {
   expectedCTC?: string;
   noticePeriod?: string;
   skills?: string;
+  pipelineStage?: string;
   createdAt?: string;
 }
 
@@ -63,6 +63,8 @@ const Candidates = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadTargetId, setUploadTargetId] = useState<number | null>(null);
+  const resumeInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCandidates = async () => {
     setIsLoading(true);
@@ -81,10 +83,9 @@ const Candidates = () => {
           phone: candidate.phone,
           role: candidate.position || 'No Position',
           location: candidate.location || 'Not specified',
-          // No real status field exists on the backend yet (see ApiCandidate
-          // comment above) — this is a client-side-only placeholder until
-          // section 12.5/13.6's candidate_statuses design is implemented.
-          status: 'applied',
+          // Real pipeline stage from the backend (defaults to 'new' on
+          // the database side for candidates that predate this field).
+          pipelineStage: candidate.pipelineStage || 'new',
           date: candidate.createdAt ? new Date(candidate.createdAt).toLocaleDateString() : 'Recently',
           position: candidate.position,
           experience: candidate.experience,
@@ -133,27 +134,22 @@ const Candidates = () => {
     navigate('/candidates/add');
   };
 
-  const updateCandidateStatus = async (id: number, status: string) => {
+  const updateCandidateStatus = async (id: number, pipelineStage: string) => {
     try {
       const candidateToUpdate = candidates.find(c => c.id === id);
       if (!candidateToUpdate) return;
 
-      // NOTE: the backend's candidates table has no status column yet (see
-      // ApiCandidate comment above) — UpdateCandidate will silently ignore
-      // this field. This call currently only updates local UI state below;
-      // it does not persist. Real persistence needs the candidate_statuses/
-      // status_id migration (docs/architecture.md section 12.5/13.6).
       await candidateService.updateCandidate(id, {
         ...candidateToUpdate,
-        status: status
+        pipelineStage
       });
 
       // Update local state
-      const updatedCandidates = candidates.map(candidate => 
-        candidate.id === id ? { ...candidate, status } : candidate
+      const updatedCandidates = candidates.map(candidate =>
+        candidate.id === id ? { ...candidate, pipelineStage } : candidate
       );
       setCandidates(updatedCandidates);
-      toast.success(`Candidate status updated to ${status}`);
+      toast.success(`Candidate status updated to ${pipelineStage}`);
     } catch (error) {
       console.error('Error updating candidate status:', error);
       toast.error('Failed to update candidate status');
@@ -165,6 +161,27 @@ const Candidates = () => {
     // TODO: Navigate to candidate details page when implemented
   };
 
+  const triggerResumeUpload = (id: number) => {
+    setUploadTargetId(id);
+    resumeInputRef.current?.click();
+  };
+
+  const handleResumeFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file next time
+    if (!file || uploadTargetId === null) return;
+
+    try {
+      await candidateService.uploadResume(uploadTargetId, file);
+      toast.success('Resume uploaded successfully');
+    } catch (error) {
+      console.error('Error uploading resume:', error);
+      toast.error('Failed to upload resume');
+    } finally {
+      setUploadTargetId(null);
+    }
+  };
+
   const renderCandidateRow = (candidate: Candidate) => (
     <TableRow key={candidate.id}>
       <TableCell className="font-medium">{candidate.name}</TableCell>
@@ -172,14 +189,14 @@ const Candidates = () => {
       {!isMobile && <TableCell>{candidate.email}</TableCell>}
       <TableCell>
         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-          ${candidate.status === 'applied' ? 'bg-blue-100 text-blue-800' : ''}
-          ${candidate.status === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
-          ${candidate.status === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
-          ${candidate.status === 'offer' ? 'bg-green-100 text-green-800' : ''}
-          ${candidate.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-          ${candidate.status === 'hired' ? 'bg-green-100 text-green-800' : ''}
+          ${candidate.pipelineStage === 'new' ? 'bg-blue-100 text-blue-800' : ''}
+          ${candidate.pipelineStage === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
+          ${candidate.pipelineStage === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
+          ${candidate.pipelineStage === 'offer' ? 'bg-green-100 text-green-800' : ''}
+          ${candidate.pipelineStage === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+          ${candidate.pipelineStage === 'hired' ? 'bg-green-100 text-green-800' : ''}
         `}>
-          {candidate.status}
+          {candidate.pipelineStage}
         </span>
       </TableCell>
       {!isMobile && <TableCell>{candidate.date}</TableCell>}
@@ -193,6 +210,9 @@ const Candidates = () => {
           <DropdownMenuContent align="end" className="w-[160px]">
             <DropdownMenuItem onClick={() => viewCandidateDetails(candidate.id)}>
               View Details
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => triggerResumeUpload(candidate.id)}>
+              Upload Resume
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'screening')}>
               Mark Screening
@@ -217,14 +237,14 @@ const Candidates = () => {
             <div className="flex justify-between items-start mb-2">
               <h3 className="font-medium">{candidate.name}</h3>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                ${candidate.status === 'applied' ? 'bg-blue-100 text-blue-800' : ''}
-                ${candidate.status === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
-                ${candidate.status === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
-                ${candidate.status === 'offer' ? 'bg-green-100 text-green-800' : ''}
-                ${candidate.status === 'rejected' ? 'bg-red-100 text-red-800' : ''}
-                ${candidate.status === 'hired' ? 'bg-green-100 text-green-800' : ''}
+                ${candidate.pipelineStage === 'new' ? 'bg-blue-100 text-blue-800' : ''}
+                ${candidate.pipelineStage === 'screening' ? 'bg-blue-100 text-blue-800' : ''}
+                ${candidate.pipelineStage === 'interview' ? 'bg-yellow-100 text-yellow-800' : ''}
+                ${candidate.pipelineStage === 'offer' ? 'bg-green-100 text-green-800' : ''}
+                ${candidate.pipelineStage === 'rejected' ? 'bg-red-100 text-red-800' : ''}
+                ${candidate.pipelineStage === 'hired' ? 'bg-green-100 text-green-800' : ''}
               `}>
-                {candidate.status}
+                {candidate.pipelineStage}
               </span>
             </div>
             <div className="text-sm text-gray-500 mb-1">{candidate.role}</div>
@@ -239,6 +259,9 @@ const Candidates = () => {
                 <DropdownMenuContent align="end" className="w-[160px]">
                   <DropdownMenuItem onClick={() => viewCandidateDetails(candidate.id)}>
                     View Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => triggerResumeUpload(candidate.id)}>
+                    Upload Resume
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => updateCandidateStatus(candidate.id, 'screening')}>
                     Mark Screening
@@ -264,6 +287,13 @@ const Candidates = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <input
+        ref={resumeInputRef}
+        type="file"
+        accept=".pdf,.doc,.docx"
+        className="hidden"
+        onChange={handleResumeFileSelected}
+      />
       <Navbar />
       <main className="pt-24 pb-10 flex-grow">
         <Container>

@@ -24,7 +24,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, created_at, tenant_id, company_name
+		       status, pipeline_stage, created_at, tenant_id, company_name
 		FROM candidates
 		WHERE tenant_id = $1
 		ORDER BY id`, tenantID)
@@ -52,6 +52,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 			&c.NoticePeriod,
 			&c.JobDescription,
 			&c.Status,
+			&c.PipelineStage,
 			&c.CreatedAt,
 			&c.TenantID,
 			&c.CompanyName,
@@ -100,7 +101,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 	err = db.DB.QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, created_at, tenant_id, company_name
+		       status, pipeline_stage, created_at, tenant_id, company_name
 		FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
 		id,
@@ -118,6 +119,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		&c.NoticePeriod,
 		&c.JobDescription,
 		&c.Status,
+		&c.PipelineStage,
 		&c.CreatedAt,
 		&c.TenantID,
 		&c.CompanyName,
@@ -248,15 +250,15 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var existingStatus string
+	var existingStatus, existingPipelineStage string
 
 	err = db.DB.QueryRow(`
-		SELECT status
+		SELECT status, pipeline_stage
 		FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
 		id,
 		tenantID,
-	).Scan(&existingStatus)
+	).Scan(&existingStatus, &existingPipelineStage)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
@@ -269,9 +271,16 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 	if c.Status == "" {
 		c.Status = existingStatus
 	}
+	if c.PipelineStage == "" {
+		c.PipelineStage = existingPipelineStage
+	}
 
 	if !isValidCandidateStatus(c.Status) {
 		respondWithError(w, http.StatusBadRequest, "Invalid candidate status")
+		return
+	}
+	if !isValidPipelineStage(c.PipelineStage) {
+		respondWithError(w, http.StatusBadRequest, "Invalid candidate pipeline stage")
 		return
 	}
 
@@ -294,8 +303,9 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		    expectedctc = $8,
 		    noticeperiod = $9,
 		    jobdescription = $10,
-		    status = $11
-		WHERE id = $12 AND tenant_id = $13`,
+		    status = $11,
+		    pipeline_stage = $12
+		WHERE id = $13 AND tenant_id = $14`,
 		c.Name,
 		c.Email,
 		c.Phone,
@@ -307,6 +317,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		c.NoticePeriod,
 		c.JobDescription,
 		c.Status,
+		c.PipelineStage,
 		id,
 		tenantID,
 	)
@@ -603,6 +614,19 @@ func replaceCandidateExpertise(tx *sql.Tx, c *models.Candidate) error {
 func isValidCandidateStatus(status string) bool {
 	switch status {
 	case "active", "inactive", "blacklisted", "archived":
+		return true
+	default:
+		return false
+	}
+}
+
+// isValidPipelineStage validates the recruitment pipeline stage — distinct
+// from candidate status (isValidCandidateStatus), which is the ADR 0004
+// eligibility gate. Pipeline stage tracks where a candidate is in the
+// recruiting funnel and has no bearing on assignment eligibility.
+func isValidPipelineStage(stage string) bool {
+	switch stage {
+	case "new", "screening", "interview", "rejected", "hired":
 		return true
 	default:
 		return false

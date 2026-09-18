@@ -26,6 +26,7 @@ type Candidate struct {
 	NoticePeriod       string                       `json:"noticePeriod" db:"noticeperiod"`
 	JobDescription     string                       `json:"newJD" db:"jobdescription"`
 	Status             string                       `json:"status" db:"status"`
+	PipelineStage      string                       `json:"pipelineStage" db:"pipeline_stage"`
 	LanguageExpertise  []CandidateLanguageExpertise `json:"languageExpertise,omitempty" db:"-"`
 	TechnicalExpertise []CandidateExpertise         `json:"technicalExpertise,omitempty" db:"-"`
 	CreatedAt          time.Time                    `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
