@@ -76,6 +76,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
 	api.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/candidates", handlers.GetCandidates, handlers.AddCandidate, handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
+	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
+	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/jobs", handlers.GetJobs, managerOnly(handlers.AddJob), handlers.GetJobByID, managerOnly(handlers.UpdateJob), managerOnly(handlers.DeleteJob))
 	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
 	setupResourceRoutes(api, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)

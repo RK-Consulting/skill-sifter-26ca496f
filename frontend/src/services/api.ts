@@ -114,6 +114,23 @@ export const candidateService = {
   deleteCandidate: async (id: number) => {
     return api.delete(`/candidates/${id}`);
   },
+
+  // Upload a resume file for a specific candidate. Deterministic — the
+  // resume is associated with exactly this candidate, unlike the AI bulk
+  // upload (resumeAIService.upload) which matches candidates by parsed
+  // content.
+  uploadResume: async (id: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file, file.name);
+    return api.post(`/candidates/${id}/resume`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+
+  // Get the most recently uploaded resume for a candidate, if any.
+  getResume: async (id: number) => {
+    return api.get(`/candidates/${id}/resume`);
+  },
 };
 
 export const jobService = {
