@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,10 +45,23 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { interviewService } from '@/services/api';
+import { interviewService, candidateService } from '@/services/api';
+
+// Interviews are scheduled and displayed in IST (India Standard Time) —
+// RK Consulting's own timezone. This is shown explicitly next to the
+// date/time picker and in the confirmation toast, addressing the tester
+// report that the applicable timezone was not clear before confirmation.
+const DISPLAY_TIMEZONE_LABEL = 'IST (India Standard Time, UTC+5:30)';
+
+interface CandidateOption {
+  id: number;
+  name: string;
+  position?: string;
+}
 
 // Define the schema for form validation matching backend Interview model
 const formSchema = z.object({
+  candidateId: z.coerce.number().min(1, { message: 'Candidate is required' }),
   candidateName: z.string().min(1, { message: 'Candidate name is required' }),
   position: z.string().min(1, { message: 'Position is required' }),
   interviewDate: z.date({
@@ -62,11 +75,26 @@ type FormValues = z.infer<typeof formSchema>;
 
 const ScheduleInterview = () => {
   const navigate = useNavigate();
-  
+  const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+
+  useEffect(() => {
+    const loadCandidates = async () => {
+      try {
+        const response = await candidateService.getAllCandidates();
+        setCandidates(response.data?.data || []);
+      } catch (error) {
+        console.error('Error loading candidates:', error);
+        toast.error('Failed to load candidates');
+      }
+    };
+    void loadCandidates();
+  }, []);
+
   // Initialize form with zod resolver
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      candidateId: 0,
       status: 'scheduled',
       feedback: '',
     },
@@ -75,10 +103,13 @@ const ScheduleInterview = () => {
   // Handle form submission
   const onSubmit = async (data: FormValues) => {
     try {
-      console.log('Interview data to submit:', data);
-      
-      // Create interview object matching backend Interview model
+      // Create interview object matching backend Interview model —
+      // candidateId is now a real, selected candidate's ID, not the
+      // implicit zero-value that previously violated the interviews
+      // table's foreign key on candidate_id and caused every scheduling
+      // attempt to fail.
       const interviewData = {
+        candidateId: data.candidateId,
         candidateName: data.candidateName,
         position: data.position,
         interviewDate: data.interviewDate.toISOString(),
@@ -86,12 +117,9 @@ const ScheduleInterview = () => {
         feedback: data.feedback || '',
       };
 
-      console.log('Sending interview data:', interviewData);
-      
-      const response = await interviewService.createInterview(interviewData);
-      console.log('Interview created successfully:', response);
-      
-      toast.success('Interview successfully scheduled!');
+      await interviewService.createInterview(interviewData);
+
+      toast.success(`Interview scheduled for ${format(data.interviewDate, "PPP p")} ${DISPLAY_TIMEZONE_LABEL}`);
       form.reset();
       navigate('/interviews');
     } catch (error) {
@@ -126,19 +154,41 @@ const ScheduleInterview = () => {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Candidate Name */}
+                    {/* Candidate */}
                     <FormField
                       control={form.control}
-                      name="candidateName"
+                      name="candidateId"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Candidate Name</FormLabel>
-                          <FormControl>
-                            <div className="flex">
-                              <User className="w-4 h-4 absolute mt-3 ml-3 text-ats-gray-500" />
-                              <Input className="pl-10" placeholder="John Doe" {...field} />
-                            </div>
-                          </FormControl>
+                          <FormLabel>Candidate</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              const selected = candidates.find((c) => c.id === Number(value));
+                              field.onChange(Number(value));
+                              form.setValue('candidateName', selected?.name || '');
+                              if (selected?.position && !form.getValues('position')) {
+                                form.setValue('position', selected.position);
+                              }
+                            }}
+                            defaultValue={field.value ? String(field.value) : undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <User className="mr-2 h-4 w-4 opacity-50" />
+                                <SelectValue placeholder="Select a candidate" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {candidates.map((c) => (
+                                <SelectItem key={c.id} value={String(c.id)}>
+                                  {c.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {candidates.length === 0 && (
+                            <FormDescription>No candidates found — add one first.</FormDescription>
+                          )}
                           <FormMessage />
                         </FormItem>
                       )}
@@ -191,6 +241,9 @@ const ScheduleInterview = () => {
                       render={({ field }) => (
                         <FormItem className="flex flex-col">
                           <FormLabel>Interview Date & Time</FormLabel>
+                          <FormDescription>
+                            All times are in {DISPLAY_TIMEZONE_LABEL}.
+                          </FormDescription>
                           <Popover>
                             <PopoverTrigger asChild>
                               <FormControl>
@@ -205,7 +258,7 @@ const ScheduleInterview = () => {
                                     <CalendarIcon className="mr-2 h-4 w-4" />
                                     <Clock className="mr-2 h-4 w-4" />
                                     {field.value ? (
-                                      format(field.value, "PPP p")
+                                      `${format(field.value, "PPP p")} IST`
                                     ) : (
                                       <span>Select date and time</span>
                                     )}
