@@ -50,14 +50,12 @@ const Jobs = () => {
   };
 
   const viewJobDetails = (id: number) => {
-    // Added a try-catch block and toast notification for job navigation
-    try {
-      console.log(`Navigating to job details page for job ID: ${id}`);
-      navigate(`/jobs/${id}`);
-    } catch (error) {
-      console.error('Error navigating to job details:', error);
-      toast.error('Failed to open job details. Please try again.');
-    }
+    // No job-details page exists yet (there is no /jobs/:id route), so this
+    // previously navigated to a URL that fell through to the 404 page.
+    // Disabled until a details view is actually built, rather than leaving
+    // a button that silently breaks.
+    console.log(`Job details view requested for job ID ${id}, but no details page exists yet.`);
+    toast.info('Job detail view is not available yet.');
   };
   
   // Fetch jobs using React Query with proper error handling
