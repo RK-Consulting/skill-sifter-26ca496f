@@ -31,3 +31,8 @@ ALTER TABLE requirements
     CHECK (work_arrangement IS NULL OR work_arrangement IN ('hybrid', 'remote', 'office'));
 
 CREATE INDEX IF NOT EXISTS idx_requirements_status ON requirements(status);
+
+
+-- Legacy jobs data is intentionally discarded. Requirements are now the
+-- sole recruitment-demand model; no historical jobs data is required.
+DROP TABLE IF EXISTS jobs CASCADE;
