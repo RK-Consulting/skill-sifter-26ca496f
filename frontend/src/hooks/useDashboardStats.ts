@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { candidateService, jobService, dailyJobService, businessDevService, interviewService } from '@/services/api';
+import { candidateService, dailyJobService, businessDevService, interviewService, requirementService } from '@/services/api';
 
 interface DashboardStats {
   totalCandidates: number;
-  activeJobs: number;
+  activeRequirements: number;
   dailyTasks: number;
   businessContacts: number;
   totalInterviews: number;
@@ -25,14 +25,14 @@ export const useDashboardStats = (): DashboardStats => {
     retry: false, // Don't retry failed requests
   });
 
-  // Fetch jobs
-  const { 
-    data: jobsData, 
-    isLoading: jobsLoading,
-    error: jobsError
+  // Fetch requirements — the authoritative recruitment-demand resource.
+  const {
+    data: requirementsData,
+    isLoading: requirementsLoading,
+    error: requirementsError
   } = useQuery({
-    queryKey: ['jobs'],
-    queryFn: jobService.getAllJobs,
+    queryKey: ['requirements'],
+    queryFn: requirementService.getAllRequirements,
     retry: false,
   });
 
@@ -71,10 +71,6 @@ export const useDashboardStats = (): DashboardStats => {
 
   // Minimal shapes for the fields this hook actually reads. Other fields
   // returned by the API are ignored here, hence the index signature.
-  interface JobRecord {
-    status?: string;
-    [key: string]: unknown;
-  }
   interface InterviewRecord {
     status?: string;
     [key: string]: unknown;
@@ -101,7 +97,7 @@ export const useDashboardStats = (): DashboardStats => {
 
   // Extract data safely
   const candidatesArray = safeGetArray<Record<string, unknown>>(candidatesData);
-  const jobsArray = safeGetArray<JobRecord>(jobsData);
+  const requirementsArray = safeGetArray<{ status?: string }>(requirementsData);
   const dailyJobsArray = safeGetArray<Record<string, unknown>>(dailyJobsData);
   const businessArray = safeGetArray<Record<string, unknown>>(businessData);
   const interviewsArray = safeGetArray<InterviewRecord>(interviewsData);
@@ -109,9 +105,9 @@ export const useDashboardStats = (): DashboardStats => {
   // Calculate totals using the safe arrays
   const totalCandidates = candidatesArray.length;
   
-  // Calculate active jobs (filter by status 'open' or 'Active')
-  const activeJobs = jobsArray.filter(
-    (job) => job.status === 'open' || job.status === 'Active'
+  // Calculate active requirements.
+  const activeRequirements = requirementsArray.filter(
+    (requirement) => requirement.status === 'open'
   ).length;
   
   // Daily tasks count from backend
@@ -126,22 +122,22 @@ export const useDashboardStats = (): DashboardStats => {
   const completedInterviews = interviewsArray.filter((interview) => interview.status === 'completed').length;
 
   // Determine overall loading state - only if ALL are loading
-  const isLoading = candidatesLoading && jobsLoading && dailyJobsLoading && businessLoading && interviewsLoading;
+  const isLoading = candidatesLoading && requirementsLoading && dailyJobsLoading && businessLoading && interviewsLoading;
   
   // Only show error if ALL APIs failed, not just some
-  const allFailed = candidatesError && jobsError && dailyJobsError && businessError && interviewsError;
-  const error = allFailed ? (candidatesError || jobsError || dailyJobsError || businessError || interviewsError) : null;
+  const allFailed = candidatesError && requirementsError && dailyJobsError && businessError && interviewsError;
+  const error = allFailed ? (candidatesError || requirementsError || dailyJobsError || businessError || interviewsError) : null;
 
   // Log individual errors for debugging without failing the entire dashboard
   if (candidatesError) console.warn('Candidates API failed:', candidatesError.message);
-  if (jobsError) console.warn('Jobs API failed:', jobsError.message);
+  if (requirementsError) console.warn('Requirements API failed:', requirementsError.message);
   if (dailyJobsError) console.warn('Daily Jobs API failed:', dailyJobsError.message);
   if (businessError) console.warn('Business Dev API failed:', businessError.message);
   if (interviewsError) console.warn('Interviews API failed:', interviewsError.message);
 
   return {
     totalCandidates,
-    activeJobs,
+    activeRequirements,
     dailyTasks,
     businessContacts,
     totalInterviews,

@@ -3,7 +3,7 @@ import api from './api';
 export interface ResumeResult { id:number; name:string; email:string; phone:string; skills:string; resumeFile:string; resumeStatus:string; }
 export interface ResumeRecord { id:number; fileName:string; status:string; error?:string; uploadedAt:string; parsedAt?:string; name:string; email:string; phone:string; skills:string; }
 export interface UploadResult { fileName:string; status:string; resumeId?:number; candidate?:{id:number;name:string;email:string;phone:string;skills:string}; error?:string; }
-export interface PeriodRow { period:string; activities:number; candidates:number; resumes:number; resumeSearches:number; jobs:number; interviews:number; hires:number; businessDev:number; }
+export interface PeriodRow { period:string; activities:number; candidates:number; resumes:number; resumeSearches:number; requirements:number; interviews:number; hires:number; businessDev:number; }
 export interface ActivityRow { id:number; action:string; entityType:string; entityId?:string; description:string; actorUserId?:number; createdAt:string; }
 
 export const resumeAIService={

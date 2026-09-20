@@ -26,7 +26,7 @@ Example:
 
 ```text
 GET /api/v1/candidates
-GET /api/v1/jobs/{id}
+GET /api/v1/requirements/{id}
 POST /api/v1/interviews
 ```
 

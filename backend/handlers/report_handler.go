@@ -2,30 +2,31 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/RK-Consulting/skill-sifter/db"
-	"github.com/RK-Consulting/skill-sifter/models"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/models"
 )
 
 type PeriodReportRow struct {
-	Period         string `json:"period"`
-	Activities     int    `json:"activities"`
-	Candidates     int    `json:"candidates"`
-	Resumes        int    `json:"resumes"`
-	ResumeSearches int    `json:"resumeSearches"`
-	Jobs           int    `json:"jobs"`
-	Interviews     int    `json:"interviews"`
-	Hires          int    `json:"hires"`
-	BusinessDev    int    `json:"businessDev"`
+	Period	string	`json:"period"`
+	Activities	int	`json:"activities"`
+	Candidates	int	`json:"candidates"`
+	Resumes	int	`json:"resumes"`
+	ResumeSearches	int	`json:"resumeSearches"`
+	Requirements	int	`json:"requirements"`
+	Interviews	int	`json:"interviews"`
+	Hires	int	`json:"hires"`
+	BusinessDev	int	`json:"businessDev"`
 }
 type ActivityLogRow struct {
-	ID          int64     `json:"id"`
-	Action      string    `json:"action"`
-	EntityType  string    `json:"entityType"`
-	EntityID    string    `json:"entityId,omitempty"`
-	Description string    `json:"description"`
+	ID	int64	`json:"id"`
+	Action	string	`json:"action"`
+	EntityType	string	`json:"entityType"`
+	EntityID	string	`json:"entityId,omitempty"`
+	Description	string	`json:"description"`
 	ActorUserID *int      `json:"actorUserId,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
@@ -52,7 +53,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
 	}
-	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='JOBS_INSERT') jobs,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
+	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
 	rows, err := db.DB.Query(query, company)
 	if err != nil {
 		respondWithError(w, 500, "Failed to build report")
@@ -63,7 +64,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p time.Time
 		var x PeriodReportRow
-		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Jobs, &x.Interviews, &x.Hires, &x.BusinessDev); err != nil {
+		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Requirements, &x.Interviews, &x.Hires, &x.BusinessDev); err != nil {
 			respondWithError(w, 500, "Failed to read report")
 			return
 		}

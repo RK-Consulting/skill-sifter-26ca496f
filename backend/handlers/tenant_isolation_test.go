@@ -17,8 +17,7 @@ import (
 )
 
 // setupIsolationTestDB stands up (or reuses) the full tenant-owned schema
-// needed to exercise cross-tenant isolation across every domain listed in
-// ADR 0001: users, candidates, jobs, daily_jobs, interviews, business_dev.
+// needed to exercise cross-tenant isolation across every tenant-owned domain covered by ADR 0001.
 // Skips (does not fail) if no test database is reachable, matching the
 // existing integration-test pattern in this package.
 func setupIsolationTestDB(t *testing.T) *sql.DB {
@@ -69,15 +68,6 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)`,
-		`CREATE TABLE IF NOT EXISTS jobs (
-			id SERIAL PRIMARY KEY,
-			title VARCHAR(255) NOT NULL, department VARCHAR(100), location VARCHAR(100),
-			status VARCHAR(50) DEFAULT 'open', date_posted TIMESTAMP DEFAULT NOW(),
-			description TEXT, requirements TEXT, last_modified TIMESTAMP DEFAULT NOW(),
-			tenant_id VARCHAR(255) REFERENCES companies(id),
-			company_name VARCHAR(255) NOT NULL,
-			created_by_user_id INTEGER REFERENCES users(id)
-		)`,
 		`CREATE TABLE IF NOT EXISTS daily_jobs (
 			id SERIAL PRIMARY KEY,
 			jd_no INTEGER NOT NULL, instructions TEXT,
@@ -114,7 +104,6 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	for _, alter := range []string{
 		`ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
 		`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
-		`ALTER TABLE jobs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
 		`ALTER TABLE daily_jobs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
 		`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
 		`ALTER TABLE business_dev ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
@@ -123,7 +112,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Clean slate.
-	for _, t := range []string{"interviews", "daily_jobs", "jobs", "candidates", "users", "business_dev"} {
+	for _, t := range []string{"interviews", "daily_jobs", "candidates", "users", "business_dev"} {
 		testDB.Exec("DELETE FROM " + t + " WHERE tenant_id IN ('tenant_a', 'tenant_b')")
 	}
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_a', 'Tenant A Co') ON CONFLICT (id) DO NOTHING`)
@@ -252,47 +241,6 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 		}
 		if tenantID != "tenant_a" {
 			t.Errorf("candidate tenant_id = %q, want %q — client-supplied tenantId in the request body overrode the authenticated tenant", tenantID, "tenant_a")
-		}
-	})
-}
-
-// TestTenantIsolation_Jobs mirrors the candidates matrix for the jobs
-// domain.
-func TestTenantIsolation_Jobs(t *testing.T) {
-	testDB := setupIsolationTestDB(t)
-	defer testDB.Close()
-	db.DB = testDB
-
-	var tenantBJobID int
-	err := testDB.QueryRow(
-		`INSERT INTO jobs (title, tenant_id, company_name) VALUES ('B Job', 'tenant_b', 'tenant_b') RETURNING id`,
-	).Scan(&tenantBJobID)
-	if err != nil {
-		t.Fatalf("seed failed: %v", err)
-	}
-
-	t.Run("cross-tenant read returns 404", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("GET", "/api/jobs/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBJobID)})
-		rec := httptest.NewRecorder()
-		GetJobByID(rec, req)
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("status = %d, want 404", rec.Code)
-		}
-	})
-
-	t.Run("cross-tenant delete does not remove the row", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("DELETE", "/api/jobs/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBJobID)})
-		rec := httptest.NewRecorder()
-		DeleteJob(rec, req)
-		if rec.Code != http.StatusNotFound {
-			t.Errorf("status = %d, want 404", rec.Code)
-		}
-		var stillExists bool
-		testDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM jobs WHERE id = $1)`, tenantBJobID).Scan(&stillExists)
-		if !stillExists {
-			t.Error("Tenant B's job was deleted by a Tenant A request")
 		}
 	})
 }

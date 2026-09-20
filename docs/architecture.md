@@ -50,7 +50,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 | `main` (`main.go`) | Wires up the router, middleware chain, CORS policy, and starts the HTTP server. |
 | `auth` | JWT issuance/validation (`golang-jwt/jwt/v5`), `AuthMiddleware` (validates bearer tokens), `RoleMiddleware` (role allow-listing). |
 | `db` | Database connection setup (`InitDB`), schema initialization (`InitializeSchema`), and environment variable helpers. |
-| `handlers` | One file per resource (`candidate_handlers.go`, `job_handlers.go`, `interview_handlers.go`, `daily_job_handlers.go`, `business_dev_handlers.go`, `auth_handlers.go`, `report_handler.go`) plus `common.go` for shared JSON response helpers. |
+| `handlers` | One file per resource (`candidate_handlers.go`, `requirement_handlers.go`, `interview_handlers.go`, `daily_requirement_handlers.go`, `business_dev_handlers.go`, `auth_handlers.go`, `report_handler.go`) plus `common.go` for shared JSON response helpers. |
 | `models` | Plain Go structs for every resource, plus response envelopes (`ApiResponse`, `TokenResponse`, report DTOs). |
 
 **Routing** (`main.go`):

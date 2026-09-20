@@ -6,7 +6,7 @@
 
 ## Context
 
-The current `jobs` resource is a generic job record and does not model the recruitment-agency relationship between a client and its recruitment demand. The current schema stores `company_name` on jobs and exposes fields such as title, department, location, status, description, requirements, and posting dates, but there is no explicit client/contact/requirement domain. fileciteturn28file0
+The current `requirements` resource is a generic job record and does not model the recruitment-agency relationship between a client and its recruitment demand. The current schema stores `company_name` on requirements and exposes fields such as title, department, location, status, description, requirements, and posting dates, but there is no explicit client/contact/requirement domain. fileciteturn28file0
 
 The V1 architecture requires explicit `clients`, `client_contacts`, and `requirements` and places Requirement after Client in the core workflow. Candidate-to-requirement work is intentionally separated into Recruitment Assignment. fileciteturn34file0
 
@@ -114,11 +114,11 @@ The implementation may represent equivalent states with approved naming conventi
 
 A requirement's lifecycle must not be confused with the lifecycle of a candidate's Recruitment Assignment. Recruitment Assignment is defined separately in Issue #18.
 
-## Jobs-to-Requirements Decision
+## Requirements-to-Requirements Decision
 
-`jobs` will **not** remain the long-term V1 domain model.
+`requirements` will **not** remain the long-term V1 domain model.
 
-A new explicit `requirements` model will be introduced during V0.5. The existing `jobs` model will be retained temporarily as a compatibility/legacy model while existing data and consumers are migrated.
+A new explicit `requirements` model will be introduced during V0.5. The existing `requirements` model will be retained temporarily as a compatibility/legacy model while existing data and consumers are migrated.
 
 The intended direction is:
 
@@ -130,7 +130,7 @@ V1
 Client → Requirement
 ```
 
-Existing job records will be migrated into requirements using an explicit field mapping. Legacy APIs may remain temporarily where required to avoid an uncontrolled breaking change, but new domain work must target `requirements`, not extend `jobs` as a parallel long-term model.
+Existing job records will be migrated into requirements using an explicit field mapping. Legacy APIs may remain temporarily where required to avoid an uncontrolled breaking change, but new domain work must target `requirements`, not extend `requirements` as a parallel long-term model.
 
 ## Candidate Relationship Boundary
 
@@ -146,11 +146,11 @@ Migration will be staged:
 
 1. Introduce the Client, Client Contact, and Requirement domain model.
 2. Establish client relationships for existing operational data where the current data permits reliable mapping.
-3. Map existing `jobs` records into requirements.
+3. Map existing `requirements` records into requirements.
 4. Provide controlled compatibility for legacy job APIs during migration where necessary.
-5. Migrate frontend/service consumers from jobs to requirements.
+5. Migrate frontend/service consumers from requirements to requirements.
 6. Validate data and tenant ownership.
-7. Retire the legacy `jobs` model and compatibility paths through a separate approved implementation issue.
+7. Retire the legacy `requirements` model and compatibility paths through a separate approved implementation issue.
 
 No destructive replacement or uncontrolled rename is authorized as part of this architecture decision.
 
@@ -161,20 +161,20 @@ Issue #34 implemented stage 1 only: the Client and Requirement domain model
 tenant isolation). Stages 2-7 above are **not** implemented and were not
 attempted.
 
-**Legacy `jobs` remains authoritative for existing recruitment
+**Legacy `requirements` remains authoritative for existing recruitment
 transactions. Client/Requirement is a new, independent v0.4 domain.**
-Migration of historical `jobs` records into `requirements` (stage 3) is
-intentionally deferred, not merely unstarted: `jobs.company_name`
+Migration of historical `requirements` records into `requirements` (stage 3) is
+intentionally deferred, not merely unstarted: `requirements.company_name`
 identifies the *recruiting tenant itself*, not a client of that tenant, so
 it does not encode the client relationship `requirements.client_id`
 requires. There is no reliable existing data from which to derive real
 client identities for historical job records. Treat this as an open
 architectural question requiring an explicit decision — including whether
 synthetic per-tenant clients would be created, how `interviews` and
-`daily_jobs` (which currently reference `jobs`, not `requirements`) would
-be affected, and what happens to `jobs.created_by_user_id` and other
+`daily_requirements` (which currently reference `requirements`, not `requirements`) would
+be affected, and what happens to `requirements.created_by_user_id` and other
 fields with no `requirements` equivalent — not as a default follow-up task
-to "just migrate the jobs."
+to "just migrate the requirements."
 
 ## Historical and Audit Requirements
 
@@ -195,17 +195,17 @@ Cross-tenant access is a security defect.
 ### Positive
 
 - Recruitment operations gain an explicit client-to-requirement domain model.
-- Requirements represent recruitment demand rather than generic jobs.
+- Requirements represent recruitment demand rather than generic requirements.
 - Client contacts can support real recruitment workflows without overloading the client entity.
 - Candidate-to-requirement transactions remain separate and auditable.
 - Existing job data can be migrated without a big-bang rewrite.
 
 ### Trade-offs
 
-- V0.5 temporarily carries legacy `jobs` compatibility.
+- V0.5 temporarily carries legacy `requirements` compatibility.
 - Data migration requires explicit mapping and validation.
 - Existing job APIs and UI consumers must eventually be migrated.
-- Client and requirement domain modeling introduces additional entities compared with the current simple jobs model.
+- Client and requirement domain modeling introduces additional entities compared with the current simple requirements model.
 
 ## Implementation Boundary
 
