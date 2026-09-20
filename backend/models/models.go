@@ -29,7 +29,7 @@ type Candidate struct {
 	PipelineStage	string	`json:"pipelineStage" db:"pipeline_stage"`
 	LanguageExpertise	[]CandidateLanguageExpertise	`json:"languageExpertise,omitempty" db:"-"`
 	TechnicalExpertise	[]CandidateExpertise	`json:"technicalExpertise,omitempty" db:"-"`
-	CreatedAt          time.Time                    `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName	string	`json:"companyName" db:"company_name,notnull"`
 }
@@ -50,8 +50,8 @@ type CandidateLanguageExpertise struct {
 	Language	string	`json:"language" db:"language,notnull"`
 	ProficiencyFramework	string	`json:"proficiencyFramework" db:"proficiency_framework,notnull"`
 	ProficiencyLevel	string	`json:"proficiencyLevel" db:"proficiency_level,notnull"`
-	CreatedAt            time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	UpdatedAt            time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt	time.Time	`json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
 }
 
 // CandidateExpertise represents one candidate technical expertise record.
@@ -65,8 +65,8 @@ type CandidateExpertise struct {
 	Skill	string	`json:"skill" db:"skill,notnull"`
 	Category	string	`json:"category" db:"category,notnull"`
 	ProficiencyLevel	string	`json:"proficiencyLevel" db:"proficiency_level,notnull"`
-	CreatedAt        time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	UpdatedAt        time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt	time.Time	`json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
 }
 
 // CandidateStatusUpdate is the request payload for updating Candidate status.
@@ -81,8 +81,8 @@ type DailyJob struct {
 	Instructions	string	`json:"instructions" db:"instructions"`
 	AssignedUser	int	`json:"assignedUser" db:"assigned_user"`
 	AssignedUsername	string	`json:"assignedUsername,omitempty"` // Not stored in DB, used for display
-	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
-	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	AssignedDate	time.Time	`json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
+	LastModified	time.Time	`json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName	string	`json:"companyName" db:"company_name,notnull"`
 }
@@ -93,10 +93,10 @@ type Interview struct {
 	CandidateID	int	`json:"candidateId" db:"candidate_id"`
 	CandidateName	string	`json:"candidateName" db:"candidate_name,notnull"`
 	Position	string	`json:"position" db:"position"`
-	InterviewDate time.Time `json:"interviewDate" db:"interview_date,notnull"`
+	InterviewDate	time.Time	`json:"interviewDate" db:"interview_date,notnull"`
 	Status	string	`json:"status" db:"status,default:'scheduled'"`
 	Feedback	string	`json:"feedback" db:"feedback"`
-	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	LastModified	time.Time	`json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName	string	`json:"companyName" db:"company_name,notnull"`
 }
@@ -109,8 +109,8 @@ type BusinessDev struct {
 	ContactPerson	string	`json:"contactPerson" db:"contact_person,notnull"`
 	ContactNumber	string	`json:"contactNumber" db:"contact_number"`
 	ContactEmail	string	`json:"contactEmail" db:"contact_email,notnull"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	LastModified	time.Time	`json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName	string	`json:"companyName" db:"company_name,notnull"`
 }
@@ -126,8 +126,8 @@ type Client struct {
 	ContactPhone	string	`json:"contactPhone,omitempty" db:"contact_phone"`
 	PartnerName	string	`json:"partnerName,omitempty" db:"partner_name"`
 	ContactPerson	string	`json:"contactPerson,omitempty" db:"contact_person"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	UpdatedAt	time.Time	`json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 
@@ -150,16 +150,16 @@ type Requirement struct {
 	Status	string	`json:"status" db:"status,default:'open'"`
 	Location	string	`json:"location,omitempty" db:"location"`
 	Headcount	int	`json:"headcount" db:"headcount,default:1"`
-	OpenedDate             time.Time `json:"openedDate,omitempty" db:"opened_date"`
-	CreatedAt              time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	LastModified           time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	OpenedDate	time.Time	`json:"openedDate,omitempty" db:"opened_date"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	LastModified	time.Time	`json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 // Company model
 type Company struct {
 	ID	string	`json:"id" db:"id,primarykey"`
 	Name	string	`json:"name" db:"name,notnull,unique"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // Role model
@@ -167,7 +167,7 @@ type Role struct {
 	ID	int	`json:"id" db:"id,primarykey,autoincrement"`
 	Name	string	`json:"name" db:"name,notnull,unique"`
 	Permissions	[]string	`json:"permissions" db:"permissions,type:jsonb,default:'[]'::jsonb"`
-	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // User model
@@ -179,13 +179,13 @@ type User struct {
 	Role	string	`json:"role" db:"role,notnull"`
 	TenantID	string	`json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName	string	`json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
-	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // SchemaVersion for tracking db schema version
 type SchemaVersion struct {
 	Version	int	`json:"version" db:"version,primarykey"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+	CreatedAt	time.Time	`json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
 // Credentials for login/register
@@ -201,7 +201,7 @@ type Credentials struct {
 type ApiResponse struct {
 	Success	bool	`json:"success"`
 	Message	string	`json:"message"`
-	Data    interface{} `json:"data,omitempty"`
+	Data	interface{}	`json:"data,omitempty"`
 }
 
 // TokenResponse for login/register
@@ -250,5 +250,5 @@ type ActivityEntry struct {
 	Type	string	`json:"type"`
 	Title	string	`json:"title"`
 	Description	string	`json:"description"`
-	Timestamp   time.Time `json:"timestamp"`
+	Timestamp	time.Time	`json:"timestamp"`
 }
