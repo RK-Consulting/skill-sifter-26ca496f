@@ -50,7 +50,7 @@ const Dashboard = ({ username }: DashboardProps) => {
   // Fetch real-time dashboard stats
   const { 
     totalCandidates, 
-    activeJobs, 
+    activeRequirements, 
     dailyTasks, 
     businessContacts, 
     isLoading, 
@@ -68,12 +68,12 @@ const Dashboard = ({ username }: DashboardProps) => {
       link: "/candidates"
     },
     {
-      title: "Active Jobs",
-      value: isLoading ? "..." : activeJobs.toString(),
+      title: "Open Requirements",
+      value: isLoading ? "..." : activeRequirements.toString(),
       trend: "+2",
       icon: <Briefcase />,
       trendType: "up" as const,
-      link: "/jobs"
+      link: "/requirements"
     },
     {
       title: "Daily Tasks",
