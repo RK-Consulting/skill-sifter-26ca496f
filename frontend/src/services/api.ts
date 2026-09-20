@@ -133,35 +133,6 @@ export const candidateService = {
   },
 };
 
-export const jobService = {
-  // Get all jobs
-  getAllJobs: async () => {
-    return api.get('/jobs');
-  },
-
-  // Get a job by ID
-  getJobById: async (id: number) => {
-    return api.get(`/jobs/${id}`);
-  },
-
-  // Create a new job
-  createJob: async (job: Record<string, unknown>) => {
-    // Log job data format
-    console.log('Sending job data to API:', job);
-    return api.post('/jobs', job);
-  },
-
-  // Update a job
-  updateJob: async (id: number, job: Record<string, unknown>) => {
-    return api.put(`/jobs/${id}`, job);
-  },
-
-  // Delete a job
-  deleteJob: async (id: number) => {
-    return api.delete(`/jobs/${id}`);
-  },
-};
-
 export const interviewService = {
   // Get all interviews
   getAllInterviews: async () => {
