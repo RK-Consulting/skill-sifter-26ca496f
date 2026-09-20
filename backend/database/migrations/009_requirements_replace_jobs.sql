@@ -1,8 +1,6 @@
 -- 009_requirements_replace_jobs.sql
 -- Requirements are now the single authoritative recruitment-demand model.
--- This is additive first: existing legacy jobs data is preserved until an
--- explicit data-retention decision is made. The application no longer
--- exposes or writes the jobs resource.
+-- Requirements replace the legacy Jobs resource. No legacy Jobs data is retained.
 
 ALTER TABLE requirements
     ADD COLUMN IF NOT EXISTS job_type VARCHAR(30),
@@ -32,6 +30,11 @@ ALTER TABLE requirements
 
 CREATE INDEX IF NOT EXISTS idx_requirements_status ON requirements(status);
 
+-- Requirements participate in the existing activity-log trigger mechanism.
+DROP TRIGGER IF EXISTS trg_requirements_activity ON requirements;
+CREATE TRIGGER trg_requirements_activity
+AFTER INSERT OR UPDATE OR DELETE ON requirements
+FOR EACH ROW EXECUTE FUNCTION skillsifter_activity_trigger();
 
 -- Legacy jobs data is intentionally discarded. Requirements are now the
 -- sole recruitment-demand model; no historical jobs data is required.
