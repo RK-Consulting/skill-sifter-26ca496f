@@ -23,13 +23,20 @@ interface Client {
 
 const formSchema = z.object({
   clientId: z.coerce.number().min(1, 'Client is required'),
-  title: z.string().min(2, 'Title is required'),
+  jobType: z.enum(['fulltime', 'contract']),
+  title: z.string().min(2, 'Job title is required'),
   department: z.string().optional(),
-  location: z.string().optional(),
-  status: z.enum(['draft', 'open', 'on_hold', 'filled', 'cancelled']).default('draft'),
-  headcount: z.coerce.number().min(1, 'Headcount must be at least 1').default(1),
+  experienceRequired: z.string().optional(),
+  budget: z.string().optional(),
+  languageRequirements: z.string().optional(),
+  certificationsRequired: z.string().optional(),
+  noticePeriod: z.string().optional(),
+  workArrangement: z.enum(['hybrid', 'remote', 'office']),
+  mandatoryRequirements: z.string().optional(),
   description: z.string().optional(),
-  requiredSkills: z.string().optional(),
+  status: z.enum(['open', 'closed', 'on_hold', 'cancelled']),
+  location: z.string().optional(),
+  headcount: z.coerce.number().min(1, 'Number of open positions must be at least 1'),
 });
 
 type FormData = z.infer<typeof formSchema>;
@@ -38,14 +45,10 @@ const AddRequirement = () => {
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Requirements need a client to belong to; fetch a reasonably large
-  // page of active/prospect clients for the dropdown. This form-level
-  // fetch does not attempt to paginate — a company with more clients
-  // than one page can hold is a scale point worth its own UI later.
   const { data: clientsData } = useQuery({
     queryKey: ['clients-for-requirement-form'],
     queryFn: async () => {
-      const response = await clientService.getAllClients({ page: 1, limit: 100 });
+      const response = await clientService.getAllClients({ page: 1, limit: 100, status: 'active' });
       return (response.data?.data ?? []) as Client[];
     },
   });
@@ -55,13 +58,20 @@ const AddRequirement = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       clientId: 0,
+      jobType: 'fulltime',
       title: '',
       department: '',
-      location: '',
-      status: 'draft',
-      headcount: 1,
+      experienceRequired: '',
+      budget: '',
+      languageRequirements: '',
+      certificationsRequired: '',
+      noticePeriod: '',
+      workArrangement: 'hybrid',
+      mandatoryRequirements: '',
       description: '',
-      requiredSkills: '',
+      status: 'open',
+      location: '',
+      headcount: 1,
     },
   });
 
@@ -90,151 +100,157 @@ const AddRequirement = () => {
           <Button variant="ghost" size="sm" className="mb-4 flex gap-2" onClick={() => navigate('/requirements')}>
             <ArrowLeft size={16} /> Back to Requirements
           </Button>
-          <Card className="max-w-2xl mx-auto">
+
+          <Card className="max-w-4xl mx-auto">
             <CardHeader>
               <CardTitle>Add Requirement</CardTitle>
             </CardHeader>
             <CardContent>
               <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                  <FormField
-                    control={form.control}
-                    name="clientId"
-                    render={({ field }) => (
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="clientId" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Client</FormLabel>
+                        <FormLabel>Client *</FormLabel>
                         <FormControl>
-                          <select
-                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            {...field}
-                            onChange={(e) => field.onChange(Number(e.target.value))}
-                          >
-                            <option value={0} disabled>
-                              Select a client...
-                            </option>
-                            {clients.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
+                          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...field} onChange={(e) => field.onChange(Number(e.target.value))}>
+                            <option value={0} disabled>Select a client...</option>
+                            {clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}
                           </select>
                         </FormControl>
-                        {clients.length === 0 && (
-                          <p className="text-xs text-ats-gray-500">No clients yet — add one first.</p>
-                        )}
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="title"
-                    render={({ field }) => (
+                    )} />
+
+                    <FormField control={form.control} name="jobType" render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Title</FormLabel>
+                        <FormLabel>Job Type *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Senior Backend Engineer" {...field} />
+                          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...field}>
+                            <option value="fulltime">Full-time</option>
+                            <option value="contract">Contract</option>
+                          </select>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="department"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Department</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Engineering" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="location"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Location</FormLabel>
-                          <FormControl>
-                            <Input placeholder="Bengaluru" {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                    )} />
+
+                    <FormField control={form.control} name="title" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Title *</FormLabel>
+                        <FormControl><Input placeholder="e.g. Senior Software Engineer" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="department" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Department</FormLabel>
+                        <FormControl><Input placeholder="e.g. Engineering" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="experienceRequired" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Experience Required</FormLabel>
+                        <FormControl><Input placeholder="e.g. 5-8 years" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="budget" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Budget</FormLabel>
+                        <FormControl><Input placeholder="e.g. ₹18-24 LPA" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="languageRequirements" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Language Requirements</FormLabel>
+                        <FormControl><Input placeholder="e.g. English - C1, German - B2" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="certificationsRequired" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Certifications Required</FormLabel>
+                        <FormControl><Input placeholder="e.g. AWS, PMP, CFA" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="noticePeriod" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Notice Period</FormLabel>
+                        <FormControl><Input placeholder="e.g. Immediate, 30 days, 60 days" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="workArrangement" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Mode of Work *</FormLabel>
+                        <FormControl>
+                          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...field}>
+                            <option value="hybrid">Hybrid</option>
+                            <option value="remote">Remote</option>
+                            <option value="office">Office</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="status" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Status *</FormLabel>
+                        <FormControl>
+                          <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...field}>
+                            <option value="open">Open</option>
+                            <option value="closed">Closed</option>
+                            <option value="on_hold">On Hold</option>
+                            <option value="cancelled">Cancelled</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="location" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Location</FormLabel>
+                        <FormControl><Input placeholder="e.g. Bengaluru, Karnataka" {...field} /></FormControl>
+                      </FormItem>
+                    )} />
+
+                    <FormField control={form.control} name="headcount" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>No. of Open Positions *</FormLabel>
+                        <FormControl><Input type="number" min={1} {...field} onChange={(e) => field.onChange(Number(e.target.value))} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="status"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Status</FormLabel>
-                          <FormControl>
-                            <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" {...field}>
-                              <option value="draft">Draft</option>
-                              <option value="open">Open</option>
-                              <option value="on_hold">On Hold</option>
-                              <option value="filled">Filled</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name="headcount"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Headcount</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={1} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+
+                  <FormField control={form.control} name="mandatoryRequirements" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Mandatory Requirements</FormLabel>
+                      <FormControl><textarea className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="List mandatory skills, qualifications, technologies, or domain requirements..." {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+
+                  <FormField control={form.control} name="description" render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Description</FormLabel>
+                      <FormControl><textarea className="min-h-40 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" placeholder="Enter the complete job description..." {...field} /></FormControl>
+                    </FormItem>
+                  )} />
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <Button type="button" variant="outline" onClick={() => navigate('/requirements')}>Cancel</Button>
+                    <Button type="submit" variant="primary" disabled={isSubmitting}>
+                      <Save size={16} className="mr-2" />
+                      {isSubmitting ? 'Saving...' : 'Save Requirement'}
+                    </Button>
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="requiredSkills"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Required Skills</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Go, PostgreSQL, React" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <textarea
-                            className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            placeholder="Role description..."
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="submit" variant="primary" className="flex gap-2" disabled={isSubmitting}>
-                    <Save size={16} />
-                    {isSubmitting ? 'Saving...' : 'Save Requirement'}
-                  </Button>
                 </form>
               </Form>
             </CardContent>
