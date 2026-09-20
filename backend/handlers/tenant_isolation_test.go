@@ -17,8 +17,7 @@ import (
 )
 
 // setupIsolationTestDB stands up (or reuses) the full tenant-owned schema
-// needed to exercise cross-tenant isolation across every domain listed in
-// ADR 0001: users, candidates, jobs, daily_jobs, interviews, business_dev.
+// needed to exercise cross-tenant isolation across every tenant-owned domain covered by ADR 0001.
 // Skips (does not fail) if no test database is reachable, matching the
 // existing integration-test pattern in this package.
 func setupIsolationTestDB(t *testing.T) *sql.DB {
