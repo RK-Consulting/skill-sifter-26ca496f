@@ -74,22 +74,6 @@ type CandidateStatusUpdate struct {
 	Status string `json:"status" binding:"required,oneof=active inactive blacklisted archived"`
 }
 
-// Job model
-type Job struct {
-	ID              int       `json:"id" db:"id,primarykey,autoincrement"`
-	Title           string    `json:"title" db:"title,notnull"`
-	Department      string    `json:"department" db:"department"`
-	Location        string    `json:"location" db:"location"`
-	Status          string    `json:"status" db:"status,default:'open'"`
-	DatePosted      time.Time `json:"datePosted" db:"date_posted,default:CURRENT_TIMESTAMP"`
-	Description     string    `json:"description,omitempty" db:"description"`
-	Requirements    string    `json:"requirements,omitempty" db:"requirements"`
-	LastModified    time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID        string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
-	CompanyName     string    `json:"companyName" db:"company_name,notnull"`
-	CreatedByUserID int       `json:"createdByUserId,omitempty" db:"created_by_user_id"`
-}
-
 // DailyJob model
 type DailyJob struct {
 	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
