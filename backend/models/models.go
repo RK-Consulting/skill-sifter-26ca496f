@@ -243,7 +243,7 @@ type SourceReportResponse struct {
 }
 
 // ActivityEntry represents a single real event for the Dashboard's Recent
-// Activity feed. Built from real timestamps across candidates, jobs,
+// Activity feed. Built from real timestamps across candidates, requirements,
 // business_dev, daily_jobs, and interviews — replaces the hardcoded mock
 // data that previously lived in Dashboard.tsx.
 type ActivityEntry struct {
