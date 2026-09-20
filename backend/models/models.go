@@ -147,32 +147,30 @@ type Client struct {
 	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 
-// Requirement model. ADR 0002: a Requirement is the authoritative
-// representation of one client's recruitment demand/JD. Belongs to exactly
-// one Client, tenant-scoped through that relationship (and tenant_id is
-// also stored directly, matching every other tenant-owned table's
-// enforcement pattern). Requirement does NOT own candidates directly — that
-// belongs to Recruitment Assignment (Issue #18), out of scope here.
+// Requirement model. A Requirement is the authoritative representation
+// of one client's recruitment demand/JD. It replaces the legacy Job model.
 type Requirement struct {
-	ID                  int       `json:"id" db:"id,primarykey,autoincrement"`
-	ClientID            int       `json:"clientId" db:"client_id,notnull,foreignkey:clients(id)"`
-	Title               string    `json:"title" db:"title,notnull"`
-	Department          string    `json:"department,omitempty" db:"department"`
-	Location            string    `json:"location,omitempty" db:"location"`
-	WorkArrangement     string    `json:"workArrangement,omitempty" db:"work_arrangement"`
-	Status              string    `json:"status" db:"status,default:'draft'"`
-	OpenedDate          time.Time `json:"openedDate,omitempty" db:"opened_date"`
-	Description         string    `json:"description,omitempty" db:"description"`
-	RequiredSkills      string    `json:"requiredSkills,omitempty" db:"required_skills"`
-	ExperienceRequired  string    `json:"experienceRequired,omitempty" db:"experience_required"`
-	Compensation        string    `json:"compensation,omitempty" db:"compensation"`
-	Headcount           int       `json:"headcount" db:"headcount,default:1"`
-	LanguageRequirement string    `json:"languageRequirement,omitempty" db:"language_requirement"`
-	CreatedAt           time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	LastModified        time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID            string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
+    ID                     int       `json:"id" db:"id,primarykey,autoincrement"`
+    ClientID               int       `json:"clientId" db:"client_id,notnull,foreignkey:clients(id)"`
+    JobType                string    `json:"jobType" db:"job_type"`
+    Title                  string    `json:"title" db:"title,notnull"`
+    Department             string    `json:"department,omitempty" db:"department"`
+    ExperienceRequired     string    `json:"experienceRequired,omitempty" db:"experience_required"`
+    Budget                 string    `json:"budget,omitempty" db:"budget"`
+    LanguageRequirements   string    `json:"languageRequirements,omitempty" db:"language_requirement"`
+    CertificationsRequired string    `json:"certificationsRequired,omitempty" db:"certifications_required"`
+    NoticePeriod           string    `json:"noticePeriod,omitempty" db:"notice_period"`
+    WorkArrangement        string    `json:"workArrangement,omitempty" db:"work_arrangement"`
+    MandatoryRequirements  string    `json:"mandatoryRequirements,omitempty" db:"mandatory_requirements"`
+    Description            string    `json:"description,omitempty" db:"description"`
+    Status                 string    `json:"status" db:"status,default:'open'"`
+    Location               string    `json:"location,omitempty" db:"location"`
+    Headcount              int       `json:"headcount" db:"headcount,default:1"`
+    OpenedDate             time.Time `json:"openedDate,omitempty" db:"opened_date"`
+    CreatedAt              time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
+    LastModified           time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+    TenantID               string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
-
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
