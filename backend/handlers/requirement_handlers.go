@@ -10,19 +10,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// validRequirementStatuses is the ADR 0002 Requirement lifecycle:
-// Draft -> Open -> On Hold -> Filled, with a Cancelled branch from any
-// active state. This handler does not enforce transition order (e.g.
-// rejecting Draft -> Filled directly) — ADR 0002 requires only that the
-// lifecycle "distinguish an active requirement from one that is paused,
-// fulfilled, or cancelled", not a strict state machine. A stricter
-// transition policy would be Recruitment Assignment / workflow territory
-// (Issue #18), out of scope here.
+// Requirement lifecycle exposed by the application.
+// open -> on_hold -> closed is the normal business flow; cancelled is
+// available when the requirement is no longer being pursued.
 var validRequirementStatuses = map[string]bool{
-	"draft":     true,
 	"open":      true,
+	"closed":    true,
 	"on_hold":   true,
-	"filled":    true,
 	"cancelled": true,
 }
 
@@ -42,11 +36,12 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
 	rows, err := db.DB.Query(`
-		SELECT id, client_id, title, COALESCE(department, ''), COALESCE(location, ''),
-			COALESCE(work_arrangement, ''), status, COALESCE(opened_date, created_at),
-			COALESCE(description, ''), COALESCE(required_skills, ''), COALESCE(experience_required, ''),
-			COALESCE(compensation, ''), headcount, COALESCE(language_requirement, ''),
-			created_at, last_modified, tenant_id
+		SELECT id, client_id, COALESCE(job_type, ''), title, COALESCE(department, ''),
+			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
+			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
+			COALESCE(work_arrangement, ''), COALESCE(mandatory_requirements, ''),
+			COALESCE(description, ''), status, COALESCE(location, ''),
+			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching requirements")
@@ -57,10 +52,11 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 	requirements := []models.Requirement{}
 	for rows.Next() {
 		var req models.Requirement
-		err := rows.Scan(&req.ID, &req.ClientID, &req.Title, &req.Department, &req.Location,
-			&req.WorkArrangement, &req.Status, &req.OpenedDate, &req.Description, &req.RequiredSkills,
-			&req.ExperienceRequired, &req.Compensation, &req.Headcount, &req.LanguageRequirement,
-			&req.CreatedAt, &req.LastModified, &req.TenantID)
+		err := rows.Scan(&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
+			&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
+			&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
+			&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+			&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning requirement row")
 			return
@@ -90,11 +86,12 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 
 	var req models.Requirement
 	err = db.DB.QueryRow(`
-		SELECT id, client_id, title, COALESCE(department, ''), COALESCE(location, ''),
-			COALESCE(work_arrangement, ''), status, COALESCE(opened_date, created_at),
-			COALESCE(description, ''), COALESCE(required_skills, ''), COALESCE(experience_required, ''),
-			COALESCE(compensation, ''), headcount, COALESCE(language_requirement, ''),
-			created_at, last_modified, tenant_id
+		SELECT id, client_id, COALESCE(job_type, ''), title, COALESCE(department, ''),
+			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
+			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
+			COALESCE(work_arrangement, ''), COALESCE(mandatory_requirements, ''),
+			COALESCE(description, ''), status, COALESCE(location, ''),
+			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID,
 	).Scan(&req.ID, &req.ClientID, &req.Title, &req.Department, &req.Location,
 		&req.WorkArrangement, &req.Status, &req.OpenedDate, &req.Description, &req.RequiredSkills,
@@ -137,9 +134,9 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Status == "" {
-		req.Status = "draft"
+		req.Status = "open"
 	} else if !validRequirementStatuses[req.Status] {
-		respondWithError(w, http.StatusUnprocessableEntity, "Invalid requirement status: must be one of draft, open, on_hold, filled, cancelled")
+		respondWithError(w, http.StatusUnprocessableEntity, "Invalid requirement status: must be one of open, closed, on_hold, cancelled")
 		return
 	}
 	if req.Headcount == 0 {
@@ -169,14 +166,15 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = db.DB.QueryRow(`
-		INSERT INTO requirements (client_id, title, department, location, work_arrangement, status,
-			opened_date, description, required_skills, experience_required, compensation, headcount,
-			language_requirement, tenant_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		INSERT INTO requirements (client_id, job_type, title, department, experience_required, budget,
+			language_requirement, certifications_required, notice_period, work_arrangement,
+			mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, last_modified`,
-		req.ClientID, req.Title, req.Department, req.Location, req.WorkArrangement, req.Status,
-		openedDate, req.Description, req.RequiredSkills, req.ExperienceRequired, req.Compensation,
-		req.Headcount, req.LanguageRequirement, req.TenantID,
+		req.ClientID, req.JobType, req.Title, req.Department, req.ExperienceRequired, req.Budget,
+		req.LanguageRequirements, req.CertificationsRequired, req.NoticePeriod, req.WorkArrangement,
+		req.MandatoryRequirements, req.Description, req.Status, req.Location, req.Headcount,
+		openedDate, req.TenantID,
 	).Scan(&req.ID, &req.CreatedAt, &req.LastModified)
 
 	if err != nil {
@@ -219,7 +217,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !validRequirementStatuses[req.Status] {
-		respondWithError(w, http.StatusUnprocessableEntity, "Invalid requirement status: must be one of draft, open, on_hold, filled, cancelled")
+		respondWithError(w, http.StatusUnprocessableEntity, "Invalid requirement status: must be one of open, closed, on_hold, cancelled")
 		return
 	}
 	if req.Headcount <= 0 {
@@ -247,14 +245,16 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.DB.Exec(`
-		UPDATE requirements SET client_id = $1, title = $2, department = $3, location = $4,
-			work_arrangement = $5, status = $6, opened_date = $7, description = $8,
-			required_skills = $9, experience_required = $10, compensation = $11, headcount = $12,
-			language_requirement = $13, last_modified = NOW()
-		WHERE id = $14 AND tenant_id = $15`,
-		req.ClientID, req.Title, req.Department, req.Location, req.WorkArrangement, req.Status,
-		openedDate, req.Description, req.RequiredSkills, req.ExperienceRequired, req.Compensation,
-		req.Headcount, req.LanguageRequirement, req.ID, tenantID,
+		UPDATE requirements SET client_id = $1, job_type = $2, title = $3, department = $4,
+			experience_required = $5, budget = $6, language_requirement = $7,
+			certifications_required = $8, notice_period = $9, work_arrangement = $10,
+			mandatory_requirements = $11, description = $12, status = $13, location = $14,
+			headcount = $15, opened_date = $16, last_modified = NOW()
+		WHERE id = $17 AND tenant_id = $18`,
+		req.ClientID, req.JobType, req.Title, req.Department, req.ExperienceRequired, req.Budget,
+		req.LanguageRequirements, req.CertificationsRequired, req.NoticePeriod, req.WorkArrangement,
+		req.MandatoryRequirements, req.Description, req.Status, req.Location, req.Headcount,
+		openedDate, req.ID, tenantID,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating requirement")
