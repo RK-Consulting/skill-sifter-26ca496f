@@ -67,7 +67,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			tenant_id VARCHAR(255) REFERENCES companies(id),
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`, 
+		)`,
 		`CREATE TABLE IF NOT EXISTS daily_jobs (
 			id SERIAL PRIMARY KEY,
 			jd_no INTEGER NOT NULL, instructions TEXT,
