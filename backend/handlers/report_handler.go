@@ -2,11 +2,12 @@ package handlers
 
 import (
 	"fmt"
-	"github.com/RK-Consulting/skill-sifter/db"
-	"github.com/RK-Consulting/skill-sifter/models"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/models"
 )
 
 type PeriodReportRow struct {
@@ -15,7 +16,7 @@ type PeriodReportRow struct {
 	Candidates     int    `json:"candidates"`
 	Resumes        int    `json:"resumes"`
 	ResumeSearches int    `json:"resumeSearches"`
-	Requirements    int    `json:"requirements"`
+	Requirements     int    `json:"requirements"`
 	Interviews     int    `json:"interviews"`
 	Hires          int    `json:"hires"`
 	BusinessDev    int    `json:"businessDev"`
