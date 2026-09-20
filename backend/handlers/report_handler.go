@@ -15,7 +15,7 @@ type PeriodReportRow struct {
 	Candidates     int    `json:"candidates"`
 	Resumes        int    `json:"resumes"`
 	ResumeSearches int    `json:"resumeSearches"`
-	Jobs           int    `json:"jobs"`
+	Requirements    int    `json:"requirements"`
 	Interviews     int    `json:"interviews"`
 	Hires          int    `json:"hires"`
 	BusinessDev    int    `json:"businessDev"`
@@ -52,7 +52,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
 	}
-	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='JOBS_INSERT') jobs,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
+	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
 	rows, err := db.DB.Query(query, company)
 	if err != nil {
 		respondWithError(w, 500, "Failed to build report")
@@ -63,7 +63,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p time.Time
 		var x PeriodReportRow
-		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Jobs, &x.Interviews, &x.Hires, &x.BusinessDev); err != nil {
+		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Requirements, &x.Interviews, &x.Hires, &x.BusinessDev); err != nil {
 			respondWithError(w, 500, "Failed to read report")
 			return
 		}
