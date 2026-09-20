@@ -16,7 +16,7 @@ This documents the full functional scope of SkillSifter as currently designed, c
 |---|---|---|---|
 | 1 | Welcome message | ✅ Live | Pulls logged-in user's name |
 | 2 | Total Candidates (stat) | ✅ Live | Real API call, `isLoading` state handled |
-| 3 | Active Jobs (stat) | ✅ Live | Same pattern as above |
+| 3 | Open Requirements (stat) | ✅ Live | Same pattern as above |
 | 4 | Daily Tasks (stat) | ✅ Live | Same pattern |
 | 5 | Business Contacts (stat) | ✅ Live | Same pattern |
 | 6 | Hiring Trend (bar graph) | ❓ Unverified | Backend endpoint (`GET /api/reports/hiring`) exists and is real — need to confirm frontend actually renders its response rather than a placeholder |
@@ -33,7 +33,7 @@ This documents the full functional scope of SkillSifter as currently designed, c
 | 2 | Add Candidate button → form | ❓ Unverified | Form exists (`AddCandidate.tsx`); need to confirm submit wires to `POST /api/candidates` |
 | 3 | Results table | ❓ Unverified | Need to confirm columns render real data, not placeholders |
 
-## C. Jobs (`src/pages/Jobs.tsx`)
+## C. Requirements (`src/pages/Requirements.tsx`)
 
 | # | Feature | Status | Note |
 |---|---|---|---|
