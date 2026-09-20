@@ -78,7 +78,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	setupResourceRoutes(api, "/candidates", handlers.GetCandidates, handlers.AddCandidate, handlers.GetCandidateByID, handlers.UpdateCandidate, handlers.DeleteCandidate)
 	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
-	setupResourceRoutes(api, "/jobs", handlers.GetJobs, managerOnly(handlers.AddJob), handlers.GetJobByID, managerOnly(handlers.UpdateJob), managerOnly(handlers.DeleteJob))
 	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
 	setupResourceRoutes(api, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
 	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev, handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
@@ -92,11 +91,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes", handlers.ListResumes).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
-	// Issue #34 / ADR 0002: Client and Requirement domain. New V1 domain work
-	// is introduced under /api/v1 per ADR 0008 ("New V1 endpoints must be
-	// introduced under /api/v1/..."); the existing /api namespace above is
-	// untouched, and `jobs` remains available there unchanged (ADR 0002:
-	// jobs is retained as a temporary compatibility model, not replaced).
+	// Client and Requirement are the authoritative V1 recruitment-demand domain.
+	// Requirements replace the legacy Jobs resource.
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
