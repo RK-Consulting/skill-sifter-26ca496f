@@ -93,10 +93,11 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 			COALESCE(description, ''), status, COALESCE(location, ''),
 			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID,
-	).Scan(&req.ID, &req.ClientID, &req.Title, &req.Department, &req.Location,
-		&req.WorkArrangement, &req.Status, &req.OpenedDate, &req.Description, &req.RequiredSkills,
-		&req.ExperienceRequired, &req.Compensation, &req.Headcount, &req.LanguageRequirement,
-		&req.CreatedAt, &req.LastModified, &req.TenantID)
+	).Scan(&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
+		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
+		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
+		&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+		&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
