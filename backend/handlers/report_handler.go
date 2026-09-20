@@ -11,22 +11,22 @@ import (
 )
 
 type PeriodReportRow struct {
-	Period         string `json:"period"`
-	Activities     int    `json:"activities"`
-	Candidates     int    `json:"candidates"`
-	Resumes        int    `json:"resumes"`
-	ResumeSearches int    `json:"resumeSearches"`
-	Requirements     int    `json:"requirements"`
-	Interviews     int    `json:"interviews"`
-	Hires          int    `json:"hires"`
-	BusinessDev    int    `json:"businessDev"`
+	Period	string	`json:"period"`
+	Activities	int	`json:"activities"`
+	Candidates	int	`json:"candidates"`
+	Resumes	int	`json:"resumes"`
+	ResumeSearches	int	`json:"resumeSearches"`
+	Requirements	int	`json:"requirements"`
+	Interviews	int	`json:"interviews"`
+	Hires	int	`json:"hires"`
+	BusinessDev	int	`json:"businessDev"`
 }
 type ActivityLogRow struct {
-	ID          int64     `json:"id"`
-	Action      string    `json:"action"`
-	EntityType  string    `json:"entityType"`
-	EntityID    string    `json:"entityId,omitempty"`
-	Description string    `json:"description"`
+	ID	int64	`json:"id"`
+	Action	string	`json:"action"`
+	EntityType	string	`json:"entityType"`
+	EntityID	string	`json:"entityId,omitempty"`
+	Description	string	`json:"description"`
 	ActorUserID *int      `json:"actorUserId,omitempty"`
 	CreatedAt   time.Time `json:"createdAt"`
 }
