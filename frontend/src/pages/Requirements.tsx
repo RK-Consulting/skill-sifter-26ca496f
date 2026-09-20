@@ -60,11 +60,8 @@ const Requirements = () => {
   const { data: clientsData } = useQuery({
     queryKey: ['clients-for-requirements-list'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/clients', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') ?? ''}` },
-      });
-      const payload = await response.json();
-      return (payload?.data ?? []) as Client[];
+      const response = await (await import('@/services/api')).clientService.getAllClients({ page: 1, limit: 100 });
+      return (response.data?.data ?? []) as Client[];
     },
   });
 
