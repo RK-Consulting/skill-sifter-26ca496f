@@ -9,7 +9,7 @@ import { Card, CardContent } from '@/components/ui-custom/Card';
 import { Search, PlusCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import Button from '@/components/ui-custom/Button';
-import { requirementService } from '@/services/api';
+import { clientService, requirementService } from '@/services/api';
 
 interface Requirement {
   id: number;
@@ -60,7 +60,7 @@ const Requirements = () => {
   const { data: clientsData } = useQuery({
     queryKey: ['clients-for-requirements-list'],
     queryFn: async () => {
-      const response = await (await import('@/services/api')).clientService.getAllClients({ page: 1, limit: 100 });
+      const response = await clientService.getAllClients({ page: 1, limit: 100 });
       return (response.data?.data ?? []) as Client[];
     },
   });
