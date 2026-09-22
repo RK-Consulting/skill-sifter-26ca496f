@@ -22,6 +22,7 @@ interface Client {
 }
 
 const formSchema = z.object({
+  jobId: z.string().min(1, 'Job ID is required'),
   clientId: z.coerce.number().min(1, 'Client is required'),
   jobType: z.enum(['fulltime', 'contract']),
   title: z.string().min(2, 'Job title is required'),
@@ -57,6 +58,7 @@ const AddRequirement = () => {
   const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      jobId: '',
       clientId: 0,
       jobType: 'fulltime',
       title: '',
@@ -109,6 +111,14 @@ const AddRequirement = () => {
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField control={form.control} name="jobId" render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job ID *</FormLabel>
+                        <FormControl><Input placeholder="e.g. RK-2026-001" {...field} /></FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )} />
+
                     <FormField control={form.control} name="clientId" render={({ field }) => (
                       <FormItem>
                         <FormLabel>Client *</FormLabel>
