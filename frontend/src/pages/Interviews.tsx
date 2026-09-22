@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface Interview {
   id: number;
+  jobId?: string;
   candidateName: string;
   position: string;
   interviewDate: string;
@@ -49,6 +50,7 @@ const Interviews = () => {
     
     return interviewsData.filter((interview: Interview) => 
       interview.candidateName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      interview.jobId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.position?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       interview.status?.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -152,6 +154,7 @@ const Interviews = () => {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Job ID</TableHead>
                     <TableHead>Candidate</TableHead>
                     <TableHead>Position</TableHead>
                     <TableHead>Interview Date & Time</TableHead>
@@ -211,7 +214,7 @@ const Interviews = () => {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
                         {searchTerm ? 'No interviews found matching your search.' : 'No interviews found.'}
                       </TableCell>
                     </TableRow>
