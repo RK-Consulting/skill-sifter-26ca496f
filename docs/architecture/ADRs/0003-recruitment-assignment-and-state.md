@@ -92,27 +92,36 @@ Snapshots are historical evidence and do not replace the current candidate or re
 
 At minimum, the submission snapshot must preserve the relevant candidate identity/profile, skills/language information, and requirement information such as title, location, work arrangement, description, required skills, experience, compensation, headcount, and language requirement.
 
-### 7. Downstream transaction ownership
+### 7. Assignment boundary versus Job ID master-index flow
 
-Recruitment Assignment is the authoritative parent transaction for downstream recruitment activity.
+Recruitment Assignment remains the authoritative transaction for the candidate-to-requirement recruitment workflow and its submission lifecycle. It is not the master index for Interview, Billing, or Reports.
 
-Conceptually:
+The Job ID master-index flow is:
 
 ```text
-Candidate
+Requirement
+   |
+   | Job ID
+   v
+Interview
    |
    v
-Recruitment Assignment
+Billing
    |
-   +--> Interviews
-   +--> Offer
-   +--> Joining
-   +--> Future commercial records
+   v
+Reports
 ```
 
-Future domain records should reference the assignment rather than independently reconstructing a candidate/requirement relationship.
+Rules:
 
-Existing `interviews` records currently reference candidates and use a free-text position field. Existing interview data must not be remapped automatically under this ADR because there is no reliable historical requirement relationship. Any historical interview migration is a separate migration decision.
+- Job ID is entered on Requirement and is unique within the tenant.
+- Interview setup selects the Requirement/Job ID.
+- Interview stores the Requirement reference and derives Job ID from the Requirement.
+- Billing and recruitment-transaction reports use the Requirement/Job ID relationship.
+- Candidate Submission / Recruitment Assignment does not need Job ID for this flow.
+- Client does not reference Job ID.
+
+Existing interviews may have no Requirement reference because they predate the Job ID model. They must not be automatically remapped without reliable historical evidence. New and updated Interview workflows require a Requirement with a Job ID.
 
 ### 8. Tenant isolation
 
@@ -127,7 +136,7 @@ All reads and writes are scoped by the authenticated `tenant_id`. Client-supplie
 - Establishes a durable recruitment transaction boundary.
 - Supports multiple requirements per candidate and multiple candidates per requirement.
 - Separates candidate state from transaction state.
-- Provides a stable parent for interviews, offers, joining, and future commercial records.
+- Provides a stable transaction boundary for candidate recruitment workflow state and submission history.
 - Preserves historical submission context through immutable snapshots.
 - Provides a clear tenant-isolation boundary.
 
