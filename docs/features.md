@@ -38,8 +38,8 @@ This documents the full functional scope of SkillSifter as currently designed, c
 | # | Feature | Status | Note |
 |---|---|---|---|
 | 1 | Search by skill/designation | ❓ Unverified | |
-| 2 | Add Job button → form | ❓ Unverified | |
-| 3 | Results table (Title, Department, Location, Status, Date Posted, Actions) | ❓ Unverified | |
+| 2 | Add Requirement button → form | ❓ Unverified | |
+| 3 | Results table (Title, Department, Location, Status, Job Type, Work Arrangement, Open Positions, Actions) | ❓ Unverified | |
 
 ## D. Daily Tasks (`src/pages/DailyJobs.tsx`)
 
