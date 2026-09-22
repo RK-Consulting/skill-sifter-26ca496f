@@ -182,10 +182,12 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 			mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 		RETURNING id, created_at, last_modified`,
-		req.ClientID, req.JobType, req.Title, req.Department, req.ExperienceRequired, req.Budget,
-		req.LanguageRequirements, req.CertificationsRequired, req.NoticePeriod, req.WorkArrangement,
-		req.MandatoryRequirements, req.Description, req.Status, req.Location, req.Headcount,
-		openedDate, req.TenantID,
+		req.ClientID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
+		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
+		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
+		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
+		nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
+		req.Status, nullableRequirementField(req.Location), req.Headcount, openedDate, req.TenantID,
 	).Scan(&req.ID, &req.CreatedAt, &req.LastModified)
 
 	if err != nil {
@@ -262,10 +264,12 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 			mandatory_requirements = $11, description = $12, status = $13, location = $14,
 			headcount = $15, opened_date = $16, last_modified = NOW()
 		WHERE id = $17 AND tenant_id = $18`,
-		req.ClientID, req.JobType, req.Title, req.Department, req.ExperienceRequired, req.Budget,
-		req.LanguageRequirements, req.CertificationsRequired, req.NoticePeriod, req.WorkArrangement,
-		req.MandatoryRequirements, req.Description, req.Status, req.Location, req.Headcount,
-		openedDate, req.ID, tenantID,
+		req.ClientID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
+		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
+		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
+		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
+		nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
+		req.Status, nullableRequirementField(req.Location), req.Headcount, openedDate, req.ID, tenantID,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating requirement")
