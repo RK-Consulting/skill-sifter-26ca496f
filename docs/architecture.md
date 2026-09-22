@@ -37,7 +37,7 @@ External actors are recruiting-company staff (`admin`, `manager`, `recruiter`, `
 - **API client**: `src/services/api.ts` wraps Axios with:
   - A request interceptor that attaches `Authorization: Bearer <token>` from `localStorage` and normalizes request URLs to always include an `/api/` prefix.
   - A response interceptor that logs errors and detects `401` responses (currently logs only — does not auto-redirect to login).
-  - Domain-specific service objects: `authService`, `candidateService`, and others per resource (jobs, interviews, daily jobs, business dev, reports).
+  - Domain-specific service objects: `authService`, `candidateService`, and others per resource (requirements, interviews, daily jobs, business dev, reports).
 - **UI layer**: shadcn/ui components built on Radix UI primitives, styled with Tailwind CSS. `src/components/ui` holds ~49 generic UI primitives (buttons, dialogs, forms, etc.); `src/components/dashboard` and `src/components/layout` hold app-specific composition; `src/components/ui-custom` holds bespoke components.
 - **Pages** (`src/pages`) map roughly 1:1 to the domain resources: `Candidates`, `AddCandidate`, `Jobs`, `AddJob`, `DailyJobs`, `AddDailyJob`, `BusinessDev`, `AddBusinessDev`, `Interviews`, `InterviewDetails`, `ScheduleInterview`, `Reports`, plus `Login`, `Register`, `Index` (dashboard), and `NotFound`.
 
@@ -56,7 +56,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 **Routing** (`main.go`):
 - Public routes: root/health/ping endpoints, `/auth/register`, `/auth/login` — each duplicated at both `/x` and `/api/x` for client compatibility.
 - Protected routes: mounted under `/api` with `AuthMiddleware` applied to the whole subrouter, and a second, **duplicate, non-`/api`-prefixed** route tree also protected by `AuthMiddleware`. This duplication (routes registered twice, once with `/api` and once without) is a pragmatic way to tolerate frontend requests that may or may not include the prefix, at the cost of maintaining two copies of the route table.
-- `setupResourceRoutes` is a small helper that registers the standard 5-route REST CRUD pattern (`GET list`, `POST create`, `GET/{id}`, `PUT/{id}`, `DELETE/{id}`) for each resource, avoiding repetition across candidates/jobs/daily-jobs/interviews/business-dev.
+- `setupResourceRoutes` is a small helper that registers the standard 5-route REST CRUD pattern (`GET list`, `POST create`, `GET/{id}`, `PUT/{id}`, `DELETE/{id}`) for each resource, avoiding repetition across candidates/requirements/daily-jobs/interviews/business-dev.
 - Admin-only routes (`/api/admin/users`) are additionally wrapped in `RoleMiddleware("admin")`.
 - A catch-all `OPTIONS` handler returns `204` for any unmatched preflight request.
 
@@ -66,7 +66,7 @@ Written in Go 1.21, structured as a small set of packages rather than a framewor
 
 Single PostgreSQL database, initialized automatically on backend startup via `db.InitializeSchema()`. This reads numbered, ordered SQL files from `backend/database/migrations/` (the directory name predates the current terminology; the files themselves are called schema definitions, not migrations, per ADR 0007), tracks which have been applied in a `schema_versions` table, and verifies a checksum of each already-applied file against the filesystem on every startup — a mismatch (someone editing an already-applied file) is a hard startup error, not a silent skip. Only genuinely new, not-yet-applied files are executed, in order, on each startup. This is the single authoritative schema-definition mechanism; there is no separate schema.sql file and no other code path that creates or alters schema.
 
-Core tables: `companies`, `roles`, `users`, `candidates`, `jobs`, `daily_jobs`, `interviews`, `business_dev`. See §5 for the tenancy model and §6 for the full entity diagram.
+Core tables: `companies`, `roles`, `users`, `candidates`, `requirements`, `daily_jobs`, `interviews`, `business_dev`. See §5 for the tenancy model and §6 for the full entity diagram.
 
 ## 4. Authentication & Authorization
 
@@ -89,9 +89,9 @@ Core tables: `companies`, `roles`, `users`, `candidates`, `jobs`, `daily_jobs`, 
 
 SkillSifter uses **shared-database, shared-schema, discriminator-column** multi-tenancy:
 
-- Every business table (`candidates`, `jobs`, `daily_jobs`, `interviews`, `business_dev`, `users`) carries a `company_name VARCHAR(255) NOT NULL` column.
+- Every business table (`candidates`, `requirements`, `daily_jobs`, `interviews`, `business_dev`, `users`) carries the tenant-scoping fields required by its current domain model.
 - Tenants are identified by company **name**, not a surrogate numeric ID (the `companies.id` field exists but is a slug-like string, e.g. `comp_acme_corp`, generated at registration time — it is not used as a foreign key by the other tables, which instead reference `company_name` directly).
-- Indexes exist on `company_name` for every tenant-scoped table (`idx_candidates_company`, `idx_jobs_company`, etc.) to keep per-tenant queries efficient.
+- Tenant-scoping indexes exist on the tenant-owned tables as required by the current schema.
 - Roles (`admin`, `manager`, `recruiter`, `team_leader`) are global definitions with a fixed permission list stored as JSONB — they are not currently tenant-customizable.
 
 **Trade-off worth flagging**: using the human-readable company name (rather than an immutable ID) as the tenancy key means a company rename would require a coordinated update across every table, and it also makes company names effectively globally unique identifiers rather than just display labels.
@@ -102,8 +102,8 @@ SkillSifter uses **shared-database, shared-schema, discriminator-column** multi-
 - **roles** (`id` PK, `name` unique, `permissions` JSONB) — seeded with `admin`, `manager`, `recruiter`, `team_leader`.
 - **users** (`id` PK, `email` unique, `password` hash, `role`, `company_name`) — role is stored as a string on the user row rather than a FK to `roles.id`.
 - **candidates** (`id` PK, contact/skill fields, `company_name`).
-- **jobs** (`id` PK, title/department/location/status, `company_name`).
-- **daily_jobs** (`id` PK, `assigned_user` → `users.id`, `company_name`).
+- **requirements** (`id` PK, client/title/department/location/work arrangement/status, recruitment-demand fields, tenant/client ownership).
+- **daily_jobs** (`id` PK, assigned-user and daily assignment fields, tenant ownership).
 - **interviews** (`id` PK, `candidate_id` → `candidates.id`, status/feedback, `company_name`).
 - **business_dev** (`id` PK, client/partner/contact fields, `company_name`).
 
