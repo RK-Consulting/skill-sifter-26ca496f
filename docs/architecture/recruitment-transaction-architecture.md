@@ -114,26 +114,39 @@ Candidate snapshot information may include identity, skills, language expertise,
 
 The implementation must avoid copying unnecessary sensitive data into snapshots.
 
-## 7. Downstream transaction ownership
+## 7. Job ID master-index flow
 
-Recruitment Assignment is the authoritative parent transaction for future recruitment activity:
+The Requirement is the first point at which the business **Job ID** is entered. Job ID is a stable, tenant-scoped business identifier and is the master index key for the commercial recruitment lifecycle.
 
 ```text
-Recruitment Assignment
-        |
-        +--> Interviews
-        +--> Offer
-        +--> Joining
-        +--> Future commercial records
+Requirement
+   |
+   | Job ID
+   v
+Interview
+   |
+   v
+Billing
+   |
+   v
+Reports
 ```
 
-Future records should reference the assignment rather than reconstructing candidate/requirement relationships independently.
+Rules:
 
-### Legacy interview boundary
+- Job ID is entered by the user when creating a Requirement.
+- Job ID is unique within the tenant.
+- Job ID is immutable once assigned.
+- Interview setup selects an existing Requirement through a Job ID dropdown.
+- The Interview stores the Requirement reference and derives Job ID and Job Title from that Requirement.
+- Billing records will reference the Requirement/Job ID for client billing traceability.
+- Reports will expose and aggregate by Job ID where the report is recruitment-transaction based.
+- **Candidate Submission / Recruitment Assignment does not require Job ID for this master-index flow.**
+- **Client does not reference Job ID.** The Client remains the owner of Requirements through the normal client relationship.
 
-Existing `interviews` rows currently reference candidates and contain a free-text `position` value rather than a reliable requirement relationship. Existing interviews therefore must not be automatically remapped to assignments under #35.
+Existing interviews may have no Requirement reference because they predate this model. They remain valid historical records; new and updated interview workflows require a Requirement with a Job ID.
 
-Any historical interview migration requires a separate data-mapping and migration decision.
+The Interview-to-Requirement relationship is therefore the authoritative link for Job ID traceability. It must not be reconstructed from candidate data, Client data, or free-text position values.
 
 ## 8. Audit architecture
 
