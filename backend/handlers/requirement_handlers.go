@@ -140,10 +140,6 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "jobId is required")
 		return
 	}
-	if req.JobID == "" {
-		respondWithError(w, http.StatusBadRequest, "jobId is required")
-		return
-	}
 	if req.Title == "" {
 		respondWithError(w, http.StatusBadRequest, "Requirement title is required")
 		return
@@ -229,6 +225,10 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	if req.JobID == "" {
+		respondWithError(w, http.StatusBadRequest, "jobId is required")
+		return
+	}
 	if req.Title == "" {
 		respondWithError(w, http.StatusBadRequest, "Requirement title is required")
 		return
