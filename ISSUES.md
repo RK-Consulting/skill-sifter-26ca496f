@@ -12,7 +12,8 @@ The GitHub milestone and issues must be published after repository authenticatio
 
 ## Verified technical follow-ups
 
-- Runtime migration startup applies only `002_ai_reporting.sql`, while `003_job_ownership.sql`, `004_candidates_created_at.sql`, and the skill-alias migration are handled by the deployment script. A fresh environment needs a single, deterministic migration strategy.
-- The jobs handlers use `created_by_user_id`; the migration path must guarantee that column before the handlers run.
+- Runtime schema initialization uses the authoritative numbered schema definitions under `backend/database/migrations/`. Historical migration files are retained as schema history and must not be rewritten.
+- Legacy Jobs handlers were retired as part of the Requirements migration; this historical follow-up is closed.
 - Tenant filtering remains handler/query based and should be hardened through an approved design.
 - Dashboard recruitment pipeline and charts use hardcoded data and must not be represented as real reporting.
+- Requirements are the authoritative recruitment-demand model; Daily Jobs is a separate operational domain.
