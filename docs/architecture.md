@@ -191,7 +191,7 @@ However, fine-tuning (even efficient LoRA fine-tuning) requires (a) a real label
 
 ### Decision 5 — v1 AI scope: two use cases, classified by what actually needs AI
 
-A broad review of SkillSifter's feature set shows most of it is structured, database-oriented CRUD (Candidates, Jobs, Daily Tasks, Business Dev, Interviews) — plain SQL and filter forms are the right tool there, not AI. Only two genuine AI use cases were identified:
+A broad review of SkillSifter's feature set shows most of it is structured, database-oriented CRUD (Candidates, Requirements, Daily Tasks, Business Dev, Interviews) — plain SQL and filter forms are the right tool there, not AI. Only two genuine AI use cases were identified:
 
 **Use Case 1 — Resume Extraction.** Input: unstructured files (PDF/.docx), from a local folder initially, Google Drive later. Output: a structured candidate record (Name, Email, Phone, Skills) written to the `candidates` table. Nature: unstructured → structured. This is AstraMind's ingestion/RAG territory. Note: the candidate's primary key (auto-generated ID) is **not** an AI concern — plain database auto-increment/UUID logic, generated at insert time by ordinary application code, not by AstraMind.
 
@@ -367,7 +367,7 @@ Since CON-01 explicitly excludes resume version history (latest-resume-only mode
 
 ### 13.1 Current RBAC state (as verified against the actual codebase, not assumed)
 
-The `roles` table defines four roles (admin, manager, recruiter, team_leader) each with a `permissions` JSONB array — but this data is **not currently enforced anywhere in the code**. `RoleMiddleware` only checks the role *name* string against a per-route allow-list; the `permissions` column is read nowhere. Only two route groups are gated at all (`/api/admin/*`, `/api/manager/*`), and `/api/manager/*` has zero routes registered under it. Every other resource (candidates, jobs, interviews, daily_jobs, business_dev) is accessible to any authenticated user regardless of role. No resource-ownership concept exists (e.g. no `created_by_user_id` on `jobs`).
+The `roles` table defines four roles (admin, manager, recruiter, team_leader) each with a `permissions` JSONB array — but this data is **not currently enforced anywhere in the code**. `RoleMiddleware` only checks the role *name* string against a per-route allow-list; the `permissions` column is read nowhere. Only two route groups are gated at all (`/api/admin/*`, `/api/manager/*`), and `/api/manager/*` has zero routes registered under it. Every other resource (candidates, requirements, interviews, daily_jobs, business_dev) is accessible to any authenticated user regardless of role. No resource-ownership concept exists for the current resource set; Requirement ownership and authorization are separate implementation concerns.
 
 ### 13.2 Commercial licensing model
 
@@ -385,16 +385,17 @@ The `roles` table defines four roles (admin, manager, recruiter, team_leader) ea
 
 **Gap against current code**: `/api/manager/*` has no delete routes implemented at all today — this capability needs to be built, not just re-gated.
 
-### 13.4 Job ownership, derived from RBAC permissions (not a separate assumption)
+### 13.4 Requirement ownership and future RBAC
 
-The `manage_jobs` permission belongs to `manager` (and `admin`, via `["all"]`); `recruiter`/`team_leader` hold only `view_jobs`. This means **jobs are a manager-owned artifact by design** — directly resolving who Flow E's (§13.6) per-user auto-matching settings and cleanup should be scoped to.
+The legacy `manage_jobs` and `view_jobs` permissions were removed when the legacy Jobs resource was retired. Requirements are now the authoritative recruitment-demand resource.
+
+Any future ownership or RBAC work for Requirements must be defined against the current Requirement model and its tenant/client relationships; it must not recreate the retired Jobs permission model.
 
 ```sql
-ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id);
+ALTER TABLE requirements ADD COLUMN created_by_user_id INTEGER REFERENCES users(id);
 ```
 
-**Gap against current code**: `/api/requirements` POST is not currently restricted to `manager`/`admin` — this needs to be enforced to match the RBAC design's own intent, not treated as optional.
-
+**Current gap:** `/api/requirements` authorization should be aligned with the approved RBAC model before ownership-sensitive Requirement workflows are introduced. This is a future RBAC design concern, not a reason to restore the Jobs resource.
 ### 13.5 License/subscription state
 
 ```sql
@@ -413,7 +414,7 @@ State machine: T-7 days before `license_expires_at` → warning popup (informati
 
 Both are token-costing AI operations, default OFF, user-controlled via Settings:
 - `auto_resume_update_enabled` — scoped to whichever recruiter/manager/admin enables it (governs Flow A incremental folder scan)
-- `auto_jd_matching_enabled` — scoped via `jobs.created_by_user_id` (§13.4), since only managers/admins own jobs
+- `auto_jd_matching_enabled` — if retained, it should be scoped to the current Requirement ownership model defined in §13.4
 
 ```sql
 CREATE TABLE user_settings (
