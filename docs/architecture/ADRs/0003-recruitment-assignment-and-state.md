@@ -140,4 +140,8 @@ All reads and writes are scoped by the authenticated `tenant_id`. Client-supplie
 
 ## Implementation Boundary
 
-This ADR defines the architecture for Issue #35. It does **not** authorize automatic migration of historical `jobs` or `interviews` data, dual-write behavior between legacy `jobs` and requirements, synthetic clients, or changes to existing recruitment transaction history.
+This ADR defines the architecture for Issue #35. At the time of approval, it explicitly prevented automatic migration of historical legacy Jobs records and dual-write behavior while the Requirement domain was being introduced.
+
+That historical constraint has since been resolved by retiring the legacy Jobs resource. The current system uses Requirements as the authoritative recruitment-demand model. Historical migration SQL and ADR context remain preserved for traceability; they are not instructions to recreate or dual-write a Jobs resource.
+
+Existing interviews still require separate historical mapping decisions where a reliable Requirement relationship cannot be established.
