@@ -39,7 +39,7 @@ External actors are recruiting-company staff (`admin`, `manager`, `recruiter`, `
   - A response interceptor that logs errors and detects `401` responses (currently logs only — does not auto-redirect to login).
   - Domain-specific service objects: `authService`, `candidateService`, and others per resource (requirements, interviews, daily jobs, business dev, reports).
 - **UI layer**: shadcn/ui components built on Radix UI primitives, styled with Tailwind CSS. `src/components/ui` holds ~49 generic UI primitives (buttons, dialogs, forms, etc.); `src/components/dashboard` and `src/components/layout` hold app-specific composition; `src/components/ui-custom` holds bespoke components.
-- **Pages** (`src/pages`) map roughly 1:1 to the domain resources: `Candidates`, `AddCandidate`, `Jobs`, `AddJob`, `DailyJobs`, `AddDailyJob`, `BusinessDev`, `AddBusinessDev`, `Interviews`, `InterviewDetails`, `ScheduleInterview`, `Reports`, plus `Login`, `Register`, `Index` (dashboard), and `NotFound`.
+- **Pages** (`src/pages`) map roughly 1:1 to the domain resources: `Candidates`, `AddCandidate`, `Requirements`, `AddRequirement`, `DailyJobs`, `AddDailyJob`, `BusinessDev`, `AddBusinessDev`, `Interviews`, `InterviewDetails`, `ScheduleInterview`, `Reports`, plus `Login`, `Register`, `Index` (dashboard), and `NotFound`.
 
 ### 3.2 Backend (`/backend`)
 
@@ -393,7 +393,7 @@ The `manage_jobs` permission belongs to `manager` (and `admin`, via `["all"]`); 
 ALTER TABLE jobs ADD COLUMN created_by_user_id INTEGER REFERENCES users(id);
 ```
 
-**Gap against current code**: `/api/jobs` POST is not currently restricted to `manager`/`admin` — this needs to be enforced to match the RBAC design's own intent, not treated as optional.
+**Gap against current code**: `/api/requirements` POST is not currently restricted to `manager`/`admin` — this needs to be enforced to match the RBAC design's own intent, not treated as optional.
 
 ### 13.5 License/subscription state
 
