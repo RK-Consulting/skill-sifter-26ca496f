@@ -29,7 +29,7 @@ Tenant
         │
         ├── Users
         ├── Candidates
-        ├── Jobs
+        ├── Requirements
         ├── Daily Jobs
         ├── Interviews
         └── Business Development
@@ -71,7 +71,7 @@ Use the existing `companies.id` as the candidate immutable tenant identifier, su
 
 Add and populate tenant identity for existing tenant-owned records, initially retaining `company_name` where necessary for compatibility during the transition.
 
-The affected domain areas include users, candidates, jobs, daily jobs, interviews, and business development.
+The affected domain areas include users, candidates, requirements, daily jobs, interviews, and business development.
 
 ### Stage C — Migrate authentication
 
