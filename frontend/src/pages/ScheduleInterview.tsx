@@ -45,7 +45,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { interviewService, candidateService } from '@/services/api';
+import { interviewService, candidateService, requirementService } from '@/services/api';
 
 // Interviews are scheduled and displayed in IST (India Standard Time) —
 // RK Consulting's own timezone. This is shown explicitly next to the
@@ -59,11 +59,20 @@ interface CandidateOption {
   position?: string;
 }
 
+interface RequirementOption {
+  id: number;
+  jobId: string;
+  title: string;
+  status: string;
+}
+
 // Define the schema for form validation matching backend Interview model
 const formSchema = z.object({
   candidateId: z.coerce.number().min(1, { message: 'Candidate is required' }),
   candidateName: z.string().min(1, { message: 'Candidate name is required' }),
-  position: z.string().min(1, { message: 'Position is required' }),
+  requirementId: z.coerce.number().min(1, { message: 'Job ID is required' }),
+  jobId: z.string().min(1, { message: 'Job ID is required' }),
+  position: z.string().min(1, { message: 'Job title is required' }),
   interviewDate: z.date({
     required_error: 'Interview date and time is required',
   }),
@@ -76,6 +85,7 @@ type FormValues = z.infer<typeof formSchema>;
 const ScheduleInterview = () => {
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState<CandidateOption[]>([]);
+  const [requirements, setRequirements] = useState<RequirementOption[]>([]);
 
   useEffect(() => {
     const loadCandidates = async () => {
@@ -87,7 +97,20 @@ const ScheduleInterview = () => {
         toast.error('Failed to load candidates');
       }
     };
+
+    const loadRequirements = async () => {
+      try {
+        const response = await requirementService.getAllRequirements();
+        const items = (response.data?.data || []) as RequirementOption[];
+        setRequirements(items.filter((item) => item.jobId && item.status !== 'cancelled'));
+      } catch (error) {
+        console.error('Error loading requirements:', error);
+        toast.error('Failed to load requirements');
+      }
+    };
+
     void loadCandidates();
+    void loadRequirements();
   }, []);
 
   // Initialize form with zod resolver
@@ -95,6 +118,9 @@ const ScheduleInterview = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       candidateId: 0,
+      requirementId: 0,
+      jobId: '',
+      position: '',
       status: 'scheduled',
       feedback: '',
     },
@@ -111,6 +137,7 @@ const ScheduleInterview = () => {
       const interviewData = {
         candidateId: data.candidateId,
         candidateName: data.candidateName,
+        requirementId: data.requirementId,
         position: data.position,
         interviewDate: data.interviewDate.toISOString(),
         status: data.status,
@@ -194,17 +221,54 @@ const ScheduleInterview = () => {
                       )}
                     />
 
-                    {/* Position */}
+                    {/* Job ID / Requirement */}
+                    <FormField
+                      control={form.control}
+                      name="requirementId"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Job ID *</FormLabel>
+                          <Select
+                            onValueChange={(value) => {
+                              const selected = requirements.find((item) => item.id === Number(value));
+                              field.onChange(Number(value));
+                              form.setValue('jobId', selected?.jobId || '');
+                              form.setValue('position', selected?.title || '');
+                            }}
+                            defaultValue={field.value ? String(field.value) : undefined}
+                          >
+                            <FormControl>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select Job ID" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {requirements.map((requirement) => (
+                                <SelectItem key={requirement.id} value={String(requirement.id)}>
+                                  {requirement.jobId} — {requirement.title}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {requirements.length === 0 && (
+                            <FormDescription>No Requirements with Job IDs found — create a Requirement first.</FormDescription>
+                          )}
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Job Title */}
                     <FormField
                       control={form.control}
                       name="position"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Position</FormLabel>
+                          <FormLabel>Job Title</FormLabel>
                           <FormControl>
-                            <Input placeholder="Software Engineer" {...field} />
+                            <Input placeholder="Select a Job ID first" readOnly {...field} />
                           </FormControl>
-                          <FormMessage />
+                          <FormDescription>Automatically populated from the selected Requirement.</FormDescription>
                         </FormItem>
                       )}
                     />
