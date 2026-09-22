@@ -96,12 +96,12 @@ type Interview struct {
 	JobID            string    `json:"jobId,omitempty" db:"-"`
 	RequirementTitle string    `json:"requirementTitle,omitempty" db:"-"`
 	Position         string    `json:"position" db:"position"`
-	InterviewDate time.Time `json:"interviewDate" db:"interview_date,notnull"`
-	Status        string    `json:"status" db:"status,default:'scheduled'"`
-	Feedback      string    `json:"feedback" db:"feedback"`
-	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
-	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
+	InterviewDate    time.Time `json:"interviewDate" db:"interview_date,notnull"`
+	Status           string    `json:"status" db:"status,default:'scheduled'"`
+	Feedback         string    `json:"feedback" db:"feedback"`
+	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
+	TenantID         string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
+	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // BusinessDev model
