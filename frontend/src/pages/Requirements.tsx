@@ -13,6 +13,7 @@ import { clientService, requirementService } from '@/services/api';
 
 interface Requirement {
   id: number;
+  jobId: string;
   clientId: number;
   jobType?: string;
   title: string;
@@ -127,6 +128,7 @@ const Requirements = () => {
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Job ID</TableHead>
                         <TableHead>Client</TableHead>
                         <TableHead>Job Type</TableHead>
                         <TableHead>Job Title</TableHead>
@@ -142,6 +144,7 @@ const Requirements = () => {
                       {filtered.length > 0 ? (
                         filtered.map((r) => (
                           <TableRow key={r.id} className="cursor-pointer hover:bg-ats-gray-50" onClick={() => navigate(`/requirements/${r.id}`)}>
+                            <TableCell className="font-mono">{r.jobId || '—'}</TableCell>
                             <TableCell>{clientNames[r.clientId] || `Client #${r.clientId}`}</TableCell>
                             <TableCell className="capitalize">{r.jobType || '—'}</TableCell>
                             <TableCell className="font-medium">{r.title}</TableCell>
@@ -159,7 +162,7 @@ const Requirements = () => {
                         ))
                       ) : (
                         <TableRow>
-                          <TableCell colSpan={9} className="text-center py-8 text-gray-500">
+                          <TableCell colSpan={10} className="text-center py-8 text-gray-500">
                             {searchTerm || clientIdFilter ? 'No requirements found matching your filters.' : 'No requirements yet.'}
                           </TableCell>
                         </TableRow>
