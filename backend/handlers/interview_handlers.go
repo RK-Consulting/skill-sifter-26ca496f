@@ -17,9 +17,12 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 
 	interviews := []models.Interview{}
 	rows, err := db.DB.Query(`
-		SELECT id, candidate_id, candidate_name, position, interview_date,
-			status, feedback, last_modified, tenant_id, company_name
-		FROM interviews WHERE tenant_id = $1`, tenantID)
+		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
+			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position, i.interview_date,
+			 i.status, i.feedback, i.last_modified, i.tenant_id, i.company_name
+		FROM interviews i
+		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
+		WHERE i.tenant_id = $1`, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching interviews")
 		return
@@ -28,7 +31,7 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 
 	for rows.Next() {
 		var i models.Interview
-		err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.Position,
+		err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.JobID, &i.RequirementTitle, &i.Position,
 			&i.InterviewDate, &i.Status, &i.Feedback, &i.LastModified, &i.TenantID, &i.CompanyName)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
@@ -59,9 +62,12 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 
 	var interview models.Interview
 	err = db.DB.QueryRow(`
-		SELECT id, candidate_id, candidate_name, position, interview_date,
-			status, feedback, last_modified, tenant_id, company_name
-		FROM interviews WHERE id = $1 AND tenant_id = $2`,
+		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
+			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position, i.interview_date,
+			 i.status, i.feedback, i.last_modified, i.tenant_id, i.company_name
+		FROM interviews i
+		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
+		WHERE i.id = $1 AND i.tenant_id = $2`,
 		id, tenantID,
 	).Scan(&interview.ID, &interview.CandidateID, &interview.CandidateName, &interview.Position,
 		&interview.InterviewDate, &interview.Status, &interview.Feedback,
@@ -93,12 +99,34 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	interview.TenantID = r.Context().Value("tenantID").(string)
 	interview.CompanyName = r.Context().Value("companyName").(string)
 
+	if interview.RequirementID == nil || *interview.RequirementID <= 0 {
+		respondWithError(w, http.StatusBadRequest, "requirementId is required")
+		return
+	}
+
+	var jobID, requirementTitle string
+	err = db.DB.QueryRow(
+		`SELECT job_id, title FROM requirements WHERE id = $1 AND tenant_id = $2`,
+		*interview.RequirementID, interview.TenantID,
+	).Scan(&jobID, &requirementTitle)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Requirement not found")
+		return
+	}
+	if jobID == "" {
+		respondWithError(w, http.StatusUnprocessableEntity, "Selected requirement does not have a Job ID")
+		return
+	}
+	interview.JobID = jobID
+	interview.RequirementTitle = requirementTitle
+	interview.Position = requirementTitle
+
 	var id int
 	err = db.DB.QueryRow(
-		`INSERT INTO interviews (candidate_id, candidate_name, position, interview_date, status, feedback, tenant_id, company_name) 
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+		`INSERT INTO interviews (candidate_id, candidate_name, requirement_id, position, interview_date, status, feedback, tenant_id, company_name) 
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
 		RETURNING id`,
-		interview.CandidateID, interview.CandidateName, interview.Position,
+		interview.CandidateID, interview.CandidateName, *interview.RequirementID, interview.Position,
 		interview.InterviewDate, interview.Status, interview.Feedback,
 		interview.TenantID, interview.CompanyName,
 	).Scan(&id)
@@ -140,12 +168,34 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	interview.TenantID = tenantID
 	interview.ID = id
 
+	if interview.RequirementID == nil || *interview.RequirementID <= 0 {
+		respondWithError(w, http.StatusBadRequest, "requirementId is required")
+		return
+	}
+
+	var jobID, requirementTitle string
+	err = db.DB.QueryRow(
+		`SELECT job_id, title FROM requirements WHERE id = $1 AND tenant_id = $2`,
+		*interview.RequirementID, tenantID,
+	).Scan(&jobID, &requirementTitle)
+	if err != nil {
+		respondWithError(w, http.StatusNotFound, "Requirement not found")
+		return
+	}
+	if jobID == "" {
+		respondWithError(w, http.StatusUnprocessableEntity, "Selected requirement does not have a Job ID")
+		return
+	}
+	interview.JobID = jobID
+	interview.RequirementTitle = requirementTitle
+	interview.Position = requirementTitle
+
 	result, err := db.DB.Exec(
 		`UPDATE interviews 
-		SET candidate_id = $1, candidate_name = $2, position = $3, interview_date = $4, 
-			status = $5, feedback = $6, last_modified = NOW() 
-		WHERE id = $7 AND tenant_id = $8`,
-		interview.CandidateID, interview.CandidateName, interview.Position,
+		SET candidate_id = $1, candidate_name = $2, requirement_id = $3, position = $4, interview_date = $5, 
+			status = $6, feedback = $7, last_modified = NOW() 
+		WHERE id = $8 AND tenant_id = $9`,
+		interview.CandidateID, interview.CandidateName, *interview.RequirementID, interview.Position,
 		interview.InterviewDate, interview.Status, interview.Feedback,
 		interview.ID, tenantID,
 	)
