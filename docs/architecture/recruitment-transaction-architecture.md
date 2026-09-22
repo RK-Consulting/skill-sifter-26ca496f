@@ -179,21 +179,27 @@ Cross-tenant candidate, requirement, owner, assignment, interview, or audit-even
 
 ## 10. Legacy domain boundaries
 
-The new Client/Requirement domain is additive to the legacy Jobs domain.
+The original architecture introduced the Client/Requirement domain alongside a legacy Jobs resource. That was the historical state when this document was authored.
 
-Existing `jobs` records remain authoritative for historical job transactions. `jobs.company_name` does not represent a client relationship and therefore cannot be safely converted into `requirements.client_id` automatically.
+The current implementation has completed the retirement boundary:
 
-The following are explicitly outside the current recruitment transaction implementation:
+- **Requirement** is the authoritative recruitment-demand domain.
+- The legacy Jobs API, handlers, model, service, routes, and UI are removed.
+- The legacy `jobs` table is retired through the authoritative schema-definition history.
+- There is no current dual-write or compatibility path between Jobs and Requirements.
+- Historical migration SQL and architectural references are retained where they explain the retirement decision.
+- **Daily Jobs** remains a separate operational domain and is intentionally retained.
 
-- automatic `jobs -> requirements` migration
-- synthetic clients for legacy jobs
-- dual-write between jobs and requirements
+Consequently, the following are historical constraints rather than current implementation requirements:
+
+- automatic legacy Jobs → Requirements migration
+- synthetic clients for legacy Jobs
+- dual-write between Jobs and Requirements
 - automatic historical interview remapping
-- automatic historical daily-job remapping
+- automatic historical Daily Jobs remapping
 - legacy `activity_logs` migration
 
-These require separate decisions and migration plans.
-
+New recruitment work must target Requirements and Recruitment Assignment, not the retired Jobs resource.
 ## 11. Implementation sequence
 
 The architecture is implemented in the following order:
