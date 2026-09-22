@@ -111,6 +111,16 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// nullableRequirementField converts Go's zero-value empty string into SQL NULL.
+// This preserves database semantics for optional fields, especially enum
+// fields such as job_type and work_arrangement.
+func nullableRequirementField(value string) interface{} {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
 // AddRequirement creates a new requirement under the authenticated tenant.
 // tenant_id is always derived from context, never from the request
 // payload. client_id must reference a client belonging to the same
