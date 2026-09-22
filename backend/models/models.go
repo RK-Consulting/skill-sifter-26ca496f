@@ -89,10 +89,13 @@ type DailyJob struct {
 
 // Interview model
 type Interview struct {
-	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
-	CandidateID   int       `json:"candidateId" db:"candidate_id"`
-	CandidateName string    `json:"candidateName" db:"candidate_name,notnull"`
-	Position      string    `json:"position" db:"position"`
+	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
+	CandidateID      int       `json:"candidateId" db:"candidate_id"`
+	CandidateName    string    `json:"candidateName" db:"candidate_name,notnull"`
+	RequirementID    *int      `json:"requirementId,omitempty" db:"requirement_id"`
+	JobID            string    `json:"jobId,omitempty" db:"-"`
+	RequirementTitle string    `json:"requirementTitle,omitempty" db:"-"`
+	Position         string    `json:"position" db:"position"`
 	InterviewDate time.Time `json:"interviewDate" db:"interview_date,notnull"`
 	Status        string    `json:"status" db:"status,default:'scheduled'"`
 	Feedback      string    `json:"feedback" db:"feedback"`
@@ -136,6 +139,7 @@ type Client struct {
 type Requirement struct {
 	ID                     int       `json:"id" db:"id,primarykey,autoincrement"`
 	ClientID               int       `json:"clientId" db:"client_id,notnull,foreignkey:clients(id)"`
+	JobID                  string    `json:"jobId" db:"job_id"`
 	JobType                string    `json:"jobType" db:"job_type"`
 	Title                  string    `json:"title" db:"title,notnull"`
 	Department             string    `json:"department,omitempty" db:"department"`
