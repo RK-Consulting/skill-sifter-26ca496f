@@ -14,6 +14,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface Interview {
   id: number;
+  jobId?: string;
+  requirementTitle?: string;
   candidateName: string;
   position: string;
   interviewDate: string;
@@ -204,6 +206,14 @@ const InterviewDetails = () => {
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-4">
+                      <div className="flex items-start">
+                        <Briefcase className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
+                        <div>
+                          <h3 className="text-sm font-medium text-ats-gray-500">Job ID</h3>
+                          <p className="text-lg font-medium">{interview.jobId || 'Not specified'}</p>
+                        </div>
+                      </div>
+
                       <div className="flex items-start">
                         <User className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
