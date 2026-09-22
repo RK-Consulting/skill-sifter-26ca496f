@@ -226,7 +226,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 			t.Fatalf("status = %d, want 201. Body: %s", rec.Code, rec.Body.String())
 		}
 		if !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"open"`)) {
-			t.Errorf("expected default status draft, got: %s", rec.Body.String())
+			t.Errorf("expected default status open, got: %s", rec.Body.String())
 		}
 		if !bytes.Contains(rec.Body.Bytes(), []byte(`"headcount":1`)) {
 			t.Errorf("expected default headcount 1, got: %s", rec.Body.String())
