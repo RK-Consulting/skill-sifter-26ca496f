@@ -41,7 +41,7 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 			department VARCHAR(100),
 			location VARCHAR(100),
 			work_arrangement VARCHAR(50),
-			status VARCHAR(50) NOT NULL DEFAULT 'draft',
+			status VARCHAR(50) NOT NULL DEFAULT 'open',
 			opened_date TIMESTAMP,
 			description TEXT,
 			required_skills TEXT,
@@ -51,7 +51,7 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 			language_requirement VARCHAR(255),
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			last_modified TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT requirements_status_valid CHECK (status IN ('draft', 'open', 'on_hold', 'filled', 'cancelled')),
+			CONSTRAINT requirements_status_valid CHECK (status IN ('open', 'closed', 'on_hold', 'cancelled')),
 			CONSTRAINT requirements_headcount_positive CHECK (headcount > 0)
 		)`,
 	}
@@ -212,7 +212,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Req Test Client', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
 
-	t.Run("AddRequirement defaults status to draft and headcount to 1", func(t *testing.T) {
+	t.Run("AddRequirement defaults status to open and headcount to 1", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]interface{}{"title": "Backend Engineer", "clientId": clientID})
 		req := isoCtx(httptest.NewRequest("POST", "/api/v1/requirements", bytes.NewReader(body)), "tenant_a")
 		rec := httptest.NewRecorder()
@@ -220,7 +220,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 		if rec.Code != http.StatusCreated {
 			t.Fatalf("status = %d, want 201. Body: %s", rec.Code, rec.Body.String())
 		}
-		if !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"draft"`)) {
+		if !bytes.Contains(rec.Body.Bytes(), []byte(`"status":"open"`)) {
 			t.Errorf("expected default status draft, got: %s", rec.Body.String())
 		}
 		if !bytes.Contains(rec.Body.Bytes(), []byte(`"headcount":1`)) {
@@ -261,11 +261,11 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 		}
 	})
 
-	t.Run("UpdateRequirement can transition status draft -> open -> filled", func(t *testing.T) {
+	t.Run("UpdateRequirement can transition status open -> on_hold -> closed", func(t *testing.T) {
 		var id int
-		testDB.QueryRow(`INSERT INTO requirements (client_id, title, status, tenant_id) VALUES ($1, 'Transition Req', 'draft', 'tenant_a') RETURNING id`, clientID).Scan(&id)
+		testDB.QueryRow(`INSERT INTO requirements (client_id, title, status, tenant_id) VALUES ($1, 'Transition Req', 'open', 'tenant_a') RETURNING id`, clientID).Scan(&id)
 
-		for _, status := range []string{"open", "filled"} {
+		for _, status := range []string{"on_hold", "closed"} {
 			body, _ := json.Marshal(map[string]interface{}{"title": "Transition Req", "clientId": clientID, "status": status, "headcount": 1})
 			req := isoCtx(httptest.NewRequest("PUT", "/api/v1/requirements/x", bytes.NewReader(body)), "tenant_a")
 			req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
@@ -278,8 +278,8 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 
 		var finalStatus string
 		testDB.QueryRow(`SELECT status FROM requirements WHERE id = $1`, id).Scan(&finalStatus)
-		if finalStatus != "filled" {
-			t.Errorf("final status = %q, want %q", finalStatus, "filled")
+		if finalStatus != "closed" {
+			t.Errorf("final status = %q, want %q", finalStatus, "closed")
 		}
 	})
 }
