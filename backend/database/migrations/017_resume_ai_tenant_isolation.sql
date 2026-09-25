@@ -2,6 +2,17 @@
 -- Resume records are tenant-owned. company_name remains display/compatibility
 -- data, but must not be the isolation or duplicate boundary.
 
+INSERT INTO companies (id, name, created_at)
+SELECT DISTINCT
+    'comp_' || regexp_replace(lower(r.company_name), '\\s+', '_', 'g'),
+    r.company_name,
+    NOW()
+FROM resumes r
+WHERE r.company_name IS NOT NULL
+  AND r.company_name <> ''
+  AND NOT EXISTS (SELECT 1 FROM companies c WHERE c.name = r.company_name)
+ON CONFLICT (id) DO NOTHING;
+
 ALTER TABLE resumes
     ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id);
 
