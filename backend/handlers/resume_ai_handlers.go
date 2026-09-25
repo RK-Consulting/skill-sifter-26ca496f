@@ -400,7 +400,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 	root := filepath.Join(
 		resumeStoragePath(),
-		safeResumeName(company),
+		safeResumeName(tenantID),
 	)
 
 	if err := os.MkdirAll(root, 0750); err != nil {
