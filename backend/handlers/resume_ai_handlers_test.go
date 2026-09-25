@@ -1,7 +1,8 @@
 package handlers
 
 import (
-	"context"\n\t"io"
+	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
