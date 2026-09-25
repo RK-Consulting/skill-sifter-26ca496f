@@ -520,3 +520,10 @@ RAI-02 does not include:
 - large-scale UI redesign
 
 Those belong to later roadmap phases.
+
+
+## 21. Tenant Isolation and Persistence Boundary
+
+Resume records are tenant-owned resources. The authenticated `tenant_id` is authoritative for resume duplicate detection, listing, candidate joins, search, and expertise persistence. `company_name` remains compatibility/display data and is not an isolation key.
+
+Migration `017_resume_ai_tenant_isolation.sql` backfills `resumes.tenant_id`, makes it mandatory, changes duplicate uniqueness from `(company_name, file_hash)` to `(tenant_id, file_hash)`, and removes the obsolete legacy Jobs activity trigger through a forward migration. Historical migrations remain immutable.
