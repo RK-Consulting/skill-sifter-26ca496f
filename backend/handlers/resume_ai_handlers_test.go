@@ -11,10 +11,10 @@ import (
 
 func TestSafeResumeName(t *testing.T) {
 	cases := map[string]string{
-		"../candidate.pdf": "candidate.pdf",
-		"John Doe CV.pdf": "John_Doe_CV.pdf",
+		"../candidate.pdf":  "candidate.pdf",
+		"John Doe CV.pdf":   "John_Doe_CV.pdf",
 		"resume;rm -rf.txt": "resume_rm_-rf.txt",
-		"": "resume.bin",
+		"":                  "resume.bin",
 	}
 	for input, want := range cases {
 		if got := safeResumeName(input); got != want {
