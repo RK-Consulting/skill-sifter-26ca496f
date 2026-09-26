@@ -400,7 +400,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 	root := filepath.Join(
 		resumeStoragePath(),
-		safeResumeName(company),
+		safeResumeName(tenantID),
 	)
 
 	if err := os.MkdirAll(root, 0750); err != nil {
@@ -458,9 +458,9 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		err = db.DB.QueryRow(`
 			SELECT id
 			FROM resumes
-			WHERE company_name = $1
+			WHERE tenant_id = $1
 			  AND file_hash = $2`,
-			company,
+			tenantID,
 			hashHex,
 		).Scan(&duplicateID)
 
@@ -498,6 +498,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 		err = db.DB.QueryRow(`
 			INSERT INTO resumes (
+				tenant_id,
 				company_name,
 				file_name,
 				file_path,
@@ -509,10 +510,11 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 				uploaded_by
 			)
 			VALUES (
-				$1, $2, $3, $4, $5, $6,
-				'processing', $7, $8
+				$1, $2, $3, $4, $5, $6, $7,
+				'processing', $8, $9
 			)
 			RETURNING id`,
+			tenantID,
 			company,
 			fh.Filename,
 			path,
@@ -688,6 +690,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		   AND ce.tenant_id = c.tenant_id
 		LEFT JOIN resumes r
 			ON r.candidate_id = c.id
+		   AND r.tenant_id = c.tenant_id
 		   AND r.company_name = c.company_name
 		WHERE c.tenant_id = $1
 		  AND (
@@ -862,7 +865,8 @@ func ListResumes(w http.ResponseWriter, r *http.Request) {
 			ON c.id = r.candidate_id
 		   AND c.tenant_id = $1
 		   AND c.company_name = $2
-		WHERE r.company_name = $2
+		WHERE r.tenant_id = $1
+		  AND r.company_name = $2
 		ORDER BY r.uploaded_at DESC`,
 		tenantID,
 		companyName,
