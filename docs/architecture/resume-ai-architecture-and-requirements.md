@@ -526,4 +526,37 @@ Those belong to later roadmap phases.
 
 Resume records are tenant-owned resources. The authenticated `tenant_id` is authoritative for resume duplicate detection, listing, candidate joins, search, and expertise persistence. `company_name` remains compatibility/display data and is not an isolation key.
 
-Migration `017_resume_ai_tenant_isolation.sql` backfills `resumes.tenant_id`, makes it mandatory, changes duplicate uniqueness from `(company_name, file_hash)` to `(tenant_id, file_hash)`, and removes the obsolete legacy Jobs activity trigger through a forward migration. Historical migrations remain immutable.
+Migration `021_resume_ai_tenant_isolation.sql` backfills `resumes.tenant_id`, makes it mandatory, changes duplicate uniqueness from `(company_name, file_hash)` to `(tenant_id, file_hash)`, and removes the obsolete legacy Jobs activity trigger through a forward migration. Historical migrations remain immutable.
+
+
+## 22. RAI-03 Candidate Intelligence Persistence
+
+RAI-03 extends Resume AI from the original identity/technical-skill extraction contract to structured candidate intelligence.
+
+The persistence boundary is:
+
+\`\`\`text
+Tenant
+  |
+  +-- Candidate
+       |
+       +-- candidate_expertise              (technical skills)
+       +-- candidate_language_expertise     (human/spoken languages)
+       +-- candidate_professional_profiles
+       +-- candidate_employment_history
+       +-- candidate_education
+       +-- candidate_certifications
+       +-- candidate_projects
+\`\`\`
+
+Every Resume-derived intelligence record retains \`source_resume_id\` where the domain permits multiple source records. The professional profile is maintained as the current candidate-level profile and records the latest source Resume.
+
+The forward migration is:
+
+- \`022_resume_ai_candidate_intelligence.sql\`
+
+The migration adds provenance to the existing \`candidate_language_expertise\` model and introduces tenant/candidate-scoped persistence for professional profile, employment, education, certifications, and projects.
+
+\`candidate_expertise\` remains the authoritative technical-skill store. The retired \`skills\` and \`candidate_skills\` tables are not recreated.
+
+Structured Ollama output is validated before persistence. Invalid structured output is rejected as a unit so a malformed AI response cannot leave partially persisted Resume intelligence.
