@@ -1,0 +1,23 @@
+name: Temporary RAI-03 Format Diff
+
+on:
+  push:
+    branches:
+      - feature/resume-ai-rai-03
+    paths:
+      - 'backend/handlers/resume_ai_intelligence_persistence_test.go'
+
+permissions:
+  contents: read
+
+jobs:
+  diff:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Show gofmt diff
+        working-directory: backend
+        run: gofmt -d handlers/resume_ai_intelligence_persistence_test.go
