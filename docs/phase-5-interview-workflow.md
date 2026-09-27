@@ -40,7 +40,6 @@ The core Interview record supports:
 - requirement
 - interview round
 - scheduled time
-- duration
 - status
 - outcome
 - feedback
