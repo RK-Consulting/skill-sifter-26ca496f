@@ -21,10 +21,10 @@ func NewPostgresRepository(dbConn *sql.DB) *PostgresRepository {
 }
 
 const screeningSelect = `id, tenant_id, candidate_id, requirement_id, recruiter_user_id,
-	current_ctc, expected_ctc, notice_period, last_working_day,
-	current_location, willing_to_relocate, preferred_location,
-	reason_for_change, offers_in_hand, candidate_interest, availability_date,
-	relevant_experience, recruiter_assessment, notes, screened_at, created_at`
+	COALESCE(current_ctc,''), COALESCE(expected_ctc,''), COALESCE(notice_period,''), last_working_day,
+	COALESCE(current_location,''), willing_to_relocate, COALESCE(preferred_location,''),
+	COALESCE(reason_for_change,''), COALESCE(offers_in_hand,''), COALESCE(candidate_interest,''), availability_date,
+	COALESCE(relevant_experience,''), COALESCE(recruiter_assessment,''), COALESCE(notes,''), screened_at, created_at`
 
 func scanScreening(row *sql.Row) (*Screening, error) {
 	s := &Screening{}
