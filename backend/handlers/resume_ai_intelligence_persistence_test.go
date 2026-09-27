@@ -116,14 +116,14 @@ func TestResumeDatePreservesPrecision(t *testing.T) {
 func TestPersistResumeIntelligence(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	ai := resumeAIResult{
-		CurrentTitle: "Software Architect",
+		CurrentTitle:        "Software Architect",
 		ProfessionalSummary: "Structured test profile",
-		Skills: []string{"golang", "Postgres"},
-		Languages: []resumeLanguage{{Name: "English", ProficiencyFramework: "CEFR", ProficiencyLevel: "C1"}},
-		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp", JobTitle: "Architect", StartDate: "2024-06", IsCurrent: true}},
-		Education: []resumeEducation{{Institution: "Example University", Degree: "B.E.", FieldOfStudy: "Electronics", StartDate: "2010", EndYear: 2014}},
-		Certifications: []resumeCertification{{Name: "AWS Certified Developer", Issuer: "AWS", IssueDate: "2024-05-20"}},
-		Projects: []resumeProject{{ProjectName: "Project Atlas", Role: "Lead", Technologies: []string{"golang", "Postgres"}, StartDate: "2023", EndYear: 2024}},
+		Skills:              []string{"golang", "Postgres"},
+		Languages:           []resumeLanguage{{Name: "English", ProficiencyFramework: "CEFR", ProficiencyLevel: "C1"}},
+		EmploymentHistory:   []resumeEmployment{{Employer: "Example Corp", JobTitle: "Architect", StartDate: "2024-06", IsCurrent: true}},
+		Education:           []resumeEducation{{Institution: "Example University", Degree: "B.E.", FieldOfStudy: "Electronics", StartDate: "2010", EndYear: 2014}},
+		Certifications:      []resumeCertification{{Name: "AWS Certified Developer", Issuer: "AWS", IssueDate: "2024-05-20"}},
+		Projects:            []resumeProject{{ProjectName: "Project Atlas", Role: "Lead", Technologies: []string{"golang", "Postgres"}, StartDate: "2023", EndYear: 2024}},
 	}
 
 	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
@@ -132,13 +132,13 @@ func TestPersistResumeIntelligence(t *testing.T) {
 
 	counts := map[string]int{}
 	queries := map[string]string{
-		"profile": "SELECT COUNT(*) FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
-		"skills": "SELECT COUNT(*) FROM candidate_expertise WHERE tenant_id=$1 AND candidate_id=$2 AND category='resume_import'",
-		"languages": "SELECT COUNT(*) FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
-		"employment": "SELECT COUNT(*) FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
-		"education": "SELECT COUNT(*) FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
+		"profile":        "SELECT COUNT(*) FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
+		"skills":         "SELECT COUNT(*) FROM candidate_expertise WHERE tenant_id=$1 AND candidate_id=$2 AND category='resume_import'",
+		"languages":      "SELECT COUNT(*) FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
+		"employment":     "SELECT COUNT(*) FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
+		"education":      "SELECT COUNT(*) FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
 		"certifications": "SELECT COUNT(*) FROM candidate_certifications WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
-		"projects": "SELECT COUNT(*) FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
+		"projects":       "SELECT COUNT(*) FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3",
 	}
 	for name, query := range queries {
 		var count int
@@ -178,24 +178,24 @@ func TestPersistResumeIntelligence(t *testing.T) {
 func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	ai := resumeAIResult{
-		Skills: []string{"Go"},
-		Languages: []resumeLanguage{{Name: "English"}},
+		Skills:            []string{"Go"},
+		Languages:         []resumeLanguage{{Name: "English"}},
 		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp"}},
-		Education: []resumeEducation{{Institution: "Example University"}},
-		Certifications: []resumeCertification{{Name: "Certification"}},
-		Projects: []resumeProject{{ProjectName: "Project"}},
+		Education:         []resumeEducation{{Institution: "Example University"}},
+		Certifications:    []resumeCertification{{Name: "Certification"}},
+		Projects:          []resumeProject{{ProjectName: "Project"}},
 	}
 	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
 		t.Fatalf("persistResumeIntelligence failed: %v", err)
 	}
 
 	queries := map[string]string{
-		"profile": "SELECT source_resume_id FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
-		"language": "SELECT source_resume_id FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
-		"employment": "SELECT source_resume_id FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2",
-		"education": "SELECT source_resume_id FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2",
-		"certification": "SELECT source_resume_id FROM candidate_certifications WHERE tenant_id=$1 AND candidate_id=$2",
-		"project": "SELECT source_resume_id FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2",
+		"profile":        "SELECT source_resume_id FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
+		"language":       "SELECT source_resume_id FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
+		"employment":     "SELECT source_resume_id FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2",
+		"education":      "SELECT source_resume_id FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2",
+		"certification":  "SELECT source_resume_id FROM candidate_certifications WHERE tenant_id=$1 AND candidate_id=$2",
+		"project":        "SELECT source_resume_id FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2",
 	}
 	for name, query := range queries {
 		var sourceResumeID int
@@ -232,7 +232,9 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 	}
 
 	got, err := upsertResumeCandidate("Fixture Company", fx.tenantID, resumeAIResult{
-		Name: "Tenant A Candidate", Email: "shared@example.com", Phone: "9222222222",
+		Name:  "Tenant A Candidate",
+		Email: "shared@example.com",
+		Phone: "9222222222",
 	})
 	if err != nil {
 		t.Fatalf("upsertResumeCandidate failed: %v", err)
@@ -248,10 +250,10 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 func TestPersistResumeIntelligencePartialFailureRollsBack(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	ai := resumeAIResult{
-		CurrentTitle: "Should Roll Back",
-		Skills: []string{"Go"},
+		CurrentTitle:      "Should Roll Back",
+		Skills:            []string{"Go"},
 		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp"}},
-		Projects: []resumeProject{{ProjectName: "Broken Project", StartDate: "not-a-date"}},
+		Projects:          []resumeProject{{ProjectName: "Broken Project", StartDate: "not-a-date"}},
 	}
 
 	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err == nil {
