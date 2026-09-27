@@ -5,7 +5,7 @@ diff domain/matching/matching.go.orig domain/matching/matching.go
  	if len(missing) > 0 {
  		status = Missing
  	}
--	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: "+strings.Join(matched, ", ")}, "missing: "+strings.Join(missing, ", "))}
+-	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: " + strings.Join(matched, ", ")}, "missing: " + strings.Join(missing, ", "))}
 +	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: " + strings.Join(matched, ", ")}, "missing: "+strings.Join(missing, ", "))}
  }
  
@@ -28,52 +28,15 @@ diff domain/matching/matching.go.orig domain/matching/matching.go
  }
  
  func parseYears(value string) (float64, bool) {
-@@ -198,7 +198,7 @@
- 	if candidateYears < requiredYears {
- 		status = Missing
- 	}
--	return CriterionEvidence{Criterion: "experience", Required: required, Evidence: candidate, Status: status, Details: []string{"required years: "+strconv.FormatFloat(requiredYears, 'f', -1, 64), "candidate years: "+strconv.FormatFloat(candidateYears, 'f', -1, 64)}}
-+	return CriterionEvidence{Criterion: "experience", Required: required, Evidence: candidate, Status: status, Details: []string{"required years: " + strconv.FormatFloat(requiredYears, 'f', -1, 64), "candidate years: " + strconv.FormatFloat(candidateYears, 'f', -1, 64)}}
- }
- 
- func MatchText(criterion, required, candidate string) CriterionEvidence {
 diff handlers/requirement_matching_handlers.go.orig handlers/requirement_matching_handlers.go
 --- handlers/requirement_matching_handlers.go.orig
 +++ handlers/requirement_matching_handlers.go
-@@ -138,7 +138,7 @@
- 	return matching.Evaluate(
- 		matching.RequirementEvidence{
- 			RequiredSkills:         "",
--			MandatoryRequirements: req.MandatoryRequirements,
-+			MandatoryRequirements:  req.MandatoryRequirements,
- 			ExperienceRequired:     req.ExperienceRequired,
- 			LanguageRequirements:   req.LanguageRequirements,
- 			CertificationsRequired: req.CertificationsRequired,
-@@ -188,11 +188,11 @@
- 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
- 		Success: true,
- 		Message: "Requirement match evidence retrieved",
--		Data:    map[string]interface{}{
--			"requirementId": req.ID,
--			"jobId":        req.JobID,
--			"candidateId":  candidate.ID,
--			"match":        result,
-+		Data: map[string]interface{}{
-+			"requirementId": req.ID,
-+			"jobId":         req.JobID,
-+			"candidateId":   candidate.ID,
-+			"match":         result,
- 		},
- 	})
- }
-@@ -247,8 +247,8 @@
+@@ -247,7 +247,7 @@
  		Message: "Requirement match evidence retrieved",
  		Data: map[string]interface{}{
  			"requirementId": req.ID,
 -			"jobId":        req.JobID,
--			"matches":      results,
 +			"jobId":         req.JobID,
-+			"matches":       results,
+ 			"matches":       results,
  		},
  	})
- }
