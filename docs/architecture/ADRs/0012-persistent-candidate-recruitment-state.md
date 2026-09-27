@@ -23,7 +23,6 @@ The current recruitment control state is stored directly on the Candidate row:
 
 - screening_count
 - screening_limit
-- interview_locked
 
 These are persistent database fields, not runtime state.
 
@@ -38,7 +37,7 @@ The Requirement identifies its Client through client_id.
 The application uses atomic database operations for gates:
 
 - screening: increment only when screening_count < screening_limit;
-- interview: set interview_locked = true only when currently false;
+- interview: set one active interview is allowed per Candidate × Requirement;
 - screening completion/rejection: decrement the screening count;
 - interview rejection: release interview_locked;
 - selection is unique per Candidate + Requirement.
