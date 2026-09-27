@@ -64,7 +64,7 @@ func TestEvaluateMissingTakesPrecedence(t *testing.T) {
 		ExperienceRequired: "5+ years",
 	}, CandidateEvidence{
 		TechnicalSkills: []string{"Python"},
-		Experience: "7 years",
+		Experience:      "7 years",
 	})
 	if result.Status != Missing {
 		t.Fatalf("status = %s, want %s", result.Status, Missing)
