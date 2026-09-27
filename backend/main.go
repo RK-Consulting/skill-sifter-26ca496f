@@ -124,14 +124,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/requirements/{id}/matches", handlers.GetRequirementMatches).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/requirements/{id}/matches/{candidateId}", handlers.GetRequirementCandidateMatch).Methods("GET", "OPTIONS")
 
-	// Issue #35 / ADR 0003: Recruitment Assignment lifecycle. UpdateAssignment
-	// supports only reassigning owner_user_id (see handlers/assignment_handlers.go);
-	// lifecycle status transitions go through the dedicated endpoint below.
-	// Dedicated lifecycle-transition endpoint, deliberately separate from
-	// PUT /assignments/{id} so owner mutation and lifecycle transition stay
-	// two distinct concepts.
-	// Phase 2: recruiter screening evidence is assignment-scoped and append-only.
-	// Phase 4: structured client / hiring-manager feedback is submission-scoped and append-only.
 	apiV1.HandleFunc("/submissions/{submissionId}/feedback", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddSubmissionFeedback)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/submissions/{submissionId}/feedback", handlers.GetSubmissionFeedback).Methods("GET", "OPTIONS")
 }
