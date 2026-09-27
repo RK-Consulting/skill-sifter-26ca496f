@@ -131,6 +131,10 @@ export const candidateService = {
   getResume: async (id: number) => {
     return api.get(`/candidates/${id}/resume`);
   },
+
+  getResumeIntelligence: async (id: number) => {
+    return api.get(`/candidates/${id}/resume-intelligence`);
+  },
 };
 
 export const interviewService = {
