@@ -117,6 +117,9 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/assignments/{id}/screenings/{screeningId}", handlers.GetAssignmentScreeningByID).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/assignments/{id}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/assignments/{id}/submissions", handlers.GetAssignmentSubmissions).Methods("GET", "OPTIONS")
+	// Phase 4: structured client / hiring-manager feedback is submission-scoped and append-only.
+	apiV1.HandleFunc("/submissions/{submissionId}/feedback", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddSubmissionFeedback)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/submissions/{submissionId}/feedback", handlers.GetSubmissionFeedback).Methods("GET", "OPTIONS")
 }
 func main() {
 	db.InitDB()
