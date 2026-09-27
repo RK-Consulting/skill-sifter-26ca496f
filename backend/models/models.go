@@ -101,13 +101,11 @@ type Interview struct {
 	Position          string    `json:"position" db:"position"`
 	Round             int       `json:"round" db:"round"`
 	InterviewDate     time.Time `json:"interviewDate" db:"interview_date,notnull"`
-	DurationMinutes   *int      `json:"durationMinutes,omitempty" db:"duration_minutes"`
 	Status            string    `json:"status" db:"status,default:'scheduled'"`
 	Outcome           string    `json:"outcome,omitempty" db:"outcome"`
 	Feedback          string    `json:"feedback,omitempty" db:"feedback"`
 	CandidateFeedback string    `json:"candidateFeedback,omitempty" db:"candidate_feedback"`
 	NextAction        string    `json:"nextAction,omitempty" db:"next_action"`
-	CreatedAt         time.Time `json:"createdAt,omitempty" db:"created_at"`
 	LastModified      time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID          string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 	CompanyName       string    `json:"companyName" db:"company_name,notnull"`
