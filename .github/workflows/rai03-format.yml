@@ -1,0 +1,33 @@
+name: Temporary RAI-03 Formatter
+
+on:
+  push:
+    branches:
+      - feature/resume-ai-rai-03
+    paths:
+      - 'backend/handlers/resume_ai_intelligence_persistence_test.go'
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+      - name: Format RAI-03 persistence tests
+        working-directory: backend
+        run: gofmt -w handlers/resume_ai_intelligence_persistence_test.go
+      - name: Commit formatted file
+        run: |
+          if git diff --quiet -- backend/handlers/resume_ai_intelligence_persistence_test.go; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/handlers/resume_ai_intelligence_persistence_test.go
+          git commit -m "fix(ci): apply gofmt to Resume AI persistence tests"
+          git push
