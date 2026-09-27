@@ -25,7 +25,7 @@ const (
 	ReasonCodeCandidateNotInterested ReasonCode = "candidate_not_interested"
 	ReasonCodeAvailability           ReasonCode = "availability"
 	ReasonCodeProfileMismatch        ReasonCode = "profile_mismatch"
-	ReasonCodeOther                   ReasonCode = "other"
+	ReasonCodeOther                  ReasonCode = "other"
 )
 
 func (r ReasonCode) Valid() bool {
@@ -49,7 +49,7 @@ type Feedback struct {
 	ID                int
 	TenantID          string
 	SubmissionID      int
-	FeedbackByUserID  int
+	FeedbackByUserID int
 	Outcome           Outcome
 	ReasonCode        string
 	Comments          string
