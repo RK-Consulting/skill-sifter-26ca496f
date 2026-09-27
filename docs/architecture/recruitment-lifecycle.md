@@ -2,20 +2,18 @@
 
 **Status:** Frozen architectural/product baseline  
 **Related ADR:** ADR 0010  
-**Primary Phase:** Phase 5 and subsequent recruitment workflow phases
+**Runtime model:** Candidate × Requirement
 
 ## Product definition
 
-SkillSifter is a **recruitment intelligence platform** for recruitment/staffing firms and their client-driven hiring requirements.
-
-It is deliberately **not** an internal corporate HRMS.
+SkillSifter is a **recruitment intelligence platform** for recruitment/staffing firms and their client-driven hiring requirements. It is not an internal corporate HRMS.
 
 ## Canonical lifecycle
 
 ```text
 Requirement
      ↓
-Assignment
+Candidate × Requirement
      ↓
 Screening
      ↓
@@ -34,11 +32,13 @@ JOINED
 BILLING
 ```
 
+The Candidate × Requirement pair is the authoritative runtime recruitment context. Historical Recruitment Assignment data may remain in the database for upgrade compatibility, but Assignment is not a runtime dependency.
+
 ## Requirement
 
 A Requirement represents a client's recruitment demand.
 
-Department is mandatory Requirement data because the same client may have separate requirements for different departments. Department therefore contributes to requirement context and prevents unrelated requirements from being collapsed into one generic job record.
+Department is mandatory Requirement data because the same client may have separate requirements for different departments.
 
 Typical Requirement data includes:
 
@@ -59,41 +59,44 @@ Typical Requirement data includes:
 - Number of Open Positions
 - Job ID where applicable
 
-## Assignment
+## Candidate × Requirement
 
-A Recruitment Assignment is the durable Candidate × Requirement transaction.
-
-This is critical because Candidate state is global while recruitment state is contextual.
+Candidate is a reusable master record. Recruitment state is contextual to a Candidate × Requirement pair.
 
 Example:
 
 ```text
 Candidate A
    ├── Client X / Finance Requirement → Rejected
-   └── Client X / Technology Requirement → Interested / Interviewing
+   └── Client X / Technology Requirement → Interviewing
 ```
 
-A rejection in one requirement must not globally reject the candidate.
+A rejection or selection for one requirement must not globally mutate Candidate recruitment outcome.
 
 ## Screening
 
-Screening records recruiter-side evidence and assessment for a specific assignment.
+Screening records recruiter-side evidence and assessment for a specific Candidate × Requirement context.
+
+Persistent Candidate capacity state is:
+
+- `screening_count`
+- `screening_limit`
+
+An active screening consumes one screening slot. Completion, rejection, or withdrawal of an active screening releases that slot.
 
 ## Submission
 
-Submission records the formal presentation of a candidate against a requirement when the recruitment workflow requires it.
+Submission records the formal presentation of a Candidate against a Requirement.
 
-The Interview domain does not depend on `submission_id`. Interview is anchored directly to Candidate + Requirement and remains usable for the core recruitment workflow.
+Submission is scoped directly to Candidate × Requirement and stores Candidate and Requirement snapshots so later master-data changes do not rewrite historical submission facts.
 
 ## Feedback
 
-Feedback records client-side recruitment feedback associated with the recruitment transaction. Feedback does not mutate Candidate master data.
+Feedback records client-side recruitment feedback associated with a submission. Feedback does not mutate Candidate master data.
 
 ## Interview
 
-Interview records the recruitment interview event.
-
-The core model is intentionally agency-neutral:
+Interview records the recruitment interview event:
 
 ```text
 Interview
@@ -109,45 +112,26 @@ Interview
 └── Audit timestamps
 ```
 
-The model does not require the identity of a client interviewer, panel, hiring manager, internal approver, or enterprise evaluation policy.
+The core model does not require interviewer identity, panels, hiring managers, internal approvals, or enterprise evaluation policies.
+
+Interview concurrency is scoped to Candidate × Requirement. A candidate may interview for multiple requirements concurrently, but only one active interview is allowed for the same pair.
 
 ## Selection / Offer / Joining
 
-These are subsequent recruitment lifecycle stages.
+Selection is a Candidate × Requirement decision:
 
-Selection means the client has selected the candidate. Offer/Joining captures the transition toward actual employment with the client.
+- `selected`
+- `rejected`
 
-The candidate becomes `joined` only when the business workflow records the joining event.
+Selection requires a completed Interview for the same pair and does not mutate Candidate master state.
+
+Offer, Joining, and Billing are subsequent workflow stages.
 
 ## Billing
 
-Billing is downstream of joining.
+Billing follows joining according to the firm's commercial policy. Billing is associated with the relevant recruitment transaction / Candidate × Requirement / Client context, never with the Candidate globally.
 
-The intended business rule is:
-
-> A recruitment transaction becomes billing-eligible when the candidate actually joins, according to the firm's billing policy.
-
-Billing is therefore associated with the relevant Recruitment Assignment / Requirement / Client transaction, never with the Candidate globally.
-
-## Product boundary
-
-### In scope
-
-- Recruitment/staffing workflow
-- Candidate management
-- Requirements
-- Department-aware recruitment demand
-- Recruitment Assignments
-- Screening
-- Submission
-- Client feedback
-- Interviews
-- Selection
-- Offer / Joining
-- Billing
-- Recruitment intelligence AI
-
-### Explicitly out of core scope
+## Explicitly out of core scope
 
 - Employee HRMS
 - Attendance
@@ -162,5 +146,3 @@ Billing is therefore associated with the relevant Recruitment Assignment / Requi
 - Internal hiring-manager workflows
 - Enterprise interview evaluation forms
 - HRMS-specific AI
-
-A future enterprise HRMS must be treated as a separate product/domain rather than an expansion of the SkillSifter core recruitment model.
