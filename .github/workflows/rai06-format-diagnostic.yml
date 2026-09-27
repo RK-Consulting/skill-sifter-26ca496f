@@ -21,7 +21,7 @@ jobs:
       - name: Record gofmt output
         run: |
           cd backend
-          gofmt -l . > ../RAI-06-FORMAT-REPORT.txt
+          gofmt -d domain/matching/matching.go handlers/requirement_matching_handlers.go > ../RAI-06-FORMAT-REPORT.txt
       - name: Commit report
         run: |
           git config user.name "github-actions[bot]"
