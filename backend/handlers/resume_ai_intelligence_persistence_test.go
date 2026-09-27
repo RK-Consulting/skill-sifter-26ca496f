@@ -190,12 +190,12 @@ func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 	}
 
 	queries := map[string]string{
-		"profile":        "SELECT source_resume_id FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
-		"language":       "SELECT source_resume_id FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
-		"employment":     "SELECT source_resume_id FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2",
-		"education":      "SELECT source_resume_id FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2",
-		"certification":  "SELECT source_resume_id FROM candidate_certifications WHERE tenant_id=$1 AND candidate_id=$2",
-		"project":        "SELECT source_resume_id FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2",
+		"profile":       "SELECT source_resume_id FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2",
+		"language":      "SELECT source_resume_id FROM candidate_language_expertise WHERE tenant_id=$1 AND candidate_id=$2",
+		"employment":    "SELECT source_resume_id FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2",
+		"education":     "SELECT source_resume_id FROM candidate_education WHERE tenant_id=$1 AND candidate_id=$2",
+		"certification": "SELECT source_resume_id FROM candidate_certifications WHERE tenant_id=$1 AND candidate_id=$2",
+		"project":       "SELECT source_resume_id FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2",
 	}
 	for name, query := range queries {
 		var sourceResumeID int
