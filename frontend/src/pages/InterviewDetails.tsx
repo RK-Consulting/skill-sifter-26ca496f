@@ -20,7 +20,6 @@ interface Interview {
   position: string;
   interviewDate: string;
   round: number;
-  durationMinutes?: number;
   status: string;
   outcome?: string;
   feedback?: string;
@@ -252,14 +251,6 @@ const InterviewDetails = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-start">
-                        <Clock className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
-                        <div>
-                          <h3 className="text-sm font-medium text-ats-gray-500">Round / Duration</h3>
-                          <p className="text-lg font-medium">Round {interview.round || 1}{interview.durationMinutes ? ` · ${interview.durationMinutes} min` : ''}</p>
-                        </div>
-                      </div>
-
                       <div className="flex items-start">
                         <MessageSquare className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
