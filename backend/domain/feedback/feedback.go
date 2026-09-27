@@ -51,9 +51,9 @@ type Feedback struct {
 	SubmissionID     int
 	FeedbackByUserID int
 	Outcome          Outcome
-	ReasonCode        string
-	Comments          string
-	NextAction        string
+	ReasonCode       string
+	Comments         string
+	NextAction       string
 	FeedbackAt       time.Time
 	CreatedAt        time.Time
 }
