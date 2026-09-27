@@ -86,6 +86,7 @@ Interview is a recruitment event against the Candidate × Requirement transactio
 
 - Interview creation is tenant-scoped.
 - Interview references an existing Candidate and Requirement.
+- Interview scheduling requires the Recruitment Assignment to already be in `interviewing` status; lifecycle transitions remain under the existing audited Assignment transition service.
 - Requirement must belong to the same tenant.
 - Candidate must belong to the same tenant.
 - Interview round is represented explicitly.
