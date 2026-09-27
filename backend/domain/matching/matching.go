@@ -173,7 +173,7 @@ func MatchCertifications(required string, certifications []string) CriterionEvid
 	if len(missing) > 0 {
 		status = Missing
 	}
-	return CriterionEvidence{Criterion: "certifications", Required: required, Status: status, Details: []string{"matched: "+strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
+	return CriterionEvidence{Criterion: "certifications", Required: required, Status: status, Details: []string{"matched: " + strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
 }
 
 func parseYears(value string) (float64, bool) {
