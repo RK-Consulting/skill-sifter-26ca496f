@@ -121,7 +121,7 @@ func MatchSkills(required string, skills []string) CriterionEvidence {
 	if len(missing) > 0 {
 		status = Missing
 	}
-	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: " + strings.Join(matched, ", ")}, "missing: " + strings.Join(missing, ", "))}
+	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: " + strings.Join(matched, ", ")}, "missing: "+strings.Join(missing, ", "))}
 }
 
 func MatchLanguages(required string, languages []LanguageEvidence) CriterionEvidence {
@@ -149,7 +149,7 @@ func MatchLanguages(required string, languages []LanguageEvidence) CriterionEvid
 	if len(missing) > 0 {
 		status = Missing
 	}
-	return CriterionEvidence{Criterion: "languages", Required: required, Status: status, Details: []string{"matched: "+strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
+	return CriterionEvidence{Criterion: "languages", Required: required, Status: status, Details: []string{"matched: " + strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
 }
 
 func MatchCertifications(required string, certifications []string) CriterionEvidence {
