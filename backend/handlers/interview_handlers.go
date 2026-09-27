@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -23,6 +24,14 @@ func interviewTenant(r *http.Request) string {
 	return r.Context().Value("tenantID").(string)
 }
 
+func validateInterviewStatus(status string) bool {
+	return interviewStatuses[status]
+}
+
+type errMissingJobID struct{}
+
+func (errMissingJobID) Error() string { return "selected requirement does not have a Job ID" }
+
 func validateInterviewReferences(candidateID int, requirementID int, tenantID string) (string, string, string, error) {
 	var candidateName, jobID, requirementTitle string
 	err := db.DB.QueryRow(
@@ -42,20 +51,26 @@ func validateInterviewReferences(candidateID int, requirementID int, tenantID st
 	return candidateName, jobID, requirementTitle, nil
 }
 
-type errMissingJobID struct{}
-
-func (errMissingJobID) Error() string { return "selected requirement does not have a Job ID" }
-
-func validateInterviewStatus(status string) bool {
-	return interviewStatuses[status]
+func scanInterviewRows(rows *sql.Rows) ([]models.Interview, error) {
+	result := []models.Interview{}
+	for rows.Next() {
+		var i models.Interview
+		if err := rows.Scan(
+			&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID,
+			&i.JobID, &i.RequirementTitle, &i.Position, &i.Round,
+			&i.InterviewDate, &i.Status, &i.Outcome,
+			&i.Feedback, &i.CandidateFeedback, &i.NextAction,
+			&i.LastModified, &i.TenantID, &i.CompanyName,
+		); err != nil {
+			return nil, err
+		}
+		result = append(result, i)
+	}
+	return result, rows.Err()
 }
 
-// GetInterviews retrieves all current interview records for the authenticated
-// tenant. Historical interview rows are retained; the endpoint does not
-// expose deletion as part of the Phase 5 workflow.
 func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	tenantID := interviewTenant(r)
-
 	rows, err := db.DB.Query(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
 			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position,
@@ -72,44 +87,24 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	interviews := []models.Interview{}
-	for rows.Next() {
-		var i models.Interview
-		if err := rows.Scan(
-			&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID,
-			&i.JobID, &i.RequirementTitle, &i.Position, &i.Round,
-			&i.InterviewDate, &i.Status, &i.Outcome,
-			&i.Feedback, &i.CandidateFeedback, &i.NextAction,
-			&i.LastModified, &i.TenantID, &i.CompanyName,
-		); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
-			return
-		}
-		interviews = append(interviews, i)
-	}
-
-	if err := rows.Err(); err != nil {
+	interviews, err := scanInterviewRows(rows)
+	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error reading interview rows")
 		return
 	}
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Interviews retrieved successfully",
-		Data:    interviews,
+		Success: true, Message: "Interviews retrieved successfully", Data: interviews,
 	})
 }
 
-// GetInterviewByID retrieves one interview, always scoped to the authenticated
-// tenant. Cross-tenant IDs are indistinguishable from nonexistent IDs.
 func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid interview ID")
 		return
 	}
-
 	tenantID := interviewTenant(r)
+
 	var interview models.Interview
 	err = db.DB.QueryRow(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
@@ -119,49 +114,32 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 			i.last_modified, i.tenant_id, i.company_name
 		FROM interviews i
 		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
-		WHERE i.id = $1 AND i.tenant_id = $2`,
-		id, tenantID,
-	).Scan(
+		WHERE i.id = $1 AND i.tenant_id = $2`, id, tenantID).Scan(
 		&interview.ID, &interview.CandidateID, &interview.CandidateName,
 		&interview.RequirementID, &interview.JobID, &interview.RequirementTitle,
 		&interview.Position, &interview.Round, &interview.InterviewDate,
 		&interview.Status, &interview.Outcome,
 		&interview.Feedback, &interview.CandidateFeedback, &interview.NextAction,
-		&interview.LastModified, &interview.TenantID,
-		&interview.CompanyName,
+		&interview.LastModified, &interview.TenantID, &interview.CompanyName,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Interview not found")
 		return
 	}
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Interview retrieved successfully",
-		Data:    interview,
+		Success: true, Message: "Interview retrieved successfully", Data: interview,
 	})
 }
 
-// GetAssignmentInterviews returns the preserved interview history for one
-// Candidate × Requirement recruitment transaction.
-func GetAssignmentInterviews(w http.ResponseWriter, r *http.Request) {
-	assignmentID, err := strconv.Atoi(mux.Vars(r)["id"])
+// GetCandidateInterviews returns interview history directly by candidate.
+// Requirement IDs in each history row identify the client opportunity.
+func GetCandidateInterviews(w http.ResponseWriter, r *http.Request) {
+	candidateID, err := strconv.Atoi(mux.Vars(r)["candidateId"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid candidate ID")
 		return
 	}
 	tenantID := interviewTenant(r)
-
-	var candidateID, requirementID int
-	if err := db.DB.QueryRow(
-		`SELECT candidate_id, requirement_id
-		 FROM recruitment_assignments
-		 WHERE id = $1 AND tenant_id = $2`,
-		assignmentID, tenantID,
-	).Scan(&candidateID, &requirementID); err != nil {
-		respondWithError(w, http.StatusNotFound, "Assignment not found")
-		return
-	}
 
 	rows, err := db.DB.Query(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
@@ -171,43 +149,24 @@ func GetAssignmentInterviews(w http.ResponseWriter, r *http.Request) {
 			i.last_modified, i.tenant_id, i.company_name
 		FROM interviews i
 		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
-		WHERE i.candidate_id = $1 AND i.requirement_id = $2 AND i.tenant_id = $3
-		ORDER BY i.round ASC, i.interview_date DESC, i.id DESC`,
-		candidateID, requirementID, tenantID,
-	)
+		WHERE i.candidate_id = $1 AND i.tenant_id = $2
+		ORDER BY i.interview_date DESC, i.id DESC`, candidateID, tenantID)
 	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error fetching interview history")
+		respondWithError(w, http.StatusInternalServerError, "Error fetching candidate interview history")
 		return
 	}
 	defer rows.Close()
 
-	history := []models.Interview{}
-	for rows.Next() {
-		var i models.Interview
-		if err := rows.Scan(
-			&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID,
-			&i.JobID, &i.RequirementTitle, &i.Position, &i.Round,
-			&i.InterviewDate, &i.Status, &i.Outcome,
-			&i.Feedback, &i.CandidateFeedback, &i.NextAction,
-			&i.LastModified, &i.TenantID, &i.CompanyName,
-		); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Error scanning interview history")
-			return
-		}
-		history = append(history, i)
+	history, err := scanInterviewRows(rows)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error reading interview history")
+		return
 	}
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Interview history retrieved successfully",
-		Data:    history,
+		Success: true, Message: "Candidate interview history retrieved successfully", Data: history,
 	})
 }
 
-// ScheduleInterview creates an interview only for an existing Candidate ×
-// Requirement assignment. The assignment must already be interviewing.
-// Assignment lifecycle changes remain exclusively under the existing audited
-// TransitionAssignment service/endpoint.
 func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	var interview models.Interview
 	if err := json.NewDecoder(r.Body).Decode(&interview); err != nil {
@@ -217,8 +176,7 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := interviewTenant(r)
-	interview.TenantID = tenantID
-	interview.CompanyName = r.Context().Value("companyName").(string)
+	companyName, _ := r.Context().Value("companyName").(string)
 
 	if interview.CandidateID <= 0 || interview.RequirementID == nil || *interview.RequirementID <= 0 {
 		respondWithError(w, http.StatusBadRequest, "candidateId and requirementId are required")
@@ -251,28 +209,39 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var assignmentStatus string
-	if err := db.DB.QueryRow(
-		`SELECT status
-		 FROM recruitment_assignments
-		 WHERE candidate_id = $1 AND requirement_id = $2 AND tenant_id = $3`,
-		interview.CandidateID, *interview.RequirementID, tenantID,
-	).Scan(&assignmentStatus); err != nil {
-		respondWithError(w, http.StatusUnprocessableEntity, "Candidate is not assigned to the selected requirement")
-		return
-	}
-	if assignmentStatus != "interviewing" {
-		respondWithError(w, http.StatusUnprocessableEntity, "Assignment must be in interviewing status before scheduling an interview")
-		return
-	}
-
 	interview.CandidateName = candidateName
 	interview.JobID = jobID
 	interview.RequirementTitle = requirementTitle
 	interview.Position = requirementTitle
+	interview.TenantID = tenantID
+	interview.CompanyName = companyName
 
-	err = db.DB.QueryRow(
-		`INSERT INTO interviews (
+	tx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error starting interview transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	// Candidate row is the single persistent concurrency gate. The conditional
+	// UPDATE is atomic: only an unlocked candidate can acquire the interview lock.
+	var lockedCandidateID int
+	err = tx.QueryRow(`
+		UPDATE candidates
+		SET interview_locked = TRUE
+		WHERE id = $1 AND tenant_id = $2 AND interview_locked = FALSE
+		RETURNING id`, interview.CandidateID, tenantID).Scan(&lockedCandidateID)
+	if errors.Is(err, sql.ErrNoRows) {
+		respondWithError(w, http.StatusConflict, "Candidate is already locked by an active interview")
+		return
+	}
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error acquiring interview lock")
+		return
+	}
+
+	err = tx.QueryRow(`
+		INSERT INTO interviews (
 			candidate_id, candidate_name, requirement_id, position, round,
 			interview_date, status, outcome, feedback,
 			candidate_feedback, next_action, tenant_id, company_name
@@ -280,24 +249,23 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		RETURNING id, last_modified`,
 		interview.CandidateID, interview.CandidateName, *interview.RequirementID,
 		interview.Position, interview.Round, interview.InterviewDate,
-		interview.Status, interview.Outcome,
-		interview.Feedback, interview.CandidateFeedback, interview.NextAction,
-		tenantID, interview.CompanyName,
+		interview.Status, interview.Outcome, interview.Feedback,
+		interview.CandidateFeedback, interview.NextAction, tenantID, companyName,
 	).Scan(&interview.ID, &interview.LastModified)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error scheduling interview")
 		return
 	}
 
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error committing interview")
+		return
+	}
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
-		Success: true,
-		Message: "Interview scheduled successfully",
-		Data:    interview,
+		Success: true, Message: "Interview scheduled successfully", Data: interview,
 	})
 }
 
-// UpdateInterview updates the interview event while preserving its identity
-// and Candidate × Requirement relationship.
 func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil {
@@ -332,14 +300,19 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var existingCandidateID int
-	var existingRequirementID int
-	if err := db.DB.QueryRow(
-		`SELECT candidate_id, requirement_id
-		 FROM interviews
-		 WHERE id = $1 AND tenant_id = $2`,
-		id, tenantID,
-	).Scan(&existingCandidateID, &existingRequirementID); err != nil {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error starting interview update")
+		return
+	}
+	defer tx.Rollback()
+
+	var existingCandidateID, existingRequirementID int
+	var existingStatus, existingOutcome string
+	if err := tx.QueryRow(`
+		SELECT candidate_id, requirement_id, status, COALESCE(outcome, '')
+		FROM interviews WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
+		id, tenantID).Scan(&existingCandidateID, &existingRequirementID, &existingStatus, &existingOutcome); err != nil {
 		respondWithError(w, http.StatusNotFound, "Interview not found")
 		return
 	}
@@ -360,6 +333,30 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	wasActive := existingStatus == "scheduled" || existingStatus == "rescheduled"
+	willBeActive := interview.Status == "scheduled" || interview.Status == "rescheduled"
+	if !wasActive && willBeActive {
+		var lockedID int
+		if err := tx.QueryRow(`
+			UPDATE candidates
+			SET interview_locked = TRUE
+			WHERE id = $1 AND tenant_id = $2 AND interview_locked = FALSE
+			RETURNING id`, existingCandidateID, tenantID).Scan(&lockedID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				respondWithError(w, http.StatusConflict, "Candidate is already locked by another active interview")
+				return
+			}
+			respondWithError(w, http.StatusInternalServerError, "Error acquiring interview lock")
+			return
+		}
+	}
+	if wasActive && (!willBeActive || strings.EqualFold(strings.TrimSpace(interview.Outcome), "rejected")) {
+		if _, err := tx.Exec(`UPDATE candidates SET interview_locked = FALSE WHERE id = $1 AND tenant_id = $2`, existingCandidateID, tenantID); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error releasing interview lock")
+			return
+		}
+	}
+
 	interview.ID = id
 	interview.TenantID = tenantID
 	interview.CandidateName = candidateName
@@ -367,34 +364,30 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	interview.RequirementTitle = requirementTitle
 	interview.Position = requirementTitle
 
-	result, err := db.DB.Exec(
-		`UPDATE interviews SET
-			candidate_id = $1, candidate_name = $2, requirement_id = $3,
-			position = $4, round = $5, interview_date = $6,
-			status = $7, outcome = $8,
-			feedback = $9, candidate_feedback = $10, next_action = $11,
+	_, err = tx.Exec(`
+		UPDATE interviews SET
+			round = $1, interview_date = $2, status = $3, outcome = $4,
+			feedback = $5, candidate_feedback = $6, next_action = $7,
 			last_modified = NOW()
-		WHERE id = $12 AND tenant_id = $13`,
-		interview.CandidateID, interview.CandidateName, *interview.RequirementID,
-		interview.Position, interview.Round, interview.InterviewDate,
-		interview.Status, interview.Outcome,
-		interview.Feedback, interview.CandidateFeedback, interview.NextAction,
-		id, tenantID,
-	)
+		WHERE id = $8 AND tenant_id = $9`,
+		interview.Round, interview.InterviewDate, interview.Status,
+		interview.Outcome, interview.Feedback, interview.CandidateFeedback,
+		interview.NextAction, id, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating interview")
 		return
 	}
 
-	rowsAffected, err := result.RowsAffected()
-	if err != nil || rowsAffected == 0 {
-		respondWithError(w, http.StatusNotFound, "Interview not found")
+	if err := tx.QueryRow(`SELECT last_modified FROM interviews WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&interview.LastModified); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error reading updated interview")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error committing interview update")
 		return
 	}
 
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Interview updated successfully",
-		Data:    interview,
+		Success: true, Message: "Interview updated successfully", Data: interview,
 	})
 }
