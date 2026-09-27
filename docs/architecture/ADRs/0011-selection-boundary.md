@@ -1,29 +1,39 @@
 # ADR 0011 — Agency-first Selection Boundary
 
-**Status:** Accepted / Frozen
+**Status:** Accepted / Frozen  
 **Scope:** Core SkillSifter recruitment workflow
 
 ## Decision
 
-Selection is an assignment-scoped recruitment decision.
+Selection is a **Candidate × Requirement** recruitment decision.
 
-The authoritative transaction remains:
-
-`Candidate × Requirement = Recruitment Assignment`
+The Candidate × Requirement pair is the authoritative runtime context for the decision. Recruitment Assignment was the earlier implementation model and is no longer a runtime dependency.
 
 Selection must never mutate Candidate master status.
 
-The existing Assignment state machine remains the only authority for lifecycle transitions:
+Selection requires a completed interview for the same Candidate × Requirement pair. Exactly one Selection decision is allowed for that pair.
 
-- `interviewing → offered` for a selected candidate
-- `interviewing → rejected` for a rejected candidate
+The Selection record contains:
 
-The Selection decision and the Assignment transition are committed atomically.
+- `candidate_id`
+- `requirement_id`
+- `decision` (`selected` or `rejected`)
+- decision notes
+- next action
+- decision timestamp
+- last modification timestamp
+
+## API boundary
+
+```text
+GET  /api/v1/candidates/{candidateId}/requirements/{requirementId}/selection
+POST /api/v1/candidates/{candidateId}/requirements/{requirementId}/selection
+```
 
 ## Consequences
 
 - A candidate can be selected for one requirement without being selected globally.
-- Assignment lifecycle remains centralized and auditable.
 - Selection history is retained independently from Candidate state.
+- Selection does not transition or mutate a Recruitment Assignment.
 - Offer, Joining, and Billing remain separate downstream workflow slices.
 - Enterprise HRMS concepts do not enter the core recruitment model.
