@@ -23,8 +23,8 @@ const (
 	ReasonCodeLocationMismatch       ReasonCode = "location_mismatch"
 	ReasonCodeNoticePeriod           ReasonCode = "notice_period"
 	ReasonCodeCandidateNotInterested ReasonCode = "candidate_not_interested"
-	ReasonCodeAvailability            ReasonCode = "availability"
-	ReasonCodeProfileMismatch         ReasonCode = "profile_mismatch"
+	ReasonCodeAvailability           ReasonCode = "availability"
+	ReasonCodeProfileMismatch        ReasonCode = "profile_mismatch"
 	ReasonCodeOther                   ReasonCode = "other"
 )
 
@@ -47,13 +47,13 @@ func (r ReasonCode) Valid() bool {
 
 type Feedback struct {
 	ID                int
-	TenantID         string
+	TenantID          string
 	SubmissionID      int
 	FeedbackByUserID  int
-	Outcome          Outcome
-	ReasonCode       string
-	Comments         string
-	NextAction       string
+	Outcome           Outcome
+	ReasonCode        string
+	Comments          string
+	NextAction        string
 	FeedbackAt       time.Time
 	CreatedAt        time.Time
 }
