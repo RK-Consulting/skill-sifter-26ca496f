@@ -39,7 +39,7 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
-			COALESCE(work_arrangement, ''), COALESCE(mandatory_requirements, ''),
+			COALESCE(work_arrangement, ''), COALESCE(required_skills, ''), COALESCE(mandatory_requirements, ''),
 			COALESCE(description, ''), status, COALESCE(location, ''),
 			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE tenant_id = $1 ORDER BY created_at DESC`, tenantID)
@@ -55,7 +55,7 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 		err := rows.Scan(&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
 			&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 			&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
-			&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+			&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
 			&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 		if err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning requirement row")
@@ -89,14 +89,14 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
-			COALESCE(work_arrangement, ''), COALESCE(mandatory_requirements, ''),
+			COALESCE(work_arrangement, ''), COALESCE(required_skills, ''), COALESCE(mandatory_requirements, ''),
 			COALESCE(description, ''), status, COALESCE(location, ''),
 			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID,
 	).Scan(&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
 		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
-		&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+		&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
 		&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 
 	if err != nil {
@@ -183,14 +183,14 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 	err = db.DB.QueryRow(`
 		INSERT INTO requirements (client_id, job_id, job_type, title, department, experience_required, budget,
 			language_requirement, certifications_required, notice_period, work_arrangement,
-			mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+			required_skills, mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id, created_at, last_modified`,
 		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
 		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
 		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
-		nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
+		nullableRequirementField(req.RequiredSkills), nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
 		req.Status, nullableRequirementField(req.Location), req.Headcount, openedDate, req.TenantID,
 	).Scan(&req.ID, &req.CreatedAt, &req.LastModified)
 
@@ -279,14 +279,14 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		UPDATE requirements SET client_id = $1, job_id = $2, job_type = $3, title = $4, department = $5,
 			experience_required = $6, budget = $7, language_requirement = $8,
 			certifications_required = $9, notice_period = $10, work_arrangement = $11,
-			mandatory_requirements = $12, description = $13, status = $14, location = $15,
-			headcount = $16, opened_date = $17, last_modified = NOW()
-		WHERE id = $18 AND tenant_id = $19`,
+			required_skills = $12, mandatory_requirements = $13, description = $14, status = $15, location = $16,
+			headcount = $17, opened_date = $18, last_modified = NOW()
+		WHERE id = $19 AND tenant_id = $20`,
 		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
 		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
 		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
-		nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
+		nullableRequirementField(req.RequiredSkills), nullableRequirementField(req.MandatoryRequirements), nullableRequirementField(req.Description),
 		req.Status, nullableRequirementField(req.Location), req.Headcount, openedDate, req.ID, tenantID,
 	)
 	if err != nil {

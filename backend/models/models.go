@@ -146,6 +146,7 @@ type Requirement struct {
 	ExperienceRequired     string    `json:"experienceRequired,omitempty" db:"experience_required"`
 	Budget                 string    `json:"budget,omitempty" db:"budget"`
 	LanguageRequirements   string    `json:"languageRequirements,omitempty" db:"language_requirement"`
+	RequiredSkills         string    `json:"requiredSkills,omitempty" db:"required_skills"`
 	CertificationsRequired string    `json:"certificationsRequired,omitempty" db:"certifications_required"`
 	NoticePeriod           string    `json:"noticePeriod,omitempty" db:"notice_period"`
 	WorkArrangement        string    `json:"workArrangement,omitempty" db:"work_arrangement"`
