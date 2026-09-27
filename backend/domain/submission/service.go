@@ -32,6 +32,14 @@ func (s *Service) Submit(tenantID string,input CreateInput)(*Submission,error){
 	if err:=s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND tenant_id=$2)`,input.SubmittedByUserID,tenantID).Scan(&recruiterExists);err!=nil{return nil,err}
 	if !recruiterExists{return nil,ErrRecipientNotFound}
 
+	var screened bool
+	if err:=s.db.QueryRow(`SELECT EXISTS(
+		SELECT 1 FROM recruitment_screenings
+		WHERE candidate_id=$1 AND requirement_id=$2 AND tenant_id=$3
+		  AND status = 'completed'
+	)`, input.CandidateID, input.RequirementID, tenantID).Scan(&screened); err!=nil { return nil, err }
+	if !screened { return nil, fmt.Errorf("a completed screening is required before submission") }
+
 	var existing bool
 	if err:=s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM recruitment_submissions WHERE candidate_id=$1 AND requirement_id=$2 AND tenant_id=$3)`,
 		input.CandidateID,input.RequirementID,tenantID).Scan(&existing);err!=nil{return nil,err}
