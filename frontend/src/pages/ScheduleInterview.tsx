@@ -171,7 +171,7 @@ const ScheduleInterview = () => {
               </Button>
             </div>
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Schedule Interview</h1>
-            <p className="text-ats-gray-500">Schedule an interview for an existing Candidate × Requirement recruitment assignment.</p>
+            <p className="text-ats-gray-500">Schedule an interview for an existing Candidate × Requirement recruitment context.</p>
           </div>
 
           <Card className="mb-8">
