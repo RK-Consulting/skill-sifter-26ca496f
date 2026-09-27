@@ -88,6 +88,11 @@ ALTER TABLE recruitment_selections
     ADD COLUMN IF NOT EXISTS candidate_id INTEGER REFERENCES candidates(id),
     ADD COLUMN IF NOT EXISTS requirement_id INTEGER REFERENCES requirements(id);
 
+-- Legacy assignment_id is retained only for migrated historical rows.
+-- New recruitment selection records are identified by candidate + requirement.
+ALTER TABLE recruitment_selections
+    ALTER COLUMN assignment_id DROP NOT NULL;
+
 UPDATE recruitment_selections s
 SET candidate_id = a.candidate_id,
     requirement_id = a.requirement_id
