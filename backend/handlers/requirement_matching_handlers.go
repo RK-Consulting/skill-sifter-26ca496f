@@ -192,7 +192,7 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 			"requirementId": req.ID,
 			"jobId":        req.JobID,
 			"candidateId":  candidate.ID,
-			"match": result,
+			"match":        result,
 		},
 	})
 }
