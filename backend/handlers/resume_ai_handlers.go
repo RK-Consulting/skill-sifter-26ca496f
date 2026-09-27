@@ -215,7 +215,8 @@ Rules:
 - "skills" means technical skills, frameworks, platforms, tools, databases, and programming languages.
 - Normalize technical skills to concise names.
 - Preserve employment, education, certification, and project order.
-- Dates must use YYYY-MM-DD, YYYY-MM, or YYYY when explicitly supported.
+- Use YYYY-MM-DD only when the exact day is explicitly supported.
+- Use YYYY-MM or YYYY when only partial date precision is supported; do not invent a day.
 - Return no explanatory text outside the JSON object.
 
 Resume text:
