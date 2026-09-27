@@ -169,20 +169,8 @@ func CreateCandidateRequirementSelection(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// Rejection releases the candidate's interview gate. Selection leaves the
-	// gate set because a selected candidate should not be sent into another
-	// client interview while this recruitment process proceeds.
-	if req.Decision == "rejected" {
-		if _, err := tx.Exec(
-			`UPDATE candidates
-			 SET interview_locked = FALSE
-			 WHERE id = $1 AND tenant_id = $2`,
-			candidateID, tenantID,
-		); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Error releasing interview lock")
-			return
-		}
-	}
+	// Rejection does not mutate Candidate master state. Selection is scoped to
+	// Candidate × Requirement; the decision is the durable recruitment state.
 
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing selection")
