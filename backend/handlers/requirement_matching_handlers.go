@@ -247,7 +247,7 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 		Message: "Requirement match evidence retrieved",
 		Data: map[string]interface{}{
 			"requirementId": req.ID,
-			"jobId":        req.JobID,
+			"jobId":         req.JobID,
 			"matches":       results,
 		},
 	})
