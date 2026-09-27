@@ -157,8 +157,7 @@ const Candidates = () => {
   };
 
   const viewCandidateDetails = (id: number) => {
-    console.log(`View candidate ${id}`);
-    // TODO: Navigate to candidate details page when implemented
+    navigate(`/candidates/${id}`);
   };
 
   const triggerResumeUpload = (id: number) => {
