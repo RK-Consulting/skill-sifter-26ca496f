@@ -50,4 +50,19 @@ describe('resumeAIService', () => {
     expect(get).toHaveBeenNthCalledWith(1, '/resume-ai/resumes');
     expect(get).toHaveBeenNthCalledWith(2, '/resume-ai/health');
   });
+  it('supports resume detail, retry, and authenticated download requests', async () => {
+    const get = vi.mocked(api.get);
+    const post = vi.mocked(api.post);
+    get.mockResolvedValue({ data: { success: true, data: {} } } as never);
+    post.mockResolvedValue({ data: { success: true } } as never);
+
+    await resumeAIService.detail(42);
+    await resumeAIService.retry(42);
+    await resumeAIService.download(42);
+
+    expect(get).toHaveBeenNthCalledWith(1, '/resume-ai/resumes/42');
+    expect(get).toHaveBeenNthCalledWith(2, '/resume-ai/resumes/42/file', { responseType: 'blob' });
+    expect(post).toHaveBeenCalledWith('/resume-ai/resumes/42/retry');
+  });
+
 });
