@@ -111,6 +111,10 @@ func setupProtectedRoutes(r *mux.Router) {
 	// PUT /assignments/{id} so owner mutation and lifecycle transition stay
 	// two distinct concepts.
 	apiV1.HandleFunc("/assignments/{id}/transition", managerOnly(handlers.TransitionAssignment)).Methods("POST", "OPTIONS")
+	// Phase 2: recruiter screening evidence is assignment-scoped and append-only.
+	apiV1.HandleFunc("/assignments/{id}/screenings", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentScreening)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/assignments/{id}/screenings", handlers.GetAssignmentScreenings).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/assignments/{id}/screenings/{screeningId}", handlers.GetAssignmentScreeningByID).Methods("GET", "OPTIONS")
 }
 func main() {
 	db.InitDB()
