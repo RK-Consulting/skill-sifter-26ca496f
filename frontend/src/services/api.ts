@@ -172,6 +172,21 @@ export const candidateRecruitmentService = {
   getInterviews: async (candidateId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/interviews`);
   },
+  getSubmissions: async (candidateId: number, requirementId: number) => {
+    return api.get(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
+    );
+  },
+  createSubmission: async (
+    candidateId: number,
+    requirementId: number,
+    submission: Record<string, unknown>,
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
+      submission,
+    );
+  },
   getSelection: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`);
   },
