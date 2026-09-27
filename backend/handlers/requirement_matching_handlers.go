@@ -148,11 +148,11 @@ func buildRequirementMatch(req models.Requirement, candidate requirementMatchCan
 		},
 		matching.CandidateEvidence{
 			TechnicalSkills: candidate.Skills,
-			Languages: candidate.Languages,
-			Certifications: candidate.Certs,
-			Experience: candidate.Experience,
-			Location: candidate.Location,
-			NoticePeriod: candidate.Notice,
+			Languages:       candidate.Languages,
+			Certifications:  candidate.Certs,
+			Experience:      candidate.Experience,
+			Location:        candidate.Location,
+			NoticePeriod:    candidate.Notice,
 			WorkArrangement: "",
 		},
 	)
