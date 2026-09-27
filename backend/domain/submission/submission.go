@@ -5,40 +5,40 @@ import "time"
 type RecipientType string
 
 const (
-	RecipientClient RecipientType = "client"
+	RecipientClient        RecipientType = "client"
 	RecipientHiringManager RecipientType = "hiring_manager"
 )
 
 func (t RecipientType) Valid() bool { return t == RecipientClient || t == RecipientHiringManager }
 
 type Submission struct {
-	ID int
-	TenantID string
-	CandidateID int
-	RequirementID int
-	SubmittedByUserID int
-	RecipientType RecipientType
-	RecipientClientID *int
-	RecipientUserID *int
-	RecipientName string
-	RecipientEmail string
-	SubmissionContext string
-	RecruiterNotes string
-	CandidateSnapshot []byte
+	ID                  int
+	TenantID            string
+	CandidateID         int
+	RequirementID       int
+	SubmittedByUserID   int
+	RecipientType       RecipientType
+	RecipientClientID   *int
+	RecipientUserID     *int
+	RecipientName       string
+	RecipientEmail      string
+	SubmissionContext   string
+	RecruiterNotes      string
+	CandidateSnapshot   []byte
 	RequirementSnapshot []byte
-	SubmittedAt time.Time
-	CreatedAt time.Time
+	SubmittedAt         time.Time
+	CreatedAt           time.Time
 }
 
 type CreateInput struct {
-	CandidateID int
-	RequirementID int
+	CandidateID       int
+	RequirementID     int
 	SubmittedByUserID int
-	RecipientType RecipientType
+	RecipientType     RecipientType
 	RecipientClientID *int
-	RecipientUserID *int
-	RecipientName string
-	RecipientEmail string
+	RecipientUserID   *int
+	RecipientName     string
+	RecipientEmail    string
 	SubmissionContext string
-	RecruiterNotes string
+	RecruiterNotes    string
 }

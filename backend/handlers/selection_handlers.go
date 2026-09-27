@@ -30,15 +30,15 @@ type selectionRequest struct {
 }
 
 type selectionResponse struct {
-	ID              int       `json:"id"`
-	TenantID        string    `json:"tenantId"`
-	CandidateID     int       `json:"candidateId"`
-	RequirementID   int       `json:"requirementId"`
-	Decision        string    `json:"decision"`
-	DecisionNotes   string    `json:"decisionNotes,omitempty"`
-	NextAction      string    `json:"nextAction,omitempty"`
-	DecidedAt       time.Time `json:"decidedAt"`
-	LastModified    time.Time `json:"lastModified"`
+	ID            int       `json:"id"`
+	TenantID      string    `json:"tenantId"`
+	CandidateID   int       `json:"candidateId"`
+	RequirementID int       `json:"requirementId"`
+	Decision      string    `json:"decision"`
+	DecisionNotes string    `json:"decisionNotes,omitempty"`
+	NextAction    string    `json:"nextAction,omitempty"`
+	DecidedAt     time.Time `json:"decidedAt"`
+	LastModified  time.Time `json:"lastModified"`
 }
 
 func GetCandidateRequirementSelection(w http.ResponseWriter, r *http.Request) {

@@ -14,9 +14,11 @@ type Repository interface {
 	ListByCandidateRequirement(tenantID string, candidateID, requirementID int) ([]*Screening, error)
 }
 
-type PostgresRepository struct { db *sql.DB }
+type PostgresRepository struct{ db *sql.DB }
 
-func NewPostgresRepository(dbConn *sql.DB) *PostgresRepository { return &PostgresRepository{db: dbConn} }
+func NewPostgresRepository(dbConn *sql.DB) *PostgresRepository {
+	return &PostgresRepository{db: dbConn}
+}
 
 const screeningSelect = `id, tenant_id, candidate_id, requirement_id, recruiter_user_id,
 	current_ctc, expected_ctc, notice_period, last_working_day,
@@ -36,12 +38,23 @@ func scanScreening(row *sql.Row) (*Screening, error) {
 		&s.RelevantExperience, &s.RecruiterAssessment, &s.Notes, &s.ScreenedAt, &s.CreatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	if lastWorkingDay.Valid { t := lastWorkingDay.Time; s.LastWorkingDay = &t }
-	if willingToRelocate.Valid { v := willingToRelocate.Bool; s.WillingToRelocate = &v }
-	if availabilityDate.Valid { t := availabilityDate.Time; s.AvailabilityDate = &t }
+	if lastWorkingDay.Valid {
+		t := lastWorkingDay.Time
+		s.LastWorkingDay = &t
+	}
+	if willingToRelocate.Valid {
+		v := willingToRelocate.Bool
+		s.WillingToRelocate = &v
+	}
+	if availabilityDate.Valid {
+		t := availabilityDate.Time
+		s.AvailabilityDate = &t
+	}
 	return s, nil
 }
 
@@ -74,7 +87,9 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 	rows, err := r.db.Query(`SELECT `+screeningSelect+` FROM recruitment_screenings
 		WHERE tenant_id = $1 AND candidate_id = $2 AND requirement_id = $3
 		ORDER BY screened_at DESC, id DESC`, tenantID, candidateID, requirementID)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 	results := []*Screening{}
 	for rows.Next() {
@@ -87,15 +102,41 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 			&s.CurrentLocation, &willingToRelocate, &s.PreferredLocation,
 			&s.ReasonForChange, &s.OffersInHand, &s.CandidateInterest, &availabilityDate,
 			&s.RelevantExperience, &s.RecruiterAssessment, &s.Notes, &s.ScreenedAt, &s.CreatedAt,
-		); err != nil { return nil, err }
-		if lastWorkingDay.Valid { t := lastWorkingDay.Time; s.LastWorkingDay = &t }
-		if willingToRelocate.Valid { v := willingToRelocate.Bool; s.WillingToRelocate = &v }
-		if availabilityDate.Valid { t := availabilityDate.Time; s.AvailabilityDate = &t }
+		); err != nil {
+			return nil, err
+		}
+		if lastWorkingDay.Valid {
+			t := lastWorkingDay.Time
+			s.LastWorkingDay = &t
+		}
+		if willingToRelocate.Valid {
+			v := willingToRelocate.Bool
+			s.WillingToRelocate = &v
+		}
+		if availabilityDate.Valid {
+			t := availabilityDate.Time
+			s.AvailabilityDate = &t
+		}
 		results = append(results, s)
 	}
 	return results, rows.Err()
 }
 
-func nullableString(v string) interface{} { if v == "" { return nil }; return v }
-func nullableTime(v *time.Time) interface{} { if v == nil { return nil }; return *v }
-func nullableBool(v *bool) interface{} { if v == nil { return nil }; return *v }
+func nullableString(v string) interface{} {
+	if v == "" {
+		return nil
+	}
+	return v
+}
+func nullableTime(v *time.Time) interface{} {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
+func nullableBool(v *bool) interface{} {
+	if v == nil {
+		return nil
+	}
+	return *v
+}
