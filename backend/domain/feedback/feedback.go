@@ -46,9 +46,9 @@ func (r ReasonCode) Valid() bool {
 }
 
 type Feedback struct {
-	ID                int
-	TenantID          string
-	SubmissionID      int
+	ID               int
+	TenantID         string
+	SubmissionID     int
 	FeedbackByUserID int
 	Outcome           Outcome
 	ReasonCode        string
