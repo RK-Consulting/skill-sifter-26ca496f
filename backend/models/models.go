@@ -84,7 +84,7 @@ type DailyJob struct {
 	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID         string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
-	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
+	CompanyName       string    `json:"companyName" db:"company_name,notnull"`
 }
 
 // Interview represents an agency-neutral recruitment interview event.
