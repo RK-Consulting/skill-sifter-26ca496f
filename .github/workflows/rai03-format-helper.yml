@@ -1,0 +1,35 @@
+name: RAI-03 Format Helper
+
+on:
+  push:
+    branches:
+      - feature/resume-ai-rai-03
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Format RAI-03 Go files
+        run: |
+          cd backend
+          gofmt -w handlers/resume_ai_handlers.go handlers/resume_ai_intelligence.go handlers/resume_ai_intelligence_test.go
+      - name: Commit formatted files
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/handlers/resume_ai_handlers.go backend/handlers/resume_ai_intelligence.go backend/handlers/resume_ai_intelligence_test.go
+          git commit -m "style(resume-ai): format RAI-03 Go files"
+          git push
