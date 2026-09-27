@@ -76,7 +76,6 @@ const formSchema = z.object({
   }),
   status: z.string().default('scheduled'),
   round: z.coerce.number().min(1).default(1),
-  durationMinutes: z.coerce.number().int().positive().optional(),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -122,7 +121,6 @@ const ScheduleInterview = () => {
       position: '',
       status: 'scheduled',
       round: 1,
-      durationMinutes: 60,
     },
   });
 
@@ -141,7 +139,6 @@ const ScheduleInterview = () => {
         position: data.position,
         interviewDate: data.interviewDate.toISOString(),
         round: data.round,
-        durationMinutes: data.durationMinutes,
         status: data.status,
       };
 
