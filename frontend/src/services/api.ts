@@ -155,16 +155,35 @@ export const interviewService = {
     return api.put(`/v1/interviews/${id}`, interview);
   },
 
-  getAssignmentInterviews: async (assignmentId: number) => {
-    return api.get(`/v1/assignments/${assignmentId}/interviews`);
-  },
 
-  getAssignmentSelection: async (assignmentId: number) => {
-    return api.get(`/v1/assignments/${assignmentId}/selection`);
-  },
+};
 
-  createAssignmentSelection: async (assignmentId: number, selection: { decision: string; decisionNotes?: string; nextAction?: string }) => {
-    return api.post(`/v1/assignments/${assignmentId}/selection`, selection);
+export const candidateRecruitmentService = {
+  // Persistent candidate state is the control plane for recruitment capacity.
+  getScreenings: async (candidateId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/screenings`);
+  },
+  createScreening: async (candidateId: number, screening: Record<string, unknown>) => {
+    return api.post(`/api/v1/candidates/${candidateId}/screenings`, screening);
+  },
+  updateScreening: async (candidateId: number, screeningId: number, status: string) => {
+    return api.put(`/api/v1/candidates/${candidateId}/screenings/${screeningId}`, { status });
+  },
+  getInterviews: async (candidateId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/interviews`);
+  },
+  getSelection: async (candidateId: number, requirementId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`);
+  },
+  createSelection: async (
+    candidateId: number,
+    requirementId: number,
+    selection: { decision: string; decisionNotes?: string; nextAction?: string },
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`,
+      selection,
+    );
   },
 };
 
