@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - main
+      - develop
+      - 'feature/**'
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
@@ -29,29 +32,12 @@ env:
   TEST_DB_NAME: skillsifter_test
 
 jobs:
-  backend:
-    name: Go Build, Vet & Test
+  format:
+    name: Go Format
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: skillsifter_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d skillsifter_test"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     defaults:
       run:
         working-directory: backend
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,22 +58,76 @@ jobs:
             exit 1
           fi
 
-      - name: Validate repository structure
-        shell: bash
-        run: |
-          test -f go.mod
-          test -d database/migrations
-          test -f database/migrations/README.md
-          test -f ../.github/workflows/backend-ci.yml
+  build:
+    name: Go Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Validate schema definitions
-        run: go test ./db -run 'Test(DiscoverSchemaDefinitions|InitializeSchema)' -count=1
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
 
       - name: Build
         run: go build ./...
 
+  vet:
+    name: Go Vet
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+
       - name: Vet
         run: go vet ./...
+
+  test:
+    name: Go Test & Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: skillsifter_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d skillsifter_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+
+      - name: Validate schema definitions
+        run: go test ./db -run 'Test(DiscoverSchemaDefinitions|InitializeSchema)' -count=1
 
       - name: Test with coverage
         run: go test ./... -coverprofile=coverage.out -covermode=atomic

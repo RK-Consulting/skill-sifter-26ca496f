@@ -15,14 +15,16 @@ This document defines architectural boundaries, not feature-level implementation
 ```text
 Lead → Opportunity → Client → Requirement
                                 ↓
-Candidate → Recruitment Assignment → Screening → Submission → Client review
+Candidate × Requirement → Screening → Submission → Client review
                                                         ↓
-                                                  Interviews → Offer → Joining
+                                                  Interview → Selection
+                                                        ↓
+                                                  Offer → Joining
                                                                     ↓
                                                Invoice → Payment → Guarantee → Closure / Replacement
 ```
 
-`Recruitment Assignment` is the central transaction. It connects one candidate to one client requirement. Candidate status describes the recruiter's current relationship with a candidate and must not replace the state of a specific assignment.
+`Candidate × Requirement` is the central runtime recruitment context. It connects one candidate to one client requirement without introducing a separate Assignment runtime entity. Historical Recruitment Assignment data remains only where required for database upgrade compatibility. Candidate master state must not be used as the state of a specific recruitment context.
 
 ## V1 product boundary
 
@@ -44,8 +46,8 @@ The system must not add major modules outside this boundary without an approved 
 tenants/companies, users, roles
 clients, client_contacts, requirements
 candidates, candidate_skills, candidate_languages, candidate_statuses
-recruitment_assignments, screenings, submissions
-interview_processes, interview_rounds, offers, joinings
+screenings, submissions
+interviews, selections, offers, joinings
 invoices, payments, replacement_cases
 leads, opportunities, follow_ups, activities
 ```
@@ -73,7 +75,7 @@ Initial AI use cases are resume extraction and candidate-to-requirement matching
 | v0.4 | Product and architecture foundation, target model, API/state/testing conventions, ADRs and governance |
 | v0.5 | Leads, opportunities, clients, requirements |
 | v0.6 | Candidate database, language expertise, resume handling, recruiter-assisted AI search/matching |
-| v0.7 | Recruitment assignments, screening, interest, submissions, client review |
+| v0.7 | Candidate-requirement screening, interest, submissions, client review |
 | v0.8 | Interview process, feedback, offers |
 | v0.9 | Joining, invoices, payments, guarantee, replacement, closure |
 | v0.9.1 | UAT and stabilization with R K Consulting |

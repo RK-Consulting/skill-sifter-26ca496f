@@ -79,7 +79,32 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
-	setupResourceRoutes(api, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+
+	// Client and Requirement are the authoritative V1 recruitment-demand domain.
+	// Requirements replace the legacy Jobs resource.
+	apiV1 := r.PathPrefix("/api/v1").Subrouter()
+	apiV1.Use(auth.AuthMiddleware)
+
+	// Phase 5: agency-first interview workflow. Interview history is preserved;
+	// deletion is intentionally not exposed as a core workflow operation.
+	// Keep the legacy routes for existing UI compatibility while exposing the
+	// authoritative V1 API under /api/v1.
+	api.HandleFunc("/interviews", handlers.GetInterviews).Methods("GET", "OPTIONS")
+	api.HandleFunc("/interviews", handlers.ScheduleInterview).Methods("POST", "OPTIONS")
+	api.HandleFunc("/interviews/{id}", handlers.GetInterviewByID).Methods("GET", "OPTIONS")
+	api.HandleFunc("/interviews/{id}", handlers.UpdateInterview).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/interviews", handlers.GetInterviews).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/interviews", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.ScheduleInterview)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/interviews/{id}", handlers.GetInterviewByID).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/interviews/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateInterview)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/interviews", handlers.GetCandidateInterviews).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/screenings", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.CreateCandidateScreening)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/screenings", handlers.GetCandidateScreenings).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/screenings/{screeningId}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidateScreening)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/selection", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.CreateCandidateRequirementSelection)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/selection", handlers.GetCandidateRequirementSelection).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidateRequirementSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", handlers.GetCandidateRequirementSubmissions).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev, handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 	api.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
@@ -94,29 +119,13 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes/{id}/retry", handlers.RetryResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
-	// Client and Requirement are the authoritative V1 recruitment-demand domain.
-	// Requirements replace the legacy Jobs resource.
-	apiV1 := r.PathPrefix("/api/v1").Subrouter()
-	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
 	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
 	apiV1.HandleFunc("/requirements/{id}/matches", handlers.GetRequirementMatches).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/requirements/{id}/matches/{candidateId}", handlers.GetRequirementCandidateMatch).Methods("GET", "OPTIONS")
 
-	// Issue #35 / ADR 0003: Recruitment Assignment lifecycle. UpdateAssignment
-	// supports only reassigning owner_user_id (see handlers/assignment_handlers.go);
-	// lifecycle status transitions go through the dedicated endpoint below.
-	setupResourceRoutes(apiV1, "/assignments", handlers.GetAssignments, managerOnly(handlers.AddAssignment), handlers.GetAssignmentByID, managerOnly(handlers.UpdateAssignment), managerOnly(handlers.DeleteAssignment))
-	// Dedicated lifecycle-transition endpoint, deliberately separate from
-	// PUT /assignments/{id} so owner mutation and lifecycle transition stay
-	// two distinct concepts.
-	apiV1.HandleFunc("/assignments/{id}/transition", managerOnly(handlers.TransitionAssignment)).Methods("POST", "OPTIONS")
-	// Phase 2: recruiter screening evidence is assignment-scoped and append-only.
-	apiV1.HandleFunc("/assignments/{id}/screenings", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentScreening)).ServeHTTP).Methods("POST", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/screenings", handlers.GetAssignmentScreenings).Methods("GET", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/screenings/{screeningId}", handlers.GetAssignmentScreeningByID).Methods("GET", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/submissions", handlers.GetAssignmentSubmissions).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/submissions/{submissionId}/feedback", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddSubmissionFeedback)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/submissions/{submissionId}/feedback", handlers.GetSubmissionFeedback).Methods("GET", "OPTIONS")
 }
 func main() {
 	db.InitDB()

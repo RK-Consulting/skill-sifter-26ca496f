@@ -17,11 +17,17 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface Interview {
   id: number;
   jobId?: string;
+  requirementTitle?: string;
   candidateName: string;
   position: string;
+  round: number;
   interviewDate: string;
+  durationMinutes?: number;
   status: string;
-  feedback: string;
+  outcome?: string;
+  feedback?: string;
+  candidateFeedback?: string;
+  nextAction?: string;
 }
 
 const Interviews = () => {
@@ -156,10 +162,11 @@ const Interviews = () => {
                   <TableRow>
                     <TableHead>Job ID</TableHead>
                     <TableHead>Candidate</TableHead>
-                    <TableHead>Position</TableHead>
+                    <TableHead>Requirement</TableHead>
+                    <TableHead>Round</TableHead>
                     <TableHead>Interview Date & Time</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Feedback</TableHead>
+                    <TableHead>Outcome</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -171,8 +178,10 @@ const Interviews = () => {
                       
                       return (
                         <TableRow key={interview.id} className="hover:bg-ats-gray-50 transition-colors cursor-pointer" onClick={() => viewInterviewDetails(interview.id)}>
-                          <TableCell className="font-medium">{interview.candidateName || 'Not specified'}</TableCell>
-                          <TableCell>{interview.position || 'Not specified'}</TableCell>
+                          <TableCell className="font-medium">{interview.jobId || 'Not specified'}</TableCell>
+                          <TableCell>{interview.candidateName || 'Not specified'}</TableCell>
+                          <TableCell>{interview.requirementTitle || interview.position || 'Not specified'}</TableCell>
+                          <TableCell>{interview.round || 1}</TableCell>
                           <TableCell>
                             <div className="flex items-center">
                               <Calendar className="w-4 h-4 mr-2 text-ats-gray-400" />
@@ -181,25 +190,17 @@ const Interviews = () => {
                           </TableCell>
                           <TableCell>
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${interview.status === 'Completed' ? 'bg-green-100 text-green-800' : ''}
-                              ${interview.status === 'Scheduled' ? 'bg-blue-100 text-blue-800' : ''}
-                              ${interview.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
+                              ${interview.status === 'completed' ? 'bg-green-100 text-green-800' : ''}
+                              ${interview.status === 'scheduled' ? 'bg-blue-100 text-blue-800' : ''}
+                              ${interview.status === 'cancelled' ? 'bg-red-100 text-red-800' : ''}
                             `}>
                               {interview.status || 'Unspecified'}
                             </span>
                           </TableCell>
-                          <TableCell>
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
-                              ${interview.feedback === 'Selected' ? 'bg-green-100 text-green-800' : ''}
-                              ${interview.feedback === 'Rejected' ? 'bg-red-100 text-red-800' : ''}
-                              ${interview.feedback === 'Pending' ? 'bg-yellow-100 text-yellow-800' : ''}
-                            `}>
-                              {interview.feedback || 'No feedback'}
-                            </span>
-                          </TableCell>
+                          <TableCell>{interview.outcome || 'Pending'}</TableCell>
                           <TableCell className="text-right">
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -214,7 +215,7 @@ const Interviews = () => {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-gray-500">
+                      <TableCell colSpan={8} className="text-center py-8 text-gray-500">
                         {searchTerm ? 'No interviews found matching your search.' : 'No interviews found.'}
                       </TableCell>
                     </TableRow>

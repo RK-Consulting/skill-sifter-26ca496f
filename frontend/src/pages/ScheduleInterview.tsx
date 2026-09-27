@@ -9,8 +9,6 @@ import {
   Calendar as CalendarIcon,
   Check,
   Clock,
-  Mail,
-  Phone,
   User,
   ArrowLeft
 } from 'lucide-react';
@@ -77,7 +75,7 @@ const formSchema = z.object({
     required_error: 'Interview date and time is required',
   }),
   status: z.string().default('scheduled'),
-  feedback: z.string().optional(),
+  round: z.coerce.number().min(1).default(1),
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -122,7 +120,7 @@ const ScheduleInterview = () => {
       jobId: '',
       position: '',
       status: 'scheduled',
-      feedback: '',
+      round: 1,
     },
   });
 
@@ -140,8 +138,8 @@ const ScheduleInterview = () => {
         requirementId: data.requirementId,
         position: data.position,
         interviewDate: data.interviewDate.toISOString(),
+        round: data.round,
         status: data.status,
-        feedback: data.feedback || '',
       };
 
       await interviewService.createInterview(interviewData);
@@ -173,7 +171,7 @@ const ScheduleInterview = () => {
               </Button>
             </div>
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Schedule Interview</h1>
-            <p className="text-ats-gray-500">Create a new interview for a candidate.</p>
+            <p className="text-ats-gray-500">Schedule an interview for an existing Candidate × Requirement recruitment context.</p>
           </div>
 
           <Card className="mb-8">
@@ -269,6 +267,22 @@ const ScheduleInterview = () => {
                             <Input placeholder="Select a Job ID first" readOnly {...field} />
                           </FormControl>
                           <FormDescription>Automatically populated from the selected Requirement.</FormDescription>
+                        </FormItem>
+                      )}
+                    />
+
+                    {/* Round */}
+                    <FormField
+                      control={form.control}
+                      name="round"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Interview Round</FormLabel>
+                          <FormControl>
+                            <Input type="number" min={1} {...field} />
+                          </FormControl>
+                          <FormDescription>Round 1 is the first interview for this Candidate × Requirement.</FormDescription>
+                          <FormMessage />
                         </FormItem>
                       )}
                     />
@@ -374,21 +388,6 @@ const ScheduleInterview = () => {
                       )}
                     />
                   </div>
-
-                  {/* Feedback */}
-                  <FormField
-                    control={form.control}
-                    name="feedback"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Feedback (Optional)</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter feedback..." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
 
                   <div className="flex justify-end gap-3">
                     <Button 

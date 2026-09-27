@@ -1,0 +1,148 @@
+# SkillSifter Recruitment Lifecycle
+
+**Status:** Frozen architectural/product baseline  
+**Related ADR:** ADR 0010  
+**Runtime model:** Candidate × Requirement
+
+## Product definition
+
+SkillSifter is a **recruitment intelligence platform** for recruitment/staffing firms and their client-driven hiring requirements. It is not an internal corporate HRMS.
+
+## Canonical lifecycle
+
+```text
+Requirement
+     ↓
+Candidate × Requirement
+     ↓
+Screening
+     ↓
+Submission
+     ↓
+Feedback
+     ↓
+Interview
+     ↓
+Selection
+     ↓
+Offer / Joining
+     ↓
+JOINED
+     ↓
+BILLING
+```
+
+The Candidate × Requirement pair is the authoritative runtime recruitment context. Historical Recruitment Assignment data may remain in the database for upgrade compatibility, but Assignment is not a runtime dependency.
+
+## Requirement
+
+A Requirement represents a client's recruitment demand.
+
+Department is mandatory Requirement data because the same client may have separate requirements for different departments.
+
+Typical Requirement data includes:
+
+- Client
+- Department
+- Job Title
+- Job Type
+- Experience Required
+- Budget
+- Language Requirements
+- Certifications Required
+- Notice Period
+- Mode of Work
+- Mandatory Requirements
+- Job Description
+- Status
+- Job Location
+- Number of Open Positions
+- Job ID where applicable
+
+## Candidate × Requirement
+
+Candidate is a reusable master record. Recruitment state is contextual to a Candidate × Requirement pair.
+
+Example:
+
+```text
+Candidate A
+   ├── Client X / Finance Requirement → Rejected
+   └── Client X / Technology Requirement → Interviewing
+```
+
+A rejection or selection for one requirement must not globally mutate Candidate recruitment outcome.
+
+## Screening
+
+Screening records recruiter-side evidence and assessment for a specific Candidate × Requirement context.
+
+Persistent Candidate capacity state is:
+
+- `screening_count`
+- `screening_limit`
+
+An active screening consumes one screening slot. Completion, rejection, or withdrawal of an active screening releases that slot.
+
+## Submission
+
+Submission records the formal presentation of a Candidate against a Requirement.
+
+Submission is scoped directly to Candidate × Requirement and stores Candidate and Requirement snapshots so later master-data changes do not rewrite historical submission facts.
+
+## Feedback
+
+Feedback records client-side recruitment feedback associated with a submission. Feedback does not mutate Candidate master data.
+
+## Interview
+
+Interview records the recruitment interview event:
+
+```text
+Interview
+├── Candidate
+├── Requirement
+├── Round
+├── Scheduled At
+├── Status
+├── Outcome
+├── Feedback
+├── Candidate Feedback
+├── Next Action
+└── Audit timestamps
+```
+
+The core model does not require interviewer identity, panels, hiring managers, internal approvals, or enterprise evaluation policies.
+
+Interview concurrency is scoped to Candidate × Requirement. A candidate may interview for multiple requirements concurrently, but only one active interview is allowed for the same pair.
+
+## Selection / Offer / Joining
+
+Selection is a Candidate × Requirement decision:
+
+- `selected`
+- `rejected`
+
+Selection requires a completed Interview for the same pair and does not mutate Candidate master state.
+
+Offer, Joining, and Billing are subsequent workflow stages.
+
+## Billing
+
+Billing follows joining according to the firm's commercial policy. Billing is associated with the relevant recruitment transaction / Candidate × Requirement / Client context, never with the Candidate globally.
+
+## Explicitly out of core scope
+
+- Employee HRMS
+- Attendance
+- Leave
+- Payroll
+- Employee benefits
+- Performance management
+- Appraisals
+- Corporate HR policy engines
+- Internal approval hierarchies
+- Client interview panels
+- Internal hiring-manager workflows
+- Enterprise interview evaluation forms
+- HRMS-specific AI

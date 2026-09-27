@@ -9,14 +9,13 @@ const (
 	RecipientHiringManager RecipientType = "hiring_manager"
 )
 
-func (t RecipientType) Valid() bool {
-	return t == RecipientClient || t == RecipientHiringManager
-}
+func (t RecipientType) Valid() bool { return t == RecipientClient || t == RecipientHiringManager }
 
 type Submission struct {
 	ID                  int
 	TenantID            string
-	AssignmentID        int
+	CandidateID         int
+	RequirementID       int
 	SubmittedByUserID   int
 	RecipientType       RecipientType
 	RecipientClientID   *int
@@ -32,7 +31,8 @@ type Submission struct {
 }
 
 type CreateInput struct {
-	AssignmentID      int
+	CandidateID       int
+	RequirementID     int
 	SubmittedByUserID int
 	RecipientType     RecipientType
 	RecipientClientID *int

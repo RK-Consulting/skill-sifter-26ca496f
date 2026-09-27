@@ -138,30 +138,67 @@ export const candidateService = {
 };
 
 export const interviewService = {
-  // Get all interviews
+  // Phase 5 V1 interview workflow. The request interceptor prefixes /api.
   getAllInterviews: async () => {
-    return api.get('/interviews');
+    return api.get('/v1/interviews');
   },
 
-  // Get an interview by ID
   getInterviewById: async (id: number) => {
-    return api.get(`/interviews/${id}`);
+    return api.get(`/v1/interviews/${id}`);
   },
 
-  // Create a new interview
   createInterview: async (interview: Record<string, unknown>) => {
-    console.log('Interview scheduled:', interview);
-    return api.post('/interviews', interview);
+    return api.post('/v1/interviews', interview);
   },
 
-  // Update an interview
   updateInterview: async (id: number, interview: Record<string, unknown>) => {
-    return api.put(`/interviews/${id}`, interview);
+    return api.put(`/v1/interviews/${id}`, interview);
   },
 
-  // Delete an interview
-  deleteInterview: async (id: number) => {
-    return api.delete(`/interviews/${id}`);
+
+};
+
+export const candidateRecruitmentService = {
+  // Persistent candidate state is the control plane for recruitment capacity.
+  getScreenings: async (candidateId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/screenings`);
+  },
+  createScreening: async (candidateId: number, screening: Record<string, unknown>) => {
+    return api.post(`/api/v1/candidates/${candidateId}/screenings`, screening);
+  },
+  updateScreening: async (candidateId: number, screeningId: number, status: string) => {
+    return api.put(`/api/v1/candidates/${candidateId}/screenings/${screeningId}`, { status });
+  },
+  getInterviews: async (candidateId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/interviews`);
+  },
+  getSubmissions: async (candidateId: number, requirementId: number) => {
+    return api.get(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
+    );
+  },
+  createSubmission: async (
+    candidateId: number,
+    requirementId: number,
+    submission: Record<string, unknown>,
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
+      submission,
+    );
+  },
+  getSelection: async (candidateId: number, requirementId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`);
+  },
+  createSelection: async (
+    candidateId: number,
+    requirementId: number,
+    selection: { decision: string; decisionNotes?: string; nextAction?: string },
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`,
+      selection,
+    );
   },
 };
 
@@ -349,29 +386,6 @@ export const requirementService = {
   },
   deleteRequirement: async (id: number) => {
     return api.delete(`/api/v1/requirements/${id}`);
-  },
-};
-
-export const assignmentV1Service = {
-  // Not paginated — GetAssignments returns the full tenant list.
-  getAllAssignments: async () => {
-    return api.get('/api/v1/assignments');
-  },
-  getAssignmentById: async (id: number) => {
-    return api.get(`/api/v1/assignments/${id}`);
-  },
-  createAssignment: async (assignment: { candidateId: number; requirementId: number; ownerUserId?: number }) => {
-    return api.post('/api/v1/assignments', assignment);
-  },
-  // Owner reassignment only — lifecycle status changes go through transitionAssignment.
-  updateAssignmentOwner: async (id: number, ownerUserId: number) => {
-    return api.put(`/api/v1/assignments/${id}`, { ownerUserId });
-  },
-  deleteAssignment: async (id: number) => {
-    return api.delete(`/api/v1/assignments/${id}`);
-  },
-  transitionAssignment: async (id: number, status: string) => {
-    return api.post(`/api/v1/assignments/${id}/transition`, { status });
   },
 };
 

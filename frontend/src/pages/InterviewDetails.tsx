@@ -19,10 +19,12 @@ interface Interview {
   candidateName: string;
   position: string;
   interviewDate: string;
+  round: number;
   status: string;
-  feedback: string;
-  notes?: string;
-  interviewer?: string;
+  outcome?: string;
+  feedback?: string;
+  candidateFeedback?: string;
+  nextAction?: string;
 }
 
 const InterviewDetails = () => {
@@ -88,18 +90,18 @@ const InterviewDetails = () => {
 
   const getStatusColor = (status: string) => {
     switch(status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'Scheduled': return 'bg-blue-100 text-blue-800';
-      case 'Cancelled': return 'bg-red-100 text-red-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'scheduled': return 'bg-blue-100 text-blue-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getFeedbackColor = (feedback: string) => {
     switch(feedback) {
-      case 'Selected': return 'bg-green-100 text-green-800';
-      case 'Rejected': return 'bg-red-100 text-red-800';
-      case 'Pending': return 'bg-yellow-100 text-yellow-800';
+      case 'selected': return 'bg-green-100 text-green-800';
+      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -230,13 +232,6 @@ const InterviewDetails = () => {
                         </div>
                       </div>
                       
-                      <div className="flex items-start">
-                        <User className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
-                        <div>
-                          <h3 className="text-sm font-medium text-ats-gray-500">Interviewer</h3>
-                          <p className="text-lg font-medium">{interview.interviewer || 'Not assigned'}</p>
-                        </div>
-                      </div>
                     </div>
                     
                     <div className="space-y-4">
@@ -259,18 +254,26 @@ const InterviewDetails = () => {
                       <div className="flex items-start">
                         <MessageSquare className="w-5 h-5 mt-0.5 mr-3 text-ats-gray-500" />
                         <div>
-                          <h3 className="text-sm font-medium text-ats-gray-500">Feedback</h3>
-                          <p className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium mt-1 ${getFeedbackColor(interview.feedback)}`}>
-                            {interview.feedback || 'No feedback'}
-                          </p>
+                          <h3 className="text-sm font-medium text-ats-gray-500">Outcome</h3>
+                          <p className="text-lg font-medium">{interview.outcome || 'Pending'}</p>
                         </div>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="pt-4 border-t border-ats-gray-200">
-                    <h3 className="text-sm font-medium text-ats-gray-500 mb-2">Interview Notes</h3>
-                    <p className="text-ats-gray-700">{interview.notes || 'No notes available.'}</p>
+                  <div className="pt-4 border-t border-ats-gray-200 space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-ats-gray-500 mb-2">Client / Recruitment Feedback</h3>
+                      <p className="text-ats-gray-700">{interview.feedback || 'No feedback recorded.'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-ats-gray-500 mb-2">Candidate Feedback</h3>
+                      <p className="text-ats-gray-700">{interview.candidateFeedback || 'No candidate feedback recorded.'}</p>
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-medium text-ats-gray-500 mb-2">Next Action</h3>
+                      <p className="text-ats-gray-700">{interview.nextAction || 'No next action recorded.'}</p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -285,7 +288,7 @@ const InterviewDetails = () => {
                   <Button 
                     variant="primary" 
                     className="w-full mb-2 flex items-center justify-center gap-2"
-                    onClick={() => updateStatus('Completed')}
+                    onClick={() => updateStatus('completed')}
                   >
                     <CheckCircle size={16} />
                     Mark as Completed
@@ -293,7 +296,7 @@ const InterviewDetails = () => {
                   <Button 
                     variant="outline" 
                     className="w-full mb-2 flex items-center justify-center gap-2"
-                    onClick={() => updateStatus('Cancelled')}
+                    onClick={() => updateStatus('cancelled')}
                   >
                     <XCircle size={16} />
                     Cancel Interview
