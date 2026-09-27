@@ -14,10 +14,10 @@ import (
 // callers (eventually HTTP handlers) can map each to the right response
 // without string-matching.
 var (
-	ErrCandidateNotFound       = errors.New("candidate not found")
-	ErrCandidateNotEligible    = errors.New("candidate is not eligible for a new assignment")
-	ErrRequirementNotFound     = errors.New("requirement not found")
-	ErrUserNotFound            = errors.New("user not found")
+	ErrCandidateNotFound    = errors.New("candidate not found")
+	ErrCandidateNotEligible = errors.New("candidate is not eligible for a new assignment")
+	ErrRequirementNotFound  = errors.New("requirement not found")
+	ErrUserNotFound         = errors.New("user not found")
 )
 
 const eligibleCandidateStatus = "active"
