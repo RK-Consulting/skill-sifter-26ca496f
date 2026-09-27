@@ -48,4 +48,4 @@ The initial PDF extractor intentionally uses the Go standard library only. Text-
 
 Resume records carry the authoritative `tenant_id` from the authenticated request context. Duplicate detection, repository listing and candidate/expertise joins are tenant-scoped. `company_name` remains compatibility/display data and is not the tenant isolation boundary.
 
-Migration `017_resume_ai_tenant_isolation.sql` backfills existing resume rows, enforces `tenant_id`, replaces the legacy company/hash uniqueness boundary with tenant/hash uniqueness, and removes the obsolete Jobs activity trigger without modifying historical migrations.
+Migration `021_resume_ai_tenant_isolation.sql` backfills existing resume rows, enforces `tenant_id`, replaces the legacy company/hash uniqueness boundary with tenant/hash uniqueness, and removes the obsolete Jobs activity trigger without modifying historical migrations.
