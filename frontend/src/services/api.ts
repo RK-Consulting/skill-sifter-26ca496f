@@ -158,6 +158,14 @@ export const interviewService = {
   getAssignmentInterviews: async (assignmentId: number) => {
     return api.get(`/v1/assignments/${assignmentId}/interviews`);
   },
+
+  getAssignmentSelection: async (assignmentId: number) => {
+    return api.get(`/v1/assignments/${assignmentId}/selection`);
+  },
+
+  createAssignmentSelection: async (assignmentId: number, selection: { decision: string; decisionNotes?: string; nextAction?: string }) => {
+    return api.post(`/v1/assignments/${assignmentId}/selection`, selection);
+  },
 };
 
 export const businessDevService = {
