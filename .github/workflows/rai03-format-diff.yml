@@ -8,7 +8,7 @@ on:
       - 'backend/handlers/resume_ai_intelligence_persistence_test.go'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   diff:
@@ -18,6 +18,16 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.21'
-      - name: Show gofmt diff
+      - name: Capture gofmt diff
         working-directory: backend
-        run: gofmt -d handlers/resume_ai_intelligence_persistence_test.go
+        run: gofmt -d handlers/resume_ai_intelligence_persistence_test.go > ../gofmt_diff.txt
+      - name: Commit diff
+        run: |
+          if [ ! -s gofmt_diff.txt ]; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add gofmt_diff.txt
+          git commit -m "chore: capture RAI-03 gofmt diff"
+          git push
