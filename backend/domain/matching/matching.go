@@ -24,13 +24,13 @@ type CriterionEvidence struct {
 }
 
 type CandidateEvidence struct {
-	TechnicalSkills  []string
-	Languages        []LanguageEvidence
-	Certifications   []string
-	Experience       string
-	Location         string
-	NoticePeriod     string
-	WorkArrangement  string
+	TechnicalSkills []string
+	Languages       []LanguageEvidence
+	Certifications  []string
+	Experience      string
+	Location        string
+	NoticePeriod    string
+	WorkArrangement string
 }
 
 type LanguageEvidence struct {
