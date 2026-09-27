@@ -100,6 +100,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
 	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
+	apiV1.HandleFunc("/requirements/{id}/matches", handlers.GetRequirementMatches).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/requirements/{id}/matches/{candidateId}", handlers.GetRequirementCandidateMatch).Methods("GET", "OPTIONS")
 
 	// Issue #35 / ADR 0003: Recruitment Assignment lifecycle. UpdateAssignment
 	// supports only reassigning owner_user_id (see handlers/assignment_handlers.go);
