@@ -219,9 +219,19 @@ func resumeDate(value string) (*time.Time, error) {
 	if value == "" {
 		return nil, nil
 	}
+
+	// Partial dates are retained through the corresponding year field.
+	// Never invent a day such as the first of the month/year.
+	if _, err := time.Parse("2006-01", value); err == nil {
+		return nil, nil
+	}
+	if _, err := time.Parse("2006", value); err == nil {
+		return nil, nil
+	}
+
 	parsed, err := time.Parse("2006-01-02", value)
 	if err != nil {
-		return nil, fmt.Errorf("invalid date %q: exact YYYY-MM-DD required for date storage", value)
+		return nil, fmt.Errorf("invalid date %q", value)
 	}
 	return &parsed, nil
 }
