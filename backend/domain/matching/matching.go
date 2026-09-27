@@ -44,9 +44,9 @@ type RequirementEvidence struct {
 	ExperienceRequired     string
 	LanguageRequirements   string
 	CertificationsRequired string
-	Location             string
-	NoticePeriod         string
-	WorkArrangement      string
+	Location               string
+	NoticePeriod           string
+	WorkArrangement        string
 }
 
 type MatchResult struct {
