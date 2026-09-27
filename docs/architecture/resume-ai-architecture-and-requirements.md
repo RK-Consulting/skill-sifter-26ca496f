@@ -560,3 +560,12 @@ The migration adds provenance to the existing \`candidate_language_expertise\` m
 \`candidate_expertise\` remains the authoritative technical-skill store. The retired \`skills\` and \`candidate_skills\` tables are not recreated.
 
 Structured Ollama output is validated before persistence. Invalid structured output is rejected as a unit so a malformed AI response cannot leave partially persisted Resume intelligence.
+
+
+## 23. RAI-05 Candidate Profile Integration
+
+The Candidate Profile exposes Resume AI intelligence without creating a second source of truth. The API selects the latest successfully processed resume for the tenant-scoped candidate using parsed timestamp and resume ID as the deterministic tie-breaker. Historical source records remain preserved in the RAI-03 tables.
+
+The current profile response includes professional profile, employment history, education, certifications, projects, and languages from the selected source resume. Technical expertise continues to come from the authoritative `candidate_expertise` store. Resume AI provenance remains visible through the source resume metadata and source IDs.
+
+This phase does not perform requirement matching, semantic/vector search, embeddings, ranking, or autonomous recruiter decisions.
