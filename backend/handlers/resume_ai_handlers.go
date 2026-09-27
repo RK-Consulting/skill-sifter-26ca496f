@@ -22,10 +22,20 @@ import (
 )
 
 type resumeAIResult struct {
-	Name   string   `json:"name"`
-	Email  string   `json:"email"`
-	Phone  string   `json:"phone"`
-	Skills []string `json:"skills"`
+	Name                 string                `json:"name"`
+	Email                string                `json:"email"`
+	Phone                string                `json:"phone"`
+	Location             string                `json:"location"`
+	CurrentTitle         string                `json:"currentTitle"`
+	ProfessionalSummary  string                `json:"professionalSummary"`
+	TotalExperience      string                `json:"totalExperience"`
+	RelevantExperience   string                `json:"relevantExperience"`
+	Skills               []string              `json:"skills"`
+	Languages            []resumeLanguage      `json:"languages"`
+	EmploymentHistory    []resumeEmployment    `json:"employmentHistory"`
+	Education            []resumeEducation      `json:"education"`
+	Certifications       []resumeCertification  `json:"certifications"`
+	Projects             []resumeProject        `json:"projects"`
 }
 
 type resumeUploadResult struct {
@@ -129,29 +139,84 @@ func extractResumeText(data []byte, filename string) string {
 func callOllama(text string) (resumeAIResult, string) {
 	prompt := `You are a resume extraction service.
 
-Extract only:
-- name
-- email
-- phone
-- technical skills
+Extract structured candidate intelligence from the resume.
 
-Return ONLY valid JSON matching:
-
+Return ONLY valid JSON matching this shape:
 {
   "name": "",
   "email": "",
   "phone": "",
-  "skills": []
+  "location": "",
+  "currentTitle": "",
+  "professionalSummary": "",
+  "totalExperience": "",
+  "relevantExperience": "",
+  "skills": [],
+  "languages": [
+    {
+      "name": "",
+      "proficiencyFramework": "",
+      "proficiencyLevel": ""
+    }
+  ],
+  "employmentHistory": [
+    {
+      "employer": "",
+      "jobTitle": "",
+      "startDate": "",
+      "endDate": "",
+      "startYear": 0,
+      "endYear": 0,
+      "isCurrent": false,
+      "description": ""
+    }
+  ],
+  "education": [
+    {
+      "institution": "",
+      "degree": "",
+      "fieldOfStudy": "",
+      "startDate": "",
+      "endDate": "",
+      "startYear": 0,
+      "endYear": 0,
+      "description": ""
+    }
+  ],
+  "certifications": [
+    {
+      "name": "",
+      "issuer": "",
+      "issueDate": "",
+      "expiryDate": "",
+      "issueYear": 0,
+      "expiryYear": 0,
+      "credentialReference": ""
+    }
+  ],
+  "projects": [
+    {
+      "projectName": "",
+      "description": "",
+      "role": "",
+      "technologies": [],
+      "startDate": "",
+      "endDate": "",
+      "startYear": 0,
+      "endYear": 0
+    }
+  ]
 }
 
-Skills must be concise normalized technical skill names.
-
-Examples:
-["Go", "PostgreSQL", "React", "Docker"]
-
-Never invent values.
-Missing fields must be empty.
-Do not include language names as technical skills.
+Rules:
+- Never invent or infer facts not supported by the resume.
+- Missing values must be empty strings, empty arrays, or 0.
+- "languages" means human/spoken languages only, not programming languages.
+- "skills" means technical skills, frameworks, platforms, tools, databases, and programming languages.
+- Normalize technical skills to concise names.
+- Preserve employment, education, certification, and project order.
+- Dates must use YYYY-MM-DD, YYYY-MM, or YYYY when explicitly supported.
+- Return no explanatory text outside the JSON object.
 
 Resume text:
 
@@ -587,10 +652,11 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if candidate != nil {
-			if err := saveCandidateTechnicalExpertise(
+			if err := persistResumeIntelligence(
+				resumeID,
 				candidate.ID,
 				tenantID,
-				ai.Skills,
+				ai,
 			); err != nil {
 				_, _ = db.DB.Exec(`
 					UPDATE resumes
