@@ -38,8 +38,14 @@ func scanSubmission(row *sql.Row) (*Submission, error) {
 		if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
 		return nil, err
 	}
-	if clientID.Valid {\n\t\tv := int(clientID.Int64)\n\t\ts.RecipientClientID = &v\n\t}
-	if userID.Valid {\n\t\tv := int(userID.Int64)\n\t\ts.RecipientUserID = &v\n\t}
+	if clientID.Valid {
+		v := int(clientID.Int64)
+		s.RecipientClientID = &v
+	}
+	if userID.Valid {
+		v := int(userID.Int64)
+		s.RecipientUserID = &v
+	}
 	return s, nil
 }
 
@@ -72,7 +78,9 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 		`SELECT `+submissionSelect+` FROM recruitment_submissions
 		 WHERE tenant_id = $1 AND assignment_id = $2
 		 ORDER BY submitted_at DESC, id DESC`, tenantID, assignmentID)
-	if err != nil {\n\t\treturn nil, err\n\t}
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	var results []*Submission
@@ -85,20 +93,32 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 			&s.RecipientEmail, &s.SubmissionContext, &s.RecruiterNotes,
 			&s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt,
 		); err != nil { return nil, err }
-		if clientID.Valid {\n\t\tv := int(clientID.Int64)\n\t\ts.RecipientClientID = &v\n\t}
-		if userID.Valid {\n\t\tv := int(userID.Int64)\n\t\ts.RecipientUserID = &v\n\t}
+		if clientID.Valid {
+		v := int(clientID.Int64)
+		s.RecipientClientID = &v
+	}
+		if userID.Valid {
+		v := int(userID.Int64)
+		s.RecipientUserID = &v
+	}
 		results = append(results, s)
 	}
-	if results == nil {\n\t\tresults = []*Submission{}\n\t}
+	if results == nil {
+		results = []*Submission{}
+	}
 	return results, rows.Err()
 }
 
 func nullableString(v string) interface{} {
-	if v == "" {\n\t\treturn nil\n\t}
+	if v == "" {
+		return nil
+	}
 	return v
 }
 
 func nullableInt(v *int) interface{} {
-	if v == nil {\n\t\treturn nil\n\t}
+	if v == nil {
+		return nil
+	}
 	return *v
 }
