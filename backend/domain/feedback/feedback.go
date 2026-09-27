@@ -50,7 +50,7 @@ type Feedback struct {
 	TenantID         string
 	SubmissionID     int
 	FeedbackByUserID int
-	Outcome           Outcome
+	Outcome          Outcome
 	ReasonCode        string
 	Comments          string
 	NextAction        string
