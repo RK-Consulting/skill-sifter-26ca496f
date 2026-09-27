@@ -46,7 +46,6 @@ func toFeedbackResponse(f *feedback.Feedback) feedbackResponse {
 	}
 }
 
-
 func decodeFeedbackRequest(r *http.Request, submissionID, actorUserID int) (feedback.CreateInput, error) {
 	var req feedbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -60,9 +59,12 @@ func decodeFeedbackRequest(r *http.Request, submissionID, actorUserID int) (feed
 		return feedback.CreateInput{}, errors.New("authenticated user is required")
 	}
 	return feedback.CreateInput{
-		SubmissionID: submissionID, FeedbackByUserID: actorUserID,
-		Outcome: feedback.Outcome(req.Outcome), ReasonCode: req.ReasonCode,
-		Comments: req.Comments, NextAction: req.NextAction,
+		SubmissionID:     submissionID,
+		FeedbackByUserID: actorUserID,
+		Outcome:          feedback.Outcome(req.Outcome),
+		ReasonCode:       req.ReasonCode,
+		Comments:         req.Comments,
+		NextAction:       req.NextAction,
 	}, nil
 }
 
@@ -92,12 +94,12 @@ func AddSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	record, err := feedbackService().CreateFeedback(tenantID, feedback.CreateInput{
-		SubmissionID: submissionID,
+		SubmissionID:     submissionID,
 		FeedbackByUserID: actorUserID,
-		Outcome: feedback.Outcome(req.Outcome),
-		ReasonCode: req.ReasonCode,
-		Comments: req.Comments,
-		NextAction: req.NextAction,
+		Outcome:          feedback.Outcome(req.Outcome),
+		ReasonCode:       req.ReasonCode,
+		Comments:         req.Comments,
+		NextAction:       req.NextAction,
 	})
 	if err != nil {
 		switch {
