@@ -96,7 +96,7 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 	).Scan(&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
 		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
-		&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+		&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
 		&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 
 	if err != nil {
@@ -184,7 +184,7 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO requirements (client_id, job_id, job_type, title, department, experience_required, budget,
 			language_requirement, certifications_required, notice_period, work_arrangement,
 			required_skills, mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id, created_at, last_modified`,
 		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
@@ -279,9 +279,9 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		UPDATE requirements SET client_id = $1, job_id = $2, job_type = $3, title = $4, department = $5,
 			experience_required = $6, budget = $7, language_requirement = $8,
 			certifications_required = $9, notice_period = $10, work_arrangement = $11,
-			required_skills = $12, mandatory_requirements = $13, description = $14, status = $15, location = $15,
-			headcount = $16, opened_date = $17, last_modified = NOW()
-		WHERE id = $18 AND tenant_id = $19`,
+			required_skills = $12, mandatory_requirements = $13, description = $14, status = $15, location = $16,
+			headcount = $17, opened_date = $18, last_modified = NOW()
+		WHERE id = $19 AND tenant_id = $20`,
 		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
 		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
