@@ -8,10 +8,10 @@ import (
 )
 
 var (
-	ErrSubmissionNotFound = errors.New("recruitment submission not found")
+	ErrSubmissionNotFound    = errors.New("recruitment submission not found")
 	ErrFeedbackActorNotFound = errors.New("feedback actor not found")
-	ErrInvalidOutcome = errors.New("invalid feedback outcome")
-	ErrInvalidReasonCode = errors.New("a valid reason code is required for hold or reject feedback")
+	ErrInvalidOutcome        = errors.New("invalid feedback outcome")
+	ErrInvalidReasonCode     = errors.New("a valid reason code is required for hold or reject feedback")
 )
 
 type Service struct {
@@ -70,8 +70,8 @@ func (s *Service) CreateFeedback(tenantID string, input CreateInput) (*Feedback,
 	}
 
 	f := &Feedback{
-		TenantID: tenantID,
-		SubmissionID: input.SubmissionID,
+		TenantID:         tenantID,
+		SubmissionID:     input.SubmissionID,
 		FeedbackByUserID: input.FeedbackByUserID,
 		Outcome: input.Outcome,
 		ReasonCode: strings.TrimSpace(input.ReasonCode),
