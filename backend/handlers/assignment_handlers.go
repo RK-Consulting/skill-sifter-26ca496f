@@ -53,8 +53,6 @@ func respondWithAssignmentError(w http.ResponseWriter, err error) {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 	case errors.Is(err, assignment.ErrUserNotFound):
 		respondWithError(w, http.StatusNotFound, "User not found")
-	case errors.Is(err, assignment.ErrCandidateAlreadyEngaged):
-		respondWithError(w, http.StatusConflict, err.Error())
 	case errors.Is(err, assignment.ErrCandidateNotEligible):
 		respondWithError(w, http.StatusUnprocessableEntity, err.Error())
 	case errors.Is(err, assignment.ErrDuplicateAssignment):

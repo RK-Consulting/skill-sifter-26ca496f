@@ -787,3 +787,58 @@ func TestAssignmentHandlers_ServiceErrorPropagation(t *testing.T) {
 		}
 	})
 }
+
+func TestAssignmentHandlers_CandidateCanHaveMultipleActiveAssignments(t *testing.T) {
+	testDB := setupAssignmentHandlerTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	f := seedAHFixtures(t, testDB, "ah_tenant_a")
+
+	var clientID int
+	if err := testDB.QueryRow(`INSERT INTO clients (name, tenant_id) VALUES ('Second Client', 'ah_tenant_a') RETURNING id`).Scan(&clientID); err != nil {
+		t.Fatalf("create second client: %v", err)
+	}
+	var secondRequirementID int
+	if err := testDB.QueryRow(`INSERT INTO requirements (client_id, title, tenant_id) VALUES ($1, 'Second Requirement', 'ah_tenant_a') RETURNING id`, clientID).Scan(&secondRequirementID); err != nil {
+		t.Fatalf("create second requirement: %v", err)
+	}
+
+	create := func(requirementID int) int {
+		body, _ := json.Marshal(map[string]int{
+			"candidateId":   f.candidateID,
+			"requirementId": requirementID,
+		})
+		req := ahCtx(httptest.NewRequest("POST", "/api/v1/assignments", bytes.NewReader(body)), "ah_tenant_a", f.userID, "manager")
+		rec := httptest.NewRecorder()
+		AddAssignment(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("create assignment status = %d, want 201. Body: %s", rec.Code, rec.Body.String())
+		}
+		var resp struct {
+			Data assignmentResponse `json:"data"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("decode assignment response: %v", err)
+		}
+		return resp.Data.ID
+	}
+
+	firstID := create(f.requirementID)
+	secondID := create(secondRequirementID)
+
+	if firstID == secondID {
+		t.Fatalf("two different candidate/requirement transactions returned the same assignment ID: %d", firstID)
+	}
+
+	var count int
+	if err := testDB.QueryRow(
+		`SELECT COUNT(*) FROM recruitment_assignments WHERE tenant_id = 'ah_tenant_a' AND candidate_id = $1`,
+		f.candidateID,
+	).Scan(&count); err != nil {
+		t.Fatalf("count candidate assignments: %v", err)
+	}
+	if count != 2 {
+		t.Fatalf("candidate has %d assignments, want 2 active assignments", count)
+	}
+}

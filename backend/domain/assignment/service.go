@@ -14,11 +14,10 @@ import (
 // callers (eventually HTTP handlers) can map each to the right response
 // without string-matching.
 var (
-	ErrCandidateNotFound       = errors.New("candidate not found")
-	ErrCandidateNotEligible    = errors.New("candidate is not eligible for a new assignment")
-	ErrCandidateAlreadyEngaged = errors.New("candidate already has an active recruitment engagement")
-	ErrRequirementNotFound     = errors.New("requirement not found")
-	ErrUserNotFound            = errors.New("user not found")
+	ErrCandidateNotFound    = errors.New("candidate not found")
+	ErrCandidateNotEligible = errors.New("candidate is not eligible for a new assignment")
+	ErrRequirementNotFound  = errors.New("requirement not found")
+	ErrUserNotFound         = errors.New("user not found")
 )
 
 const eligibleCandidateStatus = "active"
@@ -82,40 +81,10 @@ func (s *Service) CreateAssignment(tenantID string, actorUserID int, input Creat
 	}
 	defer tx.Rollback()
 
-	// Atomically claim the candidate. PostgreSQL locks the candidate row for
-	// the UPDATE, so concurrent attempts against the same candidate cannot
-	// both observe an available engagement. An exact duplicate pair is allowed
-	// to reach the assignment UNIQUE constraint so ErrDuplicateAssignment is
-	// preserved; a different requirement receives ErrCandidateAlreadyEngaged.
-	result, err := tx.Exec(`
-		UPDATE candidates
-		SET active_recruitment_engagements = TRUE
-		WHERE id = $1
-		  AND tenant_id = $2
-		  AND status = $3
-		  AND (
-			active_recruitment_engagements = FALSE
-			OR EXISTS (
-				SELECT 1
-				FROM recruitment_assignments
-				WHERE tenant_id = $2
-				  AND candidate_id = $1
-				  AND requirement_id = $4
-			)
-		  )`,
-		input.CandidateID, tenantID, eligibleCandidateStatus, input.RequirementID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	claimed, err := result.RowsAffected()
-	if err != nil {
-		return nil, err
-	}
-	if claimed == 0 {
-		return nil, ErrCandidateAlreadyEngaged
-	}
-
+	// Candidate eligibility is checked above, but assignments are intentionally
+	// independent transactions: one candidate may be associated with multiple
+	// requirements at the same time. The database UNIQUE constraint prevents
+	// only duplicate candidate/requirement pairs.
 	err = tx.QueryRow(`
 		INSERT INTO recruitment_assignments (tenant_id, candidate_id, requirement_id, status, created_by_user_id, owner_user_id)
 		VALUES ($1, $2, $3, $4, $5, $6)
@@ -291,17 +260,6 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 	}
 	if affected == 0 {
 		return nil, ErrNotFound
-	}
-
-	// Terminal negative/non-active outcomes release the candidate for a
-	// future recruitment engagement in this tenant database.
-	if newStatus == StatusJoined || newStatus == StatusRejected || newStatus == StatusWithdrawn {
-		if _, err := tx.Exec(`
-			UPDATE candidates
-			SET active_recruitment_engagements = FALSE
-			WHERE id = $1 AND tenant_id = $2`, a.CandidateID, tenantID); err != nil {
-			return nil, err
-		}
 	}
 
 	correlationID, err := newCorrelationID()
