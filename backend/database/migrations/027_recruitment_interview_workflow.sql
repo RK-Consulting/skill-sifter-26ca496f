@@ -6,18 +6,12 @@
 
 ALTER TABLE interviews
     ADD COLUMN IF NOT EXISTS round INTEGER NOT NULL DEFAULT 1,
-    ADD COLUMN IF NOT EXISTS duration_minutes INTEGER,
     ADD COLUMN IF NOT EXISTS outcome VARCHAR(100),
     ADD COLUMN IF NOT EXISTS candidate_feedback TEXT,
-    ADD COLUMN IF NOT EXISTS next_action TEXT,
-    ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NOT NULL DEFAULT NOW();
+    ADD COLUMN IF NOT EXISTS next_action TEXT;
 
 ALTER TABLE interviews
     ADD CONSTRAINT interviews_round_positive CHECK (round > 0);
-
-ALTER TABLE interviews
-    ADD CONSTRAINT interviews_duration_positive
-    CHECK (duration_minutes IS NULL OR duration_minutes > 0);
 
 CREATE INDEX IF NOT EXISTS idx_interviews_tenant_requirement_round
     ON interviews(tenant_id, requirement_id, round, interview_date DESC);
