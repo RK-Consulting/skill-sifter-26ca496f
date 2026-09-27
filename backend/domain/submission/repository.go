@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("recruitment submission not found")
 
 type Repository interface {
 	Create(*Submission) error
+	CreateTx(*sql.Tx, *Submission) error
 	GetByID(tenantID string, id int) (*Submission, error)
 	ListByAssignment(tenantID string, assignmentID int) ([]*Submission, error)
 }
@@ -52,7 +53,19 @@ func scanSubmission(row *sql.Row) (*Submission, error) {
 }
 
 func (r *PostgresRepository) Create(s *Submission) error {
-	return r.db.QueryRow(`
+	return r.create(r.db, s)
+}
+
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, s *Submission) error {
+	return r.create(tx, s)
+}
+
+type submissionInserter interface {
+	QueryRow(query string, args ...interface{}) *sql.Row
+}
+
+func (r *PostgresRepository) create(q submissionInserter, s *Submission) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_submissions (
 			tenant_id, assignment_id, submitted_by_user_id,
 			recipient_type, recipient_client_id, recipient_user_id,
