@@ -1,0 +1,31 @@
+name: RAI-06 Formatting Diagnostic 2
+
+on:
+  push:
+    branches:
+      - feature/resume-ai-rai-06
+
+permissions:
+  contents: write
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'chore(rai-06): formatting diagnostic 2')"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache: false
+      - name: Record gofmt output
+        run: |
+          cd backend
+          gofmt -d domain/matching/matching.go handlers/requirement_matching_handlers.go > ../RAI-06-FORMAT-REPORT-2.txt
+      - name: Commit report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add RAI-06-FORMAT-REPORT-2.txt
+          git commit -m "chore(rai-06): formatting diagnostic 2" || exit 0
+          git push
