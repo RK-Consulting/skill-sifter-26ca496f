@@ -286,7 +286,6 @@ func TestPersistResumeIntelligencePartialFailureRollsBack(t *testing.T) {
 	}
 }
 
-
 func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 
