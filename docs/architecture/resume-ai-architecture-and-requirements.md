@@ -569,3 +569,26 @@ The Candidate Profile exposes Resume AI intelligence without creating a second s
 The current profile response includes professional profile, employment history, education, certifications, projects, and languages from the selected source resume. Technical expertise continues to come from the authoritative `candidate_expertise` store. Resume AI provenance remains visible through the source resume metadata and source IDs.
 
 This phase does not perform requirement matching, semantic/vector search, embeddings, ranking, or autonomous recruiter decisions.
+
+
+## 24. RAI-06 Deterministic Requirement Matching
+
+RAI-06 introduces the first matching layer as deterministic application logic. Matching consumes the tenant-scoped Requirement identified by its immutable Job ID and candidate evidence already persisted by Resume AI.
+
+The result is criterion-level evidence rather than a black-box score. Each applicable criterion is reported as:
+
+- `matched`
+- `missing`
+- `unknown`
+- `not_applicable`
+
+The initial deterministic criteria are technical/mandatory requirements, experience, languages, certifications, location, notice period, and work arrangement. Work arrangement is currently reported as `unknown` when the Requirement specifies it because the Candidate model does not yet persist candidate work arrangement; the matcher does not infer it.
+
+Candidate technical skills come from authoritative `candidate_expertise`. Resume-derived languages and certifications use the current successfully processed Resume source selected by the RAI-05 deterministic rule. Historical Resume Intelligence is not silently merged.
+
+The initial API surface is:
+
+- `GET /api/v1/requirements/{id}/matches`
+- `GET /api/v1/requirements/{id}/matches/{candidateId}`
+
+No embeddings, semantic search, LLM decision-making, ranking, percentage score, background worker, or autonomous recruiter decision is introduced by RAI-06.
