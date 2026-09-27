@@ -60,7 +60,7 @@ func TestWorkArrangementUnknown(t *testing.T) {
 
 func TestEvaluateMissingTakesPrecedence(t *testing.T) {
 	result := Evaluate(RequirementEvidence{
-		RequiredSkills: "Go",
+		RequiredSkills:     "Go",
 		ExperienceRequired: "5+ years",
 	}, CandidateEvidence{
 		TechnicalSkills: []string{"Python"},
