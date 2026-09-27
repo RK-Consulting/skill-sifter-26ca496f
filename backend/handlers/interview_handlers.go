@@ -59,8 +59,8 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
 			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position,
-			i.round, i.interview_date, i.duration_minutes, i.status, i.outcome,
-			i.feedback, i.candidate_feedback, i.next_action, i.created_at,
+			i.round, i.interview_date, i.status, i.outcome,
+			i.feedback, i.candidate_feedback, i.next_action,
 			i.last_modified, i.tenant_id, i.company_name
 		FROM interviews i
 		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
@@ -78,8 +78,8 @@ func GetInterviews(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID,
 			&i.JobID, &i.RequirementTitle, &i.Position, &i.Round,
-			&i.InterviewDate, &i.DurationMinutes, &i.Status, &i.Outcome,
-			&i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.CreatedAt,
+			&i.InterviewDate, &i.Status, &i.Outcome,
+			&i.Feedback, &i.CandidateFeedback, &i.NextAction,
 			&i.LastModified, &i.TenantID, &i.CompanyName,
 		); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview row")
@@ -125,9 +125,9 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 		&interview.ID, &interview.CandidateID, &interview.CandidateName,
 		&interview.RequirementID, &interview.JobID, &interview.RequirementTitle,
 		&interview.Position, &interview.Round, &interview.InterviewDate,
-		&interview.DurationMinutes, &interview.Status, &interview.Outcome,
+		&interview.Status, &interview.Outcome,
 		&interview.Feedback, &interview.CandidateFeedback, &interview.NextAction,
-		&interview.CreatedAt, &interview.LastModified, &interview.TenantID,
+		&interview.LastModified, &interview.TenantID,
 		&interview.CompanyName,
 	)
 	if err != nil {
@@ -274,16 +274,16 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	err = db.DB.QueryRow(
 		`INSERT INTO interviews (
 			candidate_id, candidate_name, requirement_id, position, round,
-			interview_date, duration_minutes, status, outcome, feedback,
+			interview_date, status, outcome, feedback,
 			candidate_feedback, next_action, tenant_id, company_name
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		RETURNING id, created_at, last_modified`,
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+		RETURNING id, last_modified`,
 		interview.CandidateID, interview.CandidateName, *interview.RequirementID,
 		interview.Position, interview.Round, interview.InterviewDate,
-		interview.DurationMinutes, interview.Status, interview.Outcome,
+		interview.Status, interview.Outcome,
 		interview.Feedback, interview.CandidateFeedback, interview.NextAction,
 		tenantID, interview.CompanyName,
-	).Scan(&interview.ID, &interview.CreatedAt, &interview.LastModified)
+	).Scan(&interview.ID, &interview.LastModified)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error scheduling interview")
 		return
@@ -371,13 +371,13 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		`UPDATE interviews SET
 			candidate_id = $1, candidate_name = $2, requirement_id = $3,
 			position = $4, round = $5, interview_date = $6,
-			duration_minutes = $7, status = $8, outcome = $9,
-			feedback = $10, candidate_feedback = $11, next_action = $12,
+			status = $7, outcome = $8,
+			feedback = $9, candidate_feedback = $10, next_action = $11,
 			last_modified = NOW()
-		WHERE id = $13 AND tenant_id = $14`,
+		WHERE id = $12 AND tenant_id = $13`,
 		interview.CandidateID, interview.CandidateName, *interview.RequirementID,
 		interview.Position, interview.Round, interview.InterviewDate,
-		interview.DurationMinutes, interview.Status, interview.Outcome,
+		interview.Status, interview.Outcome,
 		interview.Feedback, interview.CandidateFeedback, interview.NextAction,
 		id, tenantID,
 	)
