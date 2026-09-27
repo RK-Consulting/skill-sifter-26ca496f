@@ -17,12 +17,14 @@ Lead → Opportunity → Client → Requirement
                                 ↓
 Candidate × Requirement → Screening → Submission → Client review
                                                         ↓
-                                                  Interviews → Offer → Joining
+                                                  Interview → Selection
+                                                        ↓
+                                                  Offer → Joining
                                                                     ↓
                                                Invoice → Payment → Guarantee → Closure / Replacement
 ```
 
-`Recruitment Assignment` is the central transaction. It connects one candidate to one client requirement. Candidate status describes the recruiter's current relationship with a candidate and must not replace the state of a specific assignment.
+`Candidate × Requirement` is the central runtime recruitment context. It connects one candidate to one client requirement without introducing a separate Assignment runtime entity. Historical Recruitment Assignment data remains only where required for database upgrade compatibility. Candidate master state must not be used as the state of a specific recruitment context.
 
 ## V1 product boundary
 
@@ -45,7 +47,7 @@ tenants/companies, users, roles
 clients, client_contacts, requirements
 candidates, candidate_skills, candidate_languages, candidate_statuses
 screenings, submissions
-interview_processes, interview_rounds, offers, joinings
+interviews, selections, offers, joinings
 invoices, payments, replacement_cases
 leads, opportunities, follow_ups, activities
 ```
