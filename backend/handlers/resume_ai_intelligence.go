@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -218,12 +219,11 @@ func resumeDate(value string) (*time.Time, error) {
 	if value == "" {
 		return nil, nil
 	}
-	for _, format := range []string{"2006-01-02", "2006-01", "2006"} {
-		if parsed, err := time.Parse(format, value); err == nil {
-			return &parsed, nil
-		}
+	parsed, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return nil, fmt.Errorf("invalid date %q: exact YYYY-MM-DD required for date storage", value)
 	}
-	return nil, fmt.Errorf("invalid date %q", value)
+	return &parsed, nil
 }
 
 func resumeYear(value int) *int {
@@ -231,6 +231,20 @@ func resumeYear(value int) *int {
 		return nil
 	}
 	return &value
+}
+
+func resumeYearFromPartialDate(value string, explicitYear int) *int {
+	if explicitYear != 0 {
+		return resumeYear(explicitYear)
+	}
+
+	value = strings.TrimSpace(value)
+	if len(value) >= 4 {
+		if year, err := strconv.Atoi(value[:4]); err == nil && year >= 1900 && year <= 2200 {
+			return &year
+		}
+	}
+	return nil
 }
 
 func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai resumeAIResult) error {
@@ -321,7 +335,7 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 				start_year,end_year,is_current,description,sort_order
 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		`, tenantID, candidateID, resumeID, strings.TrimSpace(item.Employer), strings.TrimSpace(item.JobTitle),
-			startDate, endDate, resumeYear(item.StartYear), resumeYear(item.EndYear), item.IsCurrent,
+			startDate, endDate, resumeYearFromPartialDate(item.StartDate, item.StartYear), resumeYearFromPartialDate(item.EndDate, item.EndYear), item.IsCurrent,
 			strings.TrimSpace(item.Description), order); err != nil {
 			return err
 		}
@@ -345,8 +359,8 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 				start_date,end_date,start_year,end_year,description,sort_order
 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		`, tenantID, candidateID, resumeID, strings.TrimSpace(item.Institution), strings.TrimSpace(item.Degree),
-			strings.TrimSpace(item.FieldOfStudy), startDate, endDate, resumeYear(item.StartYear),
-			resumeYear(item.EndYear), strings.TrimSpace(item.Description), order); err != nil {
+			strings.TrimSpace(item.FieldOfStudy), startDate, endDate, resumeYearFromPartialDate(item.StartDate, item.StartYear),
+			resumeYearFromPartialDate(item.EndDate, item.EndYear), strings.TrimSpace(item.Description), order); err != nil {
 			return err
 		}
 	}
@@ -369,7 +383,7 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 				issue_year,expiry_year,credential_reference
 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		`, tenantID, candidateID, resumeID, strings.TrimSpace(item.Name), strings.TrimSpace(item.Issuer),
-			issueDate, expiryDate, resumeYear(item.IssueYear), resumeYear(item.ExpiryYear),
+			issueDate, expiryDate, resumeYearFromPartialDate(item.IssueDate, item.IssueYear), resumeYearFromPartialDate(item.ExpiryDate, item.ExpiryYear),
 			strings.TrimSpace(item.CredentialReference)); err != nil {
 			return err
 		}
@@ -395,7 +409,7 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		`, tenantID, candidateID, resumeID, strings.TrimSpace(item.ProjectName),
 			strings.TrimSpace(item.Description), strings.TrimSpace(item.Role), pq.Array(technologies),
-			startDate, endDate, resumeYear(item.StartYear), resumeYear(item.EndYear), order); err != nil {
+			startDate, endDate, resumeYearFromPartialDate(item.StartDate, item.StartYear), resumeYearFromPartialDate(item.EndDate, item.EndYear), order); err != nil {
 			return err
 		}
 	}
