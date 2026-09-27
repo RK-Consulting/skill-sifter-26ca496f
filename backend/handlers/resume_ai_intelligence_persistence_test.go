@@ -332,3 +332,5 @@ func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
 		t.Fatalf("current title = %q, want Updated Title", title)
 	}
 }
+
+// RAI-03 persistence coverage validates transactional candidate intelligence boundaries.
