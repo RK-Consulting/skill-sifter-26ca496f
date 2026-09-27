@@ -58,7 +58,6 @@ Core Interview data may include:
 - requirement
 - interview round
 - scheduled time
-- duration
 - status
 - outcome
 - recruiter/client feedback
