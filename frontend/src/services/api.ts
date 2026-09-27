@@ -138,30 +138,25 @@ export const candidateService = {
 };
 
 export const interviewService = {
-  // Get all interviews
+  // Phase 5 V1 interview workflow. The request interceptor prefixes /api.
   getAllInterviews: async () => {
-    return api.get('/interviews');
+    return api.get('/v1/interviews');
   },
 
-  // Get an interview by ID
   getInterviewById: async (id: number) => {
-    return api.get(`/interviews/${id}`);
+    return api.get(`/v1/interviews/${id}`);
   },
 
-  // Create a new interview
   createInterview: async (interview: Record<string, unknown>) => {
-    console.log('Interview scheduled:', interview);
-    return api.post('/interviews', interview);
+    return api.post('/v1/interviews', interview);
   },
 
-  // Update an interview
   updateInterview: async (id: number, interview: Record<string, unknown>) => {
-    return api.put(`/interviews/${id}`, interview);
+    return api.put(`/v1/interviews/${id}`, interview);
   },
 
-  // Delete an interview
-  deleteInterview: async (id: number) => {
-    return api.delete(`/interviews/${id}`);
+  getAssignmentInterviews: async (assignmentId: number) => {
+    return api.get(`/v1/assignments/${assignmentId}/interviews`);
   },
 };
 
