@@ -33,7 +33,7 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	}
 
 	var candidateName, jobID, requirementTitle string
-	err := s.db.QueryRow(`SELECT c.name,r.job_id,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
+	err := s.db.QueryRow(`SELECT c.name,COALESCE(r.job_id,''),r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
 		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, input.CandidateID, input.RequirementID, tenantID).
 		Scan(&candidateName, &jobID, &requirementTitle)
 	if err != nil {
