@@ -57,16 +57,26 @@ func toSubmissionResponse(s *submission.Submission) submissionResponse {
 
 func AddAssignmentSubmission(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil { respondWithError(w, http.StatusBadRequest, "Invalid assignment ID"); return }
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		return
+	}
 
 	tenantID, ok := r.Context().Value("tenantID").(string)
-	if !ok || tenantID == "" { respondWithError(w, http.StatusUnauthorized, "Tenant context is required"); return }
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context is required")
+		return
+	}
 	actorUserID, ok := r.Context().Value("userID").(int)
-	if !ok || actorUserID == 0 { respondWithError(w, http.StatusUnauthorized, "Authenticated user is required"); return }
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authenticated user is required")
+		return
+	}
 
 	var req submissionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload"); return
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
 	}
 	defer r.Body.Close()
 
@@ -100,20 +110,29 @@ func AddAssignmentSubmission(w http.ResponseWriter, r *http.Request) {
 
 func GetAssignmentSubmissions(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(mux.Vars(r)["id"])
-	if err != nil { respondWithError(w, http.StatusBadRequest, "Invalid assignment ID"); return }
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		return
+	}
 	tenantID, ok := r.Context().Value("tenantID").(string)
-	if !ok || tenantID == "" { respondWithError(w, http.StatusUnauthorized, "Tenant context is required"); return }
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context is required")
+		return
+	}
 
 	records, err := submissionService().ListByAssignment(tenantID, id)
 	if err != nil {
 		if errors.Is(err, submission.ErrAssignmentNotFound) {
-			respondWithError(w, http.StatusNotFound, "Assignment not found"); return
+			respondWithError(w, http.StatusNotFound, "Assignment not found")
+			return
 		}
 		respondWithError(w, http.StatusInternalServerError, "Error retrieving submission history"); return
 	}
 
 	responses := make([]submissionResponse, 0, len(records))
-	for _, record := range records { responses = append(responses, toSubmissionResponse(record)) }
+	for _, record := range records {
+		responses = append(responses, toSubmissionResponse(record))
+	}
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true, Message: "Submission history retrieved successfully", Data: responses,
 	})
