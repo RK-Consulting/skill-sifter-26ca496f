@@ -1,0 +1,12 @@
+diff domain/matching/matching.go.orig domain/matching/matching.go
+--- domain/matching/matching.go.orig
++++ domain/matching/matching.go
+@@ -173,7 +173,7 @@
+ 	if len(missing) > 0 {
+ 		status = Missing
+ 	}
+-	return CriterionEvidence{Criterion: "certifications", Required: required, Status: status, Details: []string{"matched: "+strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
++	return CriterionEvidence{Criterion: "certifications", Required: required, Status: status, Details: []string{"matched: " + strings.Join(matched, ", "), "missing: " + strings.Join(missing, ", ")}}
+ }
+ 
+ func parseYears(value string) (float64, bool) {
