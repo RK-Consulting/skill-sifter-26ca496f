@@ -1,17 +1,15 @@
-## Phase 5 — Agency-first Interview Workflow
+# Phase 5 — Agency-first Interview Workflow
 
-Implement the Interview stage of the frozen SkillSifter recruitment lifecycle.
+## Frozen product boundary
 
-### Frozen product boundary
+SkillSifter is a recruitment intelligence platform for recruitment/staffing firms and their client requirements. It is not an internal corporate HRMS.
 
-SkillSifter is a **recruitment intelligence platform for recruitment/staffing firms and their client requirements**. It is not an internal corporate HRMS.
-
-The canonical lifecycle is:
+## Lifecycle position
 
 ```text
 Requirement
      ↓
-Assignment
+Candidate × Requirement
      ↓
 Screening
      ↓
@@ -30,7 +28,7 @@ JOINED
 BILLING
 ```
 
-### Phase 5 scope
+## Phase 5 scope
 
 Implement an agency-neutral Interview workflow around Candidate + Requirement.
 
@@ -47,13 +45,39 @@ The core Interview record supports:
 - next action
 - audit timestamps
 
-Department remains a **mandatory Requirement-level field**. It is not an Interview field.
+Department remains a mandatory Requirement-level field. It is not an Interview field.
 
-A Candidate may participate in multiple requirements, including different departments for the same client. Rejection from one requirement must not globally reject the Candidate.
+A Candidate may participate in multiple requirements, including different departments for the same client.
 
-### Explicit non-goals
+## Runtime relationship
 
-Do **not** add any of the following to the core Interview model:
+```text
+Candidate ───────── Candidate × Requirement ───────── Requirement
+                                                       │
+                                                       ├── Department
+                                                       └── Job ID
+                                                             │
+                                                             └── Interview
+```
+
+Historical Recruitment Assignment records are not required by the runtime Interview workflow.
+
+## Interview gates
+
+Scheduling an Interview requires:
+
+1. a tenant-valid Candidate;
+2. a tenant-valid Requirement;
+3. a completed Screening for the same Candidate × Requirement;
+4. an existing Submission for the same Candidate × Requirement;
+5. recorded client feedback for that recruitment context;
+6. no other active Interview for the same Candidate × Requirement.
+
+A candidate may have active interviews for different requirements.
+
+## Explicit non-goals
+
+Do not add any of the following to the core Interview model:
 
 - `interviewer_user_id`
 - interviewer panel
@@ -64,52 +88,27 @@ Do **not** add any of the following to the core Interview model:
 - internal interview policy
 - internal evaluation form
 
-These belong to a separate future enterprise HRMS/extension domain.
-
-### Architectural relationship
+## API
 
 ```text
-Candidate
-   │
-   └── Recruitment Assignment ── Requirement
-                                   │
-                                   ├── Department
-                                   └── Job ID
-                                         │
-                                         └── Interview
+GET  /api/v1/interviews
+POST /api/v1/interviews
+GET  /api/v1/interviews/{id}
+PUT  /api/v1/interviews/{id}
+
+GET  /api/v1/candidates/{candidateId}/interviews
 ```
 
-Interview is a recruitment event against the Candidate × Requirement transaction. It does not redefine Candidate master state.
-
-### Acceptance criteria
+## Acceptance criteria
 
 - Interview creation is tenant-scoped.
-- Interview references an existing Candidate and Requirement.
-- Interview scheduling requires the Recruitment Assignment to already be in `interviewing` status; lifecycle transitions remain under the existing audited Assignment transition service.
-- Requirement must belong to the same tenant.
-- Candidate must belong to the same tenant.
-- Interview round is represented explicitly.
-- Interview scheduling is supported.
-- Interview status and outcome are represented explicitly.
+- Candidate and Requirement references are validated.
+- Interview round is explicit.
+- Interview status and outcome are explicit.
 - Recruiter/client feedback can be recorded.
 - Candidate feedback can be recorded.
 - Next action can be recorded.
 - Interview history is preserved.
-- Existing Job ID traceability through Requirement is retained.
+- Job ID traceability remains through Requirement.
 - No internal-HR concepts are required by the core Interview API or schema.
-- Existing interview history is preserved.
-- Existing CI remains green.
-- Tests cover tenant isolation, validation, create/read/update/history behavior, and lifecycle integration.
-
-### Subsequent phases
-
-Phase 5 does not implement:
-
-- Selection workflow
-- Offer workflow
-- Joining workflow
-- Billing
-
-Those remain subsequent lifecycle phases.
-
-See ADR 0010 and `docs/architecture/recruitment-lifecycle.md`.
+- Tests cover tenant isolation, validation, create/read/update/history behavior, and lifecycle gates.
