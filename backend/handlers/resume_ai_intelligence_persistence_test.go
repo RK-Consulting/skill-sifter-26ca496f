@@ -59,7 +59,7 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 
 	var candidateID int
 	if err := testDB.QueryRow(
-		"INSERT INTO candidates (name, email, phone, status, tenant_id, company_name) VALUES ($1, $2, $3, 'active', $4, $5) RETURNING id",
+		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id, company_name) VALUES ($1, $2, $3, '', '', '', '', '', '', '', 'active', $4, $5) RETURNING id",
 		"RAI-03 Test Candidate", "rai03-"+tenantID+"@example.com", "9000000000", tenantID, tenantID+" Company",
 	).Scan(&candidateID); err != nil {
 		testDB.Close()
@@ -220,7 +220,7 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 
 	var otherCandidateID int
 	if err := fx.db.QueryRow(
-		"INSERT INTO candidates (name, email, phone, status, tenant_id, company_name) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', 'active', $1, $2) RETURNING id",
+		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id, company_name) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', '', 'active', $1, $2) RETURNING id",
 		otherTenant, otherTenant+" Company",
 	).Scan(&otherCandidateID); err != nil {
 		t.Fatal(err)
