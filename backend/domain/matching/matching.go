@@ -250,9 +250,9 @@ func Evaluate(req RequirementEvidence, candidate CandidateEvidence) MatchResult 
 		}
 	}
 	return MatchResult{
-		Status: status,
+		Status:   status,
 		Criteria: criteria,
-		Summary: summary(status),
+		Summary:  summary(status),
 	}
 }
 
