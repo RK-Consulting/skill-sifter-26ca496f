@@ -1,4 +1,5 @@
 -- 024_recruitment_screening.sql
+-- Recruitment workflow Phase 2: recruiter screening evidence.
 -- Phase 2: recruiter screening and candidate enrichment evidence.
 --
 -- Screening answers belong to the candidate-requirement transaction, not
