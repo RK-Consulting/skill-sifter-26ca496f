@@ -2,7 +2,7 @@ package screening
 
 import (
 	"database/sql"
-	"errors"
+	"errors"\n\t"time"
 )
 
 var ErrNotFound = errors.New("recruitment screening not found")
