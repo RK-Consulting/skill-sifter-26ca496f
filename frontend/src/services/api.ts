@@ -374,27 +374,4 @@ export const requirementService = {
   },
 };
 
-export const assignmentV1Service = {
-  // Not paginated — GetAssignments returns the full tenant list.
-  getAllAssignments: async () => {
-    return api.get('/api/v1/assignments');
-  },
-  getAssignmentById: async (id: number) => {
-    return api.get(`/api/v1/assignments/${id}`);
-  },
-  createAssignment: async (assignment: { candidateId: number; requirementId: number; ownerUserId?: number }) => {
-    return api.post('/api/v1/assignments', assignment);
-  },
-  // Owner reassignment only — lifecycle status changes go through transitionAssignment.
-  updateAssignmentOwner: async (id: number, ownerUserId: number) => {
-    return api.put(`/api/v1/assignments/${id}`, { ownerUserId });
-  },
-  deleteAssignment: async (id: number) => {
-    return api.delete(`/api/v1/assignments/${id}`);
-  },
-  transitionAssignment: async (id: number, status: string) => {
-    return api.post(`/api/v1/assignments/${id}/transition`, { status });
-  },
-};
-
 export default api;
