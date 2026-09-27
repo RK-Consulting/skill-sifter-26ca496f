@@ -89,6 +89,9 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/upload", handlers.UploadResumes).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/search", handlers.SearchResumes).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/resumes", handlers.ListResumes).Methods("GET", "OPTIONS")
+	api.HandleFunc("/resume-ai/resumes/{id}", handlers.GetResumeDetail).Methods("GET", "OPTIONS")
+	api.HandleFunc("/resume-ai/resumes/{id}/file", handlers.DownloadResume).Methods("GET", "OPTIONS")
+	api.HandleFunc("/resume-ai/resumes/{id}/retry", handlers.RetryResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
 	// Client and Requirement are the authoritative V1 recruitment-demand domain.
