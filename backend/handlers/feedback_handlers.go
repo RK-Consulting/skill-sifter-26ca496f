@@ -118,7 +118,7 @@ func AddSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
 		Success: true,
 		Message: "Submission feedback recorded successfully",
-		Data: toFeedbackResponse(record),
+		Data:    toFeedbackResponse(record),
 	})
 }
 
@@ -151,6 +151,6 @@ func GetSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Submission feedback history retrieved successfully",
-		Data: responses,
+		Data:    responses,
 	})
 }
