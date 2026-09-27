@@ -56,7 +56,7 @@ type MatchResult struct {
 }
 
 var nonWord = regexp.MustCompile(`[^a-z0-9+#.]+`)
-var yearsPattern = regexp.MustCompile(`(?i)([0-9]+(?:\\.[0-9]+)?)\\s*\\+?\\s*(?:years?|yrs?)`)
+var yearsPattern = regexp.MustCompile(`(?i)([0-9]+(?:\.[0-9]+)?)\s*\+?\s*(?:years?|yrs?)`)
 
 func Normalize(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
