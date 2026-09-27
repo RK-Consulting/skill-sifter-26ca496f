@@ -23,7 +23,7 @@ RECRUITMENT
 ───────────
 Requirement
      ↓
-Assignment
+Candidate × Requirement
      ↓
 Screening
      ↓
@@ -42,7 +42,7 @@ JOINED
 BILLING
 ```
 
-The durable business transaction is the Candidate × Requirement Recruitment Assignment.
+The durable runtime recruitment context is the Candidate × Requirement pair. A historical Recruitment Assignment entity exists only in earlier schema versions and is no longer a runtime dependency.
 
 Department is a mandatory Requirement-level concept. It identifies the organisational context of the client requirement and supports correct requirement identity, duplicate avoidance, and reuse of a candidate across different department-specific requirements.
 
@@ -120,7 +120,7 @@ Billing belongs to the recruitment transaction, not to the Candidate globally.
 3. A candidate can participate in multiple department-specific requirements simultaneously.
 4. Internal corporate HR concepts cannot silently enter the core schema.
 5. Future enterprise HRMS work can be designed independently with its own policy, workflow, security, and AI architecture.
-6. Phase 5 must implement only the agency-neutral Interview workflow.
+6. Phase 5 must implement only the agency-neutral Interview workflow against Candidate × Requirement.
 7. Selection/Offer/Joining and Billing remain subsequent phases and are not folded into Phase 5.
 
 ## Frozen rule
