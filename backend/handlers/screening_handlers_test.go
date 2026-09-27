@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http/httptest"\n\t"strings"
 	"testing"
-	"time"
 )
 
 func TestDecodeScreeningRequest_ParsesRecruiterEvidence(t *testing.T) {
@@ -54,5 +53,4 @@ func TestParseScreeningDate_EmptyIsNil(t *testing.T) {
 	if err != nil || got != nil {
 		t.Fatalf("got %v, err %v; want nil, nil", got, err)
 	}
-	_ = time.Time{}
 }
