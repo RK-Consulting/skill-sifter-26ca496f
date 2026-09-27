@@ -188,7 +188,7 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Requirement match evidence retrieved",
-		Data: map[string]interface{}{
+		Data:    map[string]interface{}{
 			"requirementId": req.ID,
 			"jobId":        req.JobID,
 			"candidateId":  candidate.ID,
