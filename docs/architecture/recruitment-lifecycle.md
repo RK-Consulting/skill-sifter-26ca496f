@@ -101,7 +101,6 @@ Interview
 ├── Requirement
 ├── Round
 ├── Scheduled At
-├── Duration
 ├── Status
 ├── Outcome
 ├── Feedback
