@@ -121,7 +121,7 @@ func MatchSkills(required string, skills []string) CriterionEvidence {
 	if len(missing) > 0 {
 		status = Missing
 	}
-	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: "+strings.Join(matched, ", ")}, "missing: "+strings.Join(missing, ", "))}
+	return CriterionEvidence{Criterion: "skills", Required: required, Status: status, Details: append([]string{"matched: " + strings.Join(matched, ", ")}, "missing: " + strings.Join(missing, ", "))}
 }
 
 func MatchLanguages(required string, languages []LanguageEvidence) CriterionEvidence {
@@ -198,7 +198,7 @@ func MatchExperience(required, candidate string) CriterionEvidence {
 	if candidateYears < requiredYears {
 		status = Missing
 	}
-	return CriterionEvidence{Criterion: "experience", Required: required, Evidence: candidate, Status: status, Details: []string{"required years: "+strconv.FormatFloat(requiredYears, 'f', -1, 64), "candidate years: "+strconv.FormatFloat(candidateYears, 'f', -1, 64)}}
+	return CriterionEvidence{Criterion: "experience", Required: required, Evidence: candidate, Status: status, Details: []string{"required years: " + strconv.FormatFloat(requiredYears, 'f', -1, 64), "candidate years: " + strconv.FormatFloat(candidateYears, 'f', -1, 64)}}
 }
 
 func MatchText(criterion, required, candidate string) CriterionEvidence {
