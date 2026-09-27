@@ -2,18 +2,17 @@ package handlers
 
 import (
 	"context"
-	"net/http/httptest"\n\t"strings"
+	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
 func TestDecodeScreeningRequest_ParsesRecruiterEvidence(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/v1/assignments/10/screenings", nil)
-	req = req.WithContext(context.WithValue(req.Context(), "userID", 42))
-
-	// Keep this test focused on the request contract; database behavior is
-	// covered by the integration CI suite once the migration is applied.
-	req = httptest.NewRequest("POST", "/api/v1/assignments/10/screenings",
-		strings.NewReader(`{"currentCTC":"12 LPA","expectedCTC":"16 LPA","noticePeriod":"30 days","lastWorkingDay":"2026-10-15","currentLocation":"Bengaluru","willingToRelocate":true,"preferredLocation":"Pune","candidateInterest":"interested","availabilityDate":"2026-10-16"}`))
+	req := httptest.NewRequest(
+		"POST",
+		"/api/v1/assignments/10/screenings",
+		strings.NewReader(`{"currentCTC":"12 LPA","expectedCTC":"16 LPA","noticePeriod":"30 days","lastWorkingDay":"2026-10-15","currentLocation":"Bengaluru","willingToRelocate":true,"preferredLocation":"Pune","candidateInterest":"interested","availabilityDate":"2026-10-16"}`),
+	)
 	req = req.WithContext(context.WithValue(req.Context(), "userID", 42))
 
 	input, err := decodeScreeningRequest(req, 10)
@@ -38,8 +37,11 @@ func TestDecodeScreeningRequest_ParsesRecruiterEvidence(t *testing.T) {
 }
 
 func TestDecodeScreeningRequest_InvalidDate(t *testing.T) {
-	req := httptest.NewRequest("POST", "/api/v1/assignments/10/screenings",
-		stringReader(`{"lastWorkingDay":"15-10-2026"}`))
+	req := httptest.NewRequest(
+		"POST",
+		"/api/v1/assignments/10/screenings",
+		strings.NewReader(`{"lastWorkingDay":"15-10-2026"}`),
+	)
 	req = req.WithContext(context.WithValue(req.Context(), "userID", 42))
 
 	_, err := decodeScreeningRequest(req, 10)
