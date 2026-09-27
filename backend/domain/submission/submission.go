@@ -5,8 +5,8 @@ import "time"
 type RecipientType string
 
 const (
-	RecipientClient         RecipientType = "client"
-	RecipientHiringManager  RecipientType = "hiring_manager"
+	RecipientClient        RecipientType = "client"
+	RecipientHiringManager RecipientType = "hiring_manager"
 )
 
 func (t RecipientType) Valid() bool {
