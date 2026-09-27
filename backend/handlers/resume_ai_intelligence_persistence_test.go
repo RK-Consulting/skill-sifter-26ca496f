@@ -334,3 +334,4 @@ func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
 }
 
 // RAI-03 persistence coverage validates transactional candidate intelligence boundaries.
+// Formatting is enforced by Backend CI.
