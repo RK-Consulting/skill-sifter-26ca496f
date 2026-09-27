@@ -205,8 +205,9 @@ func GetAssignmentInterviews(w http.ResponseWriter, r *http.Request) {
 }
 
 // ScheduleInterview creates an interview only for an existing Candidate ×
-// Requirement assignment. The assignment must already be submitted or
-// interviewing. Creating the first interview advances submitted -> interviewing.
+// Requirement assignment. The assignment must already be interviewing.
+// Assignment lifecycle changes remain exclusively under the existing audited
+// TransitionAssignment service/endpoint.
 func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	var interview models.Interview
 	if err := json.NewDecoder(r.Body).Decode(&interview); err != nil {
@@ -250,19 +251,18 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var assignmentID int
 	var assignmentStatus string
 	if err := db.DB.QueryRow(
-		`SELECT id, status
+		`SELECT status
 		 FROM recruitment_assignments
 		 WHERE candidate_id = $1 AND requirement_id = $2 AND tenant_id = $3`,
 		interview.CandidateID, *interview.RequirementID, tenantID,
-	).Scan(&assignmentID, &assignmentStatus); err != nil {
+	).Scan(&assignmentStatus); err != nil {
 		respondWithError(w, http.StatusUnprocessableEntity, "Candidate is not assigned to the selected requirement")
 		return
 	}
-	if assignmentStatus != "submitted" && assignmentStatus != "interviewing" {
-		respondWithError(w, http.StatusUnprocessableEntity, "Assignment must be submitted before scheduling an interview")
+	if assignmentStatus != "interviewing" {
+		respondWithError(w, http.StatusUnprocessableEntity, "Assignment must be in interviewing status before scheduling an interview")
 		return
 	}
 
@@ -271,14 +271,7 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	interview.RequirementTitle = requirementTitle
 	interview.Position = requirementTitle
 
-	tx, err := db.DB.Begin()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error starting interview transaction")
-		return
-	}
-	defer tx.Rollback()
-
-	err = tx.QueryRow(
+	err = db.DB.QueryRow(
 		`INSERT INTO interviews (
 			candidate_id, candidate_name, requirement_id, position, round,
 			interview_date, duration_minutes, status, outcome, feedback,
@@ -293,23 +286,6 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	).Scan(&interview.ID, &interview.CreatedAt, &interview.LastModified)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error scheduling interview")
-		return
-	}
-
-	if assignmentStatus == "submitted" {
-		if _, err := tx.Exec(
-			`UPDATE recruitment_assignments
-			 SET status = 'interviewing', last_modified = NOW()
-			 WHERE id = $1 AND tenant_id = $2`,
-			assignmentID, tenantID,
-		); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Error advancing recruitment assignment")
-			return
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error committing interview")
 		return
 	}
 
