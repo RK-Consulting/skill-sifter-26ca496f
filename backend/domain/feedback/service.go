@@ -73,10 +73,10 @@ func (s *Service) CreateFeedback(tenantID string, input CreateInput) (*Feedback,
 		TenantID:         tenantID,
 		SubmissionID:     input.SubmissionID,
 		FeedbackByUserID: input.FeedbackByUserID,
-		Outcome: input.Outcome,
-		ReasonCode: strings.TrimSpace(input.ReasonCode),
-		Comments: strings.TrimSpace(input.Comments),
-		NextAction: strings.TrimSpace(input.NextAction),
+		Outcome:          input.Outcome,
+		ReasonCode:       strings.TrimSpace(input.ReasonCode),
+		Comments:         strings.TrimSpace(input.Comments),
+		NextAction:       strings.TrimSpace(input.NextAction),
 	}
 
 	if err := s.repo.Create(f); err != nil {
