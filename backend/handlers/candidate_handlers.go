@@ -122,6 +122,8 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		&c.JobDescription,
 		&c.Status,
 		&c.PipelineStage,
+		&c.ScreeningCount,
+		&c.ScreeningLimit,
 		&c.CreatedAt,
 		&c.TenantID,
 		&c.CompanyName,
