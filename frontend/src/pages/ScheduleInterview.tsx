@@ -287,21 +287,6 @@ const ScheduleInterview = () => {
                       )}
                     />
 
-                    {/* Duration */}
-                    <FormField
-                      control={form.control}
-                      name="durationMinutes"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Duration (minutes)</FormLabel>
-                          <FormControl>
-                            <Input type="number" min={1} {...field} />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
                     {/* Status */}
                     <FormField
                       control={form.control}
