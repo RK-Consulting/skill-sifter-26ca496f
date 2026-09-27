@@ -38,8 +38,8 @@ type submissionResponse struct {
 	RecipientEmail      string          `json:"recipientEmail,omitempty"`
 	SubmissionContext   string          `json:"submissionContext,omitempty"`
 	RecruiterNotes      string          `json:"recruiterNotes,omitempty"`
-	CandidateSnapshot   json.RawMessage  `json:"candidateSnapshot"`
-	RequirementSnapshot json.RawMessage  `json:"requirementSnapshot"`
+	CandidateSnapshot   json.RawMessage `json:"candidateSnapshot"`
+	RequirementSnapshot json.RawMessage `json:"requirementSnapshot"`
 	SubmittedAt         string          `json:"submittedAt"`
 }
 
@@ -82,7 +82,7 @@ func AddAssignmentSubmission(w http.ResponseWriter, r *http.Request) {
 
 	record, err := submissionService().Submit(tenantID, submission.CreateInput{
 		AssignmentID: id, SubmittedByUserID: actorUserID,
-		RecipientType: submission.RecipientType(req.RecipientType),
+		RecipientType:     submission.RecipientType(req.RecipientType),
 		RecipientClientID: req.RecipientClientID, RecipientUserID: req.RecipientUserID,
 		RecipientName: req.RecipientName, RecipientEmail: req.RecipientEmail,
 		SubmissionContext: req.SubmissionContext, RecruiterNotes: req.RecruiterNotes,
@@ -126,7 +126,8 @@ func GetAssignmentSubmissions(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusNotFound, "Assignment not found")
 			return
 		}
-		respondWithError(w, http.StatusInternalServerError, "Error retrieving submission history"); return
+		respondWithError(w, http.StatusInternalServerError, "Error retrieving submission history")
+		return
 	}
 
 	responses := make([]submissionResponse, 0, len(records))

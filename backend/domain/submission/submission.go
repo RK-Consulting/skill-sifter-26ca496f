@@ -32,13 +32,13 @@ type Submission struct {
 }
 
 type CreateInput struct {
-	AssignmentID       int
-	SubmittedByUserID  int
-	RecipientType      RecipientType
-	RecipientClientID  *int
-	RecipientUserID    *int
-	RecipientName      string
-	RecipientEmail     string
-	SubmissionContext  string
-	RecruiterNotes     string
+	AssignmentID      int
+	SubmittedByUserID int
+	RecipientType     RecipientType
+	RecipientClientID *int
+	RecipientUserID   *int
+	RecipientName     string
+	RecipientEmail    string
+	SubmissionContext string
+	RecruiterNotes    string
 }

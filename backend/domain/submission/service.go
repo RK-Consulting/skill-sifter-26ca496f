@@ -61,7 +61,9 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	if err := s.db.QueryRow(
 		`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2)`,
 		input.SubmittedByUserID, tenantID,
-	).Scan(&actorExists); err != nil { return nil, err }
+	).Scan(&actorExists); err != nil {
+		return nil, err
+	}
 	if !actorExists {
 		return nil, ErrRecipientNotFound
 	}
@@ -75,7 +77,9 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		if err := s.db.QueryRow(
 			`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1 AND tenant_id = $2)`,
 			*input.RecipientClientID, tenantID,
-		).Scan(&exists); err != nil { return nil, err }
+		).Scan(&exists); err != nil {
+			return nil, err
+		}
 		if !exists {
 			return nil, ErrClientNotFound
 		}
@@ -87,7 +91,9 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		if err := s.db.QueryRow(
 			`SELECT EXISTS(SELECT 1 FROM users WHERE id = $1 AND tenant_id = $2)`,
 			*input.RecipientUserID, tenantID,
-		).Scan(&exists); err != nil { return nil, err }
+		).Scan(&exists); err != nil {
+			return nil, err
+		}
 		if !exists {
 			return nil, ErrRecipientNotFound
 		}
@@ -97,11 +103,15 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	if err := s.db.QueryRow(
 		`SELECT to_jsonb(c) FROM candidates c WHERE c.id = $1 AND c.tenant_id = $2`,
 		candidateID, tenantID,
-	).Scan(&candidateSnapshot); err != nil { return nil, err }
+	).Scan(&candidateSnapshot); err != nil {
+		return nil, err
+	}
 	if err := s.db.QueryRow(
 		`SELECT to_jsonb(r) FROM requirements r WHERE r.id = $1 AND r.tenant_id = $2`,
 		requirementID, tenantID,
-	).Scan(&requirementSnapshot); err != nil { return nil, err }
+	).Scan(&requirementSnapshot); err != nil {
+		return nil, err
+	}
 
 	record := &Submission{
 		TenantID: tenantID, AssignmentID: input.AssignmentID,

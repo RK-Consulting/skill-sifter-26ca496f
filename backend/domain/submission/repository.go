@@ -35,7 +35,9 @@ func scanSubmission(row *sql.Row) (*Submission, error) {
 		&s.RecipientEmail, &s.SubmissionContext, &s.RecruiterNotes,
 		&s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt,
 	); err != nil {
-		if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
 	if clientID.Valid {
@@ -92,15 +94,17 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 			&s.RecipientType, &clientID, &userID, &s.RecipientName,
 			&s.RecipientEmail, &s.SubmissionContext, &s.RecruiterNotes,
 			&s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt,
-		); err != nil { return nil, err }
+		); err != nil {
+			return nil, err
+		}
 		if clientID.Valid {
-		v := int(clientID.Int64)
-		s.RecipientClientID = &v
-	}
+			v := int(clientID.Int64)
+			s.RecipientClientID = &v
+		}
 		if userID.Valid {
-		v := int(userID.Int64)
-		s.RecipientUserID = &v
-	}
+			v := int(userID.Int64)
+			s.RecipientUserID = &v
+		}
 		results = append(results, s)
 	}
 	if results == nil {
