@@ -56,6 +56,21 @@ func ScheduleInterview(w http.ResponseWriter,r *http.Request){
 	if i.CandidateID<=0||i.RequirementID==nil||*i.RequirementID<=0{respondWithError(w,400,"candidateId and requirementId are required");return}
 	if i.Round<=0{i.Round=1};if i.InterviewDate.IsZero(){respondWithError(w,400,"interviewDate is required");return};if i.Status==""{i.Status="scheduled"};if !validateInterviewStatus(i.Status){respondWithError(w,400,"Invalid interview status");return}
 	candidateName,jobID,title,err:=validateInterviewReferences(i.CandidateID,*i.RequirementID,tenantID);if err!=nil{if _,ok:=err.(errMissingJobID);ok{respondWithError(w,422,"Selected requirement does not have a Job ID");return};respondWithError(w,404,"Candidate or requirement not found");return}
+	var submitted bool
+	if err:=db.DB.QueryRow(`SELECT EXISTS(
+		SELECT 1 FROM recruitment_submissions
+		WHERE candidate_id=$1 AND requirement_id=$2 AND tenant_id=$3
+	)`, i.CandidateID, *i.RequirementID, tenantID).Scan(&submitted); err!=nil { respondWithError(w,500,"Error validating submission state"); return }
+	if !submitted { respondWithError(w,422,"A submission is required before scheduling an interview"); return }
+
+	var feedbackRecorded bool
+	if err:=db.DB.QueryRow(`SELECT EXISTS(
+		SELECT 1 FROM recruitment_submission_feedback f
+		JOIN recruitment_submissions s ON s.id=f.submission_id AND s.tenant_id=f.tenant_id
+		WHERE s.candidate_id=$1 AND s.requirement_id=$2 AND s.tenant_id=$3
+	)`, i.CandidateID, *i.RequirementID, tenantID).Scan(&feedbackRecorded); err!=nil { respondWithError(w,500,"Error validating feedback state"); return }
+	if !feedbackRecorded { respondWithError(w,422,"Client feedback is required before scheduling an interview"); return }
+
 	var active bool
 	if err:=db.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM interviews WHERE candidate_id=$1 AND requirement_id=$2 AND tenant_id=$3 AND status IN ('scheduled','rescheduled'))`,i.CandidateID,*i.RequirementID,tenantID).Scan(&active);err!=nil{respondWithError(w,500,"Error validating interview state");return}
 	if active{respondWithError(w,409,"An active interview already exists for this candidate and requirement");return}
