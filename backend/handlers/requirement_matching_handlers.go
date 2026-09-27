@@ -234,7 +234,7 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 		}
 		results = append(results, map[string]interface{}{
 			"candidateId": candidateID,
-			"match": buildRequirementMatch(req, candidate),
+			"match":       buildRequirementMatch(req, candidate),
 		})
 	}
 	if err := rows.Err(); err != nil {
