@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/db"
-	"github.com/RK-Consulting/skill-sifter/domain/assignment"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
@@ -31,35 +30,41 @@ type selectionRequest struct {
 }
 
 type selectionResponse struct {
-	ID            int       `json:"id"`
-	TenantID      string    `json:"tenantId"`
-	AssignmentID  int       `json:"assignmentId"`
-	Decision      string    `json:"decision"`
-	DecisionNotes string    `json:"decisionNotes,omitempty"`
-	NextAction    string    `json:"nextAction,omitempty"`
-	DecidedAt     time.Time `json:"decidedAt"`
-	LastModified  time.Time `json:"lastModified"`
+	ID              int       `json:"id"`
+	TenantID        string    `json:"tenantId"`
+	CandidateID     int       `json:"candidateId"`
+	RequirementID   int       `json:"requirementId"`
+	Decision        string    `json:"decision"`
+	DecisionNotes   string    `json:"decisionNotes,omitempty"`
+	NextAction      string    `json:"nextAction,omitempty"`
+	DecidedAt       time.Time `json:"decidedAt"`
+	LastModified    time.Time `json:"lastModified"`
 }
 
-func GetAssignmentSelection(w http.ResponseWriter, r *http.Request) {
-	assignmentID, err := strconv.Atoi(mux.Vars(r)["id"])
+func GetCandidateRequirementSelection(w http.ResponseWriter, r *http.Request) {
+	candidateID, err := strconv.Atoi(mux.Vars(r)["candidateId"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid candidate ID")
+		return
+	}
+	requirementID, err := strconv.Atoi(mux.Vars(r)["requirementId"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid requirement ID")
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
 
 	var selection selectionResponse
 	err = db.DB.QueryRow(
-		`SELECT id, tenant_id, assignment_id, decision, decision_notes, next_action,
-		       decided_at, last_modified
+		`SELECT id, tenant_id, candidate_id, requirement_id, decision,
+		        decision_notes, next_action, decided_at, last_modified
 		FROM recruitment_selections
-		WHERE assignment_id = $1 AND tenant_id = $2`,
-		assignmentID, tenantID,
+		WHERE candidate_id = $1 AND requirement_id = $2 AND tenant_id = $3`,
+		candidateID, requirementID, tenantID,
 	).Scan(
-		&selection.ID, &selection.TenantID, &selection.AssignmentID,
-		&selection.Decision, &selection.DecisionNotes, &selection.NextAction,
-		&selection.DecidedAt, &selection.LastModified,
+		&selection.ID, &selection.TenantID, &selection.CandidateID,
+		&selection.RequirementID, &selection.Decision, &selection.DecisionNotes,
+		&selection.NextAction, &selection.DecidedAt, &selection.LastModified,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
 		respondWithError(w, http.StatusNotFound, "Selection not found")
@@ -69,18 +74,20 @@ func GetAssignmentSelection(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching selection")
 		return
 	}
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Selection retrieved successfully",
-		Data:    selection,
+		Success: true, Message: "Selection retrieved successfully", Data: selection,
 	})
 }
 
-func CreateAssignmentSelection(w http.ResponseWriter, r *http.Request) {
-	assignmentID, err := strconv.Atoi(mux.Vars(r)["id"])
+func CreateCandidateRequirementSelection(w http.ResponseWriter, r *http.Request) {
+	candidateID, err := strconv.Atoi(mux.Vars(r)["candidateId"])
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid assignment ID")
+		respondWithError(w, http.StatusBadRequest, "Invalid candidate ID")
+		return
+	}
+	requirementID, err := strconv.Atoi(mux.Vars(r)["requirementId"])
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid requirement ID")
 		return
 	}
 
@@ -90,15 +97,12 @@ func CreateAssignmentSelection(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-
 	if !validateSelectionDecision(req.Decision) {
 		respondWithError(w, http.StatusBadRequest, "decision is required and must be one of: selected, rejected")
 		return
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	actorUserID := r.Context().Value("userID").(int)
-
 	tx, err := db.DB.Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting selection transaction")
@@ -106,64 +110,85 @@ func CreateAssignmentSelection(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
-	var existingDecision string
-	err = tx.QueryRow(
-		`SELECT decision
-		FROM recruitment_selections
-		WHERE assignment_id = $1 AND tenant_id = $2
-		FOR UPDATE`,
-		assignmentID, tenantID,
-	).Scan(&existingDecision)
-	if err == nil {
-		respondWithError(w, http.StatusConflict, "Selection decision already exists for this assignment")
+	var exists bool
+	if err := tx.QueryRow(
+		`SELECT EXISTS(
+			SELECT 1 FROM candidates c
+			JOIN requirements r ON r.tenant_id = c.tenant_id
+			WHERE c.id = $1 AND r.id = $2
+			  AND c.tenant_id = $3 AND r.tenant_id = $3
+		)`, candidateID, requirementID, tenantID,
+	).Scan(&exists); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error validating candidate and requirement")
 		return
 	}
-	if !errors.Is(err, sql.ErrNoRows) {
-		respondWithError(w, http.StatusInternalServerError, "Error checking selection history")
+	if !exists {
+		respondWithError(w, http.StatusNotFound, "Candidate or requirement not found")
 		return
 	}
 
-	targetStatus := assignment.StatusOffered
-	if req.Decision == "rejected" {
-		targetStatus = assignment.StatusRejected
+	// Selection is a decision after an interview, not a separate lifecycle
+	// object. Require a completed interview for this Candidate × Requirement.
+	var completedInterview bool
+	if err := tx.QueryRow(
+		`SELECT EXISTS(
+			SELECT 1 FROM interviews
+			WHERE candidate_id = $1 AND requirement_id = $2 AND tenant_id = $3
+			  AND status = 'completed'
+		)`, candidateID, requirementID, tenantID,
+	).Scan(&completedInterview); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error validating interview history")
+		return
 	}
-
-	if _, err := assignmentService().TransitionAssignmentTx(tx, tenantID, actorUserID, assignmentID, targetStatus); err != nil {
-		respondWithAssignmentError(w, err)
+	if !completedInterview {
+		respondWithError(w, http.StatusUnprocessableEntity, "A completed interview is required before selection")
 		return
 	}
 
 	var selection selectionResponse
 	err = tx.QueryRow(
 		`INSERT INTO recruitment_selections (
-			tenant_id, assignment_id, decision, decision_notes, next_action
-		) VALUES ($1, $2, $3, $4, $5)
-		RETURNING id, tenant_id, assignment_id, decision, decision_notes, next_action,
-		          decided_at, last_modified`,
-		tenantID, assignmentID, req.Decision, req.DecisionNotes, req.NextAction,
+			tenant_id, candidate_id, requirement_id, decision,
+			decision_notes, next_action
+		) VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, tenant_id, candidate_id, requirement_id, decision,
+		          decision_notes, next_action, decided_at, last_modified`,
+		tenantID, candidateID, requirementID, req.Decision, req.DecisionNotes, req.NextAction,
 	).Scan(
-		&selection.ID, &selection.TenantID, &selection.AssignmentID,
-		&selection.Decision, &selection.DecisionNotes, &selection.NextAction,
-		&selection.DecidedAt, &selection.LastModified,
+		&selection.ID, &selection.TenantID, &selection.CandidateID,
+		&selection.RequirementID, &selection.Decision, &selection.DecisionNotes,
+		&selection.NextAction, &selection.DecidedAt, &selection.LastModified,
 	)
 	if err != nil {
 		var pqErr *pq.Error
 		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
-			respondWithError(w, http.StatusConflict, "Selection decision already exists for this assignment")
+			respondWithError(w, http.StatusConflict, "Selection decision already exists for this candidate and requirement")
 			return
 		}
 		respondWithError(w, http.StatusInternalServerError, "Error recording selection")
 		return
 	}
 
+	// Rejection releases the candidate's interview gate. Selection leaves the
+	// gate set because a selected candidate should not be sent into another
+	// client interview while this recruitment process proceeds.
+	if req.Decision == "rejected" {
+		if _, err := tx.Exec(
+			`UPDATE candidates
+			 SET interview_locked = FALSE
+			 WHERE id = $1 AND tenant_id = $2`,
+			candidateID, tenantID,
+		); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error releasing interview lock")
+			return
+		}
+	}
+
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing selection")
 		return
 	}
-
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
-		Success: true,
-		Message: "Selection recorded successfully",
-		Data:    selection,
+		Success: true, Message: "Selection recorded successfully", Data: selection,
 	})
 }
