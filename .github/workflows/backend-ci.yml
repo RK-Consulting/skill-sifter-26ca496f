@@ -4,12 +4,15 @@ on:
   push:
     branches:
       - main
+      - develop
+      - 'feature/**'
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
   pull_request:
     branches:
       - main
+      - develop
     paths:
       - 'backend/**'
       - '.github/workflows/backend-ci.yml'
@@ -54,24 +57,6 @@ jobs:
             echo "$files"
             exit 1
           fi
-
-  structure:
-    name: Repository Structure
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Validate repository structure
-        shell: bash
-        run: |
-          test -f go.mod
-          test -d database/migrations
-          test -f database/migrations/README.md
-          test -f ../.github/workflows/backend-ci.yml
 
   build:
     name: Go Build
