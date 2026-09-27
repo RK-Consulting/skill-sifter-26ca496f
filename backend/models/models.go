@@ -105,7 +105,7 @@ type Interview struct {
 	Status           string    `json:"status" db:"status,default:'scheduled'"`
 	Outcome          string    `json:"outcome,omitempty" db:"outcome"`
 	Feedback         string    `json:"feedback,omitempty" db:"feedback"`
-	CandidateFeedback string   `json:"candidateFeedback,omitempty" db:"candidate_feedback"`
+	CandidateFeedback string    `json:"candidateFeedback,omitempty" db:"candidate_feedback"`
 	NextAction       string    `json:"nextAction,omitempty" db:"next_action"`
 	CreatedAt        time.Time `json:"createdAt,omitempty" db:"created_at"`
 	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
