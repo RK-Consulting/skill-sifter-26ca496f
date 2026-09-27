@@ -22,20 +22,20 @@ import (
 )
 
 type resumeAIResult struct {
-	Name                 string                `json:"name"`
-	Email                string                `json:"email"`
-	Phone                string                `json:"phone"`
-	Location             string                `json:"location"`
-	CurrentTitle         string                `json:"currentTitle"`
-	ProfessionalSummary  string                `json:"professionalSummary"`
-	TotalExperience      string                `json:"totalExperience"`
-	RelevantExperience   string                `json:"relevantExperience"`
-	Skills               []string              `json:"skills"`
-	Languages            []resumeLanguage      `json:"languages"`
-	EmploymentHistory    []resumeEmployment    `json:"employmentHistory"`
-	Education            []resumeEducation      `json:"education"`
-	Certifications       []resumeCertification  `json:"certifications"`
-	Projects             []resumeProject        `json:"projects"`
+	Name                string                `json:"name"`
+	Email               string                `json:"email"`
+	Phone               string                `json:"phone"`
+	Location            string                `json:"location"`
+	CurrentTitle        string                `json:"currentTitle"`
+	ProfessionalSummary string                `json:"professionalSummary"`
+	TotalExperience     string                `json:"totalExperience"`
+	RelevantExperience  string                `json:"relevantExperience"`
+	Skills              []string              `json:"skills"`
+	Languages           []resumeLanguage      `json:"languages"`
+	EmploymentHistory   []resumeEmployment    `json:"employmentHistory"`
+	Education           []resumeEducation     `json:"education"`
+	Certifications      []resumeCertification `json:"certifications"`
+	Projects            []resumeProject       `json:"projects"`
 }
 
 type resumeUploadResult struct {

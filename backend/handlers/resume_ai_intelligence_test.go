@@ -26,7 +26,7 @@ func TestNormalizeTechnicalSkills(t *testing.T) {
 
 func TestNormalizeResumeAIRejectsInvalidStructuredData(t *testing.T) {
 	ai := resumeAIResult{
-		Email: "not-an-email",
+		Email:             "not-an-email",
 		EmploymentHistory: []resumeEmployment{{StartYear: 2025, EndYear: 2020}},
 	}
 	if err := normalizeResumeAI(&ai); err == nil {
