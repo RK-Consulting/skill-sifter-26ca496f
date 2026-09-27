@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,10 +9,10 @@ import (
 
 func TestResumeRepositoryHandlersRequireTenant(t *testing.T) {
 	tests := []struct {
-		name string
+		name    string
 		handler http.HandlerFunc
-		method string
-		path string
+		method  string
+		path    string
 	}{
 		{"detail", GetResumeDetail, http.MethodGet, "/api/resume-ai/resumes/1"},
 		{"download", DownloadResume, http.MethodGet, "/api/resume-ai/resumes/1/file"},
@@ -31,12 +30,10 @@ func TestResumeRepositoryHandlersRequireTenant(t *testing.T) {
 	}
 }
 
-func TestResumeIDValidation(t *testing.T) {
+func TestResumeIDValidationWithoutRouteVariables(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/resume-ai/resumes/not-an-id", nil)
-	req = req.WithContext(context.WithValue(context.Background(), "tenantID", "tenant_a"))
-	req = req.WithContext(context.WithValue(req.Context(), "tenantID", "tenant_a"))
 	if id, ok := resumeID(req); ok || id != 0 {
-		t.Fatalf("resumeID returned id=%d ok=%v for invalid path without mux vars", id, ok)
+		t.Fatalf("resumeID returned id=%d ok=%v without route variables", id, ok)
 	}
 }
 
