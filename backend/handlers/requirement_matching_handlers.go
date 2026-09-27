@@ -11,13 +11,13 @@ import (
 )
 
 type requirementMatchCandidate struct {
-	ID int
-	Location string
+	ID         int
+	Location   string
 	Experience string
-	Notice string
-	Skills []string
-	Languages []matching.LanguageEvidence
-	Certs []string
+	Notice     string
+	Skills     []string
+	Languages  []matching.LanguageEvidence
+	Certs      []string
 }
 
 func loadRequirementForMatching(tenantID string, id int) (models.Requirement, error) {
@@ -137,14 +137,14 @@ func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatc
 func buildRequirementMatch(req models.Requirement, candidate requirementMatchCandidate) matching.MatchResult {
 	return matching.Evaluate(
 		matching.RequirementEvidence{
-			RequiredSkills: "",
+			RequiredSkills:         "",
 			MandatoryRequirements: req.MandatoryRequirements,
-			ExperienceRequired: req.ExperienceRequired,
-			LanguageRequirements: req.LanguageRequirements,
+			ExperienceRequired:     req.ExperienceRequired,
+			LanguageRequirements:   req.LanguageRequirements,
 			CertificationsRequired: req.CertificationsRequired,
-			Location: req.Location,
-			NoticePeriod: req.NoticePeriod,
-			WorkArrangement: req.WorkArrangement,
+			Location:               req.Location,
+			NoticePeriod:           req.NoticePeriod,
+			WorkArrangement:        req.WorkArrangement,
 		},
 		matching.CandidateEvidence{
 			TechnicalSkills: candidate.Skills,
@@ -190,8 +190,8 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 		Message: "Requirement match evidence retrieved",
 		Data: map[string]interface{}{
 			"requirementId": req.ID,
-			"jobId": req.JobID,
-			"candidateId": candidate.ID,
+			"jobId":        req.JobID,
+			"candidateId":  candidate.ID,
 			"match": result,
 		},
 	})
