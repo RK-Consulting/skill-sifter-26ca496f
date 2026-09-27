@@ -37,12 +37,10 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	}
 
 	var status string
-	var candidateID, requirementID int
-	err := s.db.QueryRow(`
-		SELECT status, candidate_id, requirement_id
-		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2`,
+	err := s.db.QueryRow(
+		`SELECT status FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2`,
 		input.AssignmentID, tenantID,
-	).Scan(&status, &candidateID, &requirementID)
+	).Scan(&status)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrAssignmentNotFound
@@ -99,17 +97,21 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		}
 	}
 
-	var candidateSnapshot, requirementSnapshot []byte
-	if err := s.db.QueryRow(
-		`SELECT to_jsonb(c) FROM candidates c WHERE c.id = $1 AND c.tenant_id = $2`,
-		candidateID, tenantID,
-	).Scan(&candidateSnapshot); err != nil {
+	// Submission and assignment lifecycle state are one business transaction.
+	// Transition the assignment inside the caller-owned transaction first;
+	// if submission creation fails, the assignment transition and its audit
+	// events are rolled back together.
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := s.db.QueryRow(
-		`SELECT to_jsonb(r) FROM requirements r WHERE r.id = $1 AND r.tenant_id = $2`,
-		requirementID, tenantID,
-	).Scan(&requirementSnapshot); err != nil {
+	defer tx.Rollback()
+
+	assignmentService := assignment.NewService(assignment.NewPostgresRepository(s.db), s.db)
+	a, err := assignmentService.TransitionAssignmentTx(
+		tx, tenantID, input.SubmittedByUserID, input.AssignmentID, assignment.StatusSubmitted,
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -119,23 +121,17 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		RecipientClientID: input.RecipientClientID, RecipientUserID: input.RecipientUserID,
 		RecipientName: input.RecipientName, RecipientEmail: input.RecipientEmail,
 		SubmissionContext: input.SubmissionContext, RecruiterNotes: input.RecruiterNotes,
-		CandidateSnapshot: candidateSnapshot, RequirementSnapshot: requirementSnapshot,
+		CandidateSnapshot: a.CandidateSnapshot, RequirementSnapshot: a.RequirementSnapshot,
 	}
-	if err := s.repo.Create(record); err != nil {
+	if err := s.repo.CreateTx(tx, record); err != nil {
 		return nil, err
 	}
 
-	// Use the existing Assignment domain transition so lifecycle validation
-	// and the assignment's own submission snapshot/audit behavior remain
-	// centralized.
-	_, err = assignment.NewService(assignment.NewPostgresRepository(s.db), s.db).
-		TransitionAssignment(tenantID, input.SubmittedByUserID, input.AssignmentID, assignment.StatusSubmitted)
-	if err != nil {
+	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
 	return record, nil
 }
-
 func (s *Service) GetSubmission(tenantID string, id int) (*Submission, error) {
 	return s.repo.GetByID(tenantID, id)
 }
