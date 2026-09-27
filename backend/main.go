@@ -79,7 +79,13 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
-		// Phase 5: agency-first interview workflow. Interview history is preserved;
+
+	// Client and Requirement are the authoritative V1 recruitment-demand domain.
+	// Requirements replace the legacy Jobs resource.
+	apiV1 := r.PathPrefix("/api/v1").Subrouter()
+	apiV1.Use(auth.AuthMiddleware)
+
+	// Phase 5: agency-first interview workflow. Interview history is preserved;
 	// deletion is intentionally not exposed as a core workflow operation.
 	// Keep the legacy routes for existing UI compatibility while exposing the
 	// authoritative V1 API under /api/v1.
@@ -106,10 +112,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes/{id}/retry", handlers.RetryResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
-	// Client and Requirement are the authoritative V1 recruitment-demand domain.
-	// Requirements replace the legacy Jobs resource.
-	apiV1 := r.PathPrefix("/api/v1").Subrouter()
-	apiV1.Use(auth.AuthMiddleware)
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
 	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
 	apiV1.HandleFunc("/requirements/{id}/matches", handlers.GetRequirementMatches).Methods("GET", "OPTIONS")
