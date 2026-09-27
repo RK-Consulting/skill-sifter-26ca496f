@@ -103,6 +103,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/candidates/{candidateId}/screenings/{screeningId}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidateScreening)).ServeHTTP).Methods("PUT", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/selection", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.CreateCandidateRequirementSelection)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/selection", handlers.GetCandidateRequirementSelection).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidateRequirementSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", handlers.GetCandidateRequirementSubmissions).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev, handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 	api.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
@@ -125,17 +127,10 @@ func setupProtectedRoutes(r *mux.Router) {
 	// Issue #35 / ADR 0003: Recruitment Assignment lifecycle. UpdateAssignment
 	// supports only reassigning owner_user_id (see handlers/assignment_handlers.go);
 	// lifecycle status transitions go through the dedicated endpoint below.
-	setupResourceRoutes(apiV1, "/assignments", handlers.GetAssignments, managerOnly(handlers.AddAssignment), handlers.GetAssignmentByID, managerOnly(handlers.UpdateAssignment), managerOnly(handlers.DeleteAssignment))
 	// Dedicated lifecycle-transition endpoint, deliberately separate from
 	// PUT /assignments/{id} so owner mutation and lifecycle transition stay
 	// two distinct concepts.
-	apiV1.HandleFunc("/assignments/{id}/transition", managerOnly(handlers.TransitionAssignment)).Methods("POST", "OPTIONS")
 	// Phase 2: recruiter screening evidence is assignment-scoped and append-only.
-	apiV1.HandleFunc("/assignments/{id}/screenings", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentScreening)).ServeHTTP).Methods("POST", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/screenings", handlers.GetAssignmentScreenings).Methods("GET", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/screenings/{screeningId}", handlers.GetAssignmentScreeningByID).Methods("GET", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
-	apiV1.HandleFunc("/assignments/{id}/submissions", handlers.GetAssignmentSubmissions).Methods("GET", "OPTIONS")
 	// Phase 4: structured client / hiring-manager feedback is submission-scoped and append-only.
 	apiV1.HandleFunc("/submissions/{submissionId}/feedback", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddSubmissionFeedback)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/submissions/{submissionId}/feedback", handlers.GetSubmissionFeedback).Methods("GET", "OPTIONS")
