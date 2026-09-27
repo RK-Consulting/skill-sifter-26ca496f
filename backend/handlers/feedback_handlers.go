@@ -46,6 +46,26 @@ func toFeedbackResponse(f *feedback.Feedback) feedbackResponse {
 	}
 }
 
+
+func decodeFeedbackRequest(r *http.Request, submissionID, actorUserID int) (feedback.CreateInput, error) {
+	var req feedbackRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return feedback.CreateInput{}, errors.New("invalid request payload")
+	}
+	defer r.Body.Close()
+	if submissionID == 0 {
+		return feedback.CreateInput{}, errors.New("submissionId is required")
+	}
+	if actorUserID == 0 {
+		return feedback.CreateInput{}, errors.New("authenticated user is required")
+	}
+	return feedback.CreateInput{
+		SubmissionID: submissionID, FeedbackByUserID: actorUserID,
+		Outcome: feedback.Outcome(req.Outcome), ReasonCode: req.ReasonCode,
+		Comments: req.Comments, NextAction: req.NextAction,
+	}, nil
+}
+
 func AddSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 	submissionID, err := strconv.Atoi(mux.Vars(r)["submissionId"])
 	if err != nil {
