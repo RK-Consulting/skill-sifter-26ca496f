@@ -115,6 +115,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/assignments/{id}/screenings", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentScreening)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/assignments/{id}/screenings", handlers.GetAssignmentScreenings).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/assignments/{id}/screenings/{screeningId}", handlers.GetAssignmentScreeningByID).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/assignments/{id}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddAssignmentSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/assignments/{id}/submissions", handlers.GetAssignmentSubmissions).Methods("GET", "OPTIONS")
 }
 func main() {
 	db.InitDB()

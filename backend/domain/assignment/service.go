@@ -190,6 +190,22 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 	}
 	defer tx.Rollback()
 
+	a, err := s.TransitionAssignmentTx(tx, tenantID, actorUserID, id, newStatus)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return a, nil
+}
+
+// TransitionAssignmentTx applies an assignment lifecycle transition inside
+// the caller-owned transaction. The caller must commit or roll back tx.
+// This is used when the assignment transition must be atomic with a
+// transactionally coupled recruitment operation, such as candidate
+// submission.
+func (s *Service) TransitionAssignmentTx(tx *sql.Tx, tenantID string, actorUserID int, id int, newStatus Status) (*Assignment, error) {
 	row := tx.QueryRow(`SELECT `+assignmentSelectColumns+`
 		FROM recruitment_assignments WHERE id = $1 AND tenant_id = $2 FOR UPDATE`,
 		id, tenantID,
@@ -280,9 +296,6 @@ func (s *Service) TransitionAssignment(tenantID string, actorUserID int, id int,
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
 	return a, nil
 }
 
