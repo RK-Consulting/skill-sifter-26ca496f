@@ -39,10 +39,10 @@ type LanguageEvidence struct {
 }
 
 type RequirementEvidence struct {
-	RequiredSkills       string
+	RequiredSkills         string
 	MandatoryRequirements string
-	ExperienceRequired   string
-	LanguageRequirements string
+	ExperienceRequired     string
+	LanguageRequirements   string
 	CertificationsRequired string
 	Location             string
 	NoticePeriod         string
@@ -50,9 +50,9 @@ type RequirementEvidence struct {
 }
 
 type MatchResult struct {
-	Status     Status             `json:"status"`
-	Criteria   []CriterionEvidence `json:"criteria"`
-	Summary    string             `json:"summary"`
+	Status   Status              `json:"status"`
+	Criteria []CriterionEvidence `json:"criteria"`
+	Summary  string              `json:"summary"`
 }
 
 var nonWord = regexp.MustCompile(`[^a-z0-9+#.]+`)
@@ -68,7 +68,7 @@ func Normalize(value string) string {
 
 func SplitRequirements(value string) []string {
 	parts := strings.FieldsFunc(value, func(r rune) bool {
-		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '|' 
+		return r == ',' || r == ';' || r == '\n' || r == '\r' || r == '|'
 	})
 	result := make([]string, 0, len(parts))
 	seen := map[string]bool{}
