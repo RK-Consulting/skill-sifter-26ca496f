@@ -788,7 +788,6 @@ func TestAssignmentHandlers_ServiceErrorPropagation(t *testing.T) {
 	})
 }
 
-
 func TestAssignmentHandlers_CandidateCanHaveMultipleActiveAssignments(t *testing.T) {
 	testDB := setupAssignmentHandlerTestDB(t)
 	defer testDB.Close()
