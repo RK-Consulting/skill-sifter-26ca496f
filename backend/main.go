@@ -79,7 +79,13 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
-	setupResourceRoutes(api, "/interviews", handlers.GetInterviews, handlers.ScheduleInterview, handlers.GetInterviewByID, handlers.UpdateInterview, handlers.DeleteInterview)
+	// Phase 5: agency-first interview workflow. Interview history is preserved;
+// deletion is intentionally not exposed as a core workflow operation.
+api.HandleFunc("/interviews", handlers.GetInterviews).Methods("GET", "OPTIONS")
+api.HandleFunc("/interviews", handlers.ScheduleInterview).Methods("POST", "OPTIONS")
+api.HandleFunc("/interviews/{id}", handlers.GetInterviewByID).Methods("GET", "OPTIONS")
+api.HandleFunc("/interviews/{id}", handlers.UpdateInterview).Methods("PUT", "OPTIONS")
+apiV1.HandleFunc("/assignments/{id}/interviews", handlers.GetAssignmentInterviews).Methods("GET", "OPTIONS")
 	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev, handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
 	api.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
