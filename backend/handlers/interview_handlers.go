@@ -114,8 +114,8 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	err = db.DB.QueryRow(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
 			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position,
-			i.round, i.interview_date, i.duration_minutes, i.status, i.outcome,
-			i.feedback, i.candidate_feedback, i.next_action, i.created_at,
+			i.round, i.interview_date, i.status, i.outcome,
+			i.feedback, i.candidate_feedback, i.next_action,
 			i.last_modified, i.tenant_id, i.company_name
 		FROM interviews i
 		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
@@ -166,8 +166,8 @@ func GetAssignmentInterviews(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`
 		SELECT i.id, i.candidate_id, i.candidate_name, i.requirement_id,
 			COALESCE(r.job_id, ''), COALESCE(r.title, ''), i.position,
-			i.round, i.interview_date, i.duration_minutes, i.status, i.outcome,
-			i.feedback, i.candidate_feedback, i.next_action, i.created_at,
+			i.round, i.interview_date, i.status, i.outcome,
+			i.feedback, i.candidate_feedback, i.next_action,
 			i.last_modified, i.tenant_id, i.company_name
 		FROM interviews i
 		LEFT JOIN requirements r ON r.id = i.requirement_id AND r.tenant_id = i.tenant_id
@@ -187,8 +187,8 @@ func GetAssignmentInterviews(w http.ResponseWriter, r *http.Request) {
 		if err := rows.Scan(
 			&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID,
 			&i.JobID, &i.RequirementTitle, &i.Position, &i.Round,
-			&i.InterviewDate, &i.DurationMinutes, &i.Status, &i.Outcome,
-			&i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.CreatedAt,
+			&i.InterviewDate, &i.Status, &i.Outcome,
+			&i.Feedback, &i.CandidateFeedback, &i.NextAction,
 			&i.LastModified, &i.TenantID, &i.CompanyName,
 		); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning interview history")
