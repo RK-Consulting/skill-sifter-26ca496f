@@ -272,6 +272,10 @@ Resume text:
 		return resumeAIResult{}, "Ollama JSON parse failed: " + err.Error()
 	}
 
+	if err := normalizeResumeAI(&parsed); err != nil {
+		return resumeAIResult{}, "Ollama structured response validation failed: " + err.Error()
+	}
+
 	return parsed, ""
 }
 
