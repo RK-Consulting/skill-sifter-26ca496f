@@ -21,6 +21,8 @@ const ResumeAI = () => {
   const [q, setQ] = useState('');
   const [searching, setSearching] = useState(false);
   const [ollama, setOllama] = useState<OllamaStatus | null>(null);
+  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
+  const [actionId, setActionId] = useState<number | null>(null);
 
   const load = async () => {
     try {
@@ -71,6 +73,44 @@ const ResumeAI = () => {
     setFiles(Array.from(event.target.files || []));
   };
 
+  const showDetail = async (id: number) => {
+    try {
+      const response = (await resumeAIService.detail(id)) as ApiResponse<Record<string, unknown>>;
+      setDetail(response.data?.data || null);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Unable to load resume detail');
+    }
+  };
+
+  const retry = async (id: number) => {
+    setActionId(id);
+    try {
+      await resumeAIService.retry(id);
+      toast.success('Resume reprocessing completed');
+      await load();
+      await showDetail(id);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Resume retry failed');
+      await load();
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const download = async (id: number, fileName: string) => {
+    try {
+      const response = await resumeAIService.download(id);
+      const url = window.URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      anchor.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : 'Resume download failed');
+    }
+  };
+
   const getCandidate = (row: ResumeViewRow) => 'candidate' in row ? row.candidate : undefined;
   const getValues = (row: ResumeViewRow) => {
     const candidate = getCandidate(row);
@@ -108,9 +148,9 @@ const ResumeAI = () => {
             <input value={q} onChange={(event) => setQ(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') void search(); }} placeholder="e.g. Java Spring AWS" className="flex-1 border rounded-lg px-3 py-2" />
             <Button onClick={search} disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button>
           </div></CardContent></Card>
-          <Card><CardHeader><CardTitle>{results.length ? 'Search results' : 'Resume repository'}</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Phone</th><th className="p-3">Skills</th><th className="p-3">Resume</th><th className="p-3">Status</th></tr></thead><tbody>
-            {display.map((row) => { const values = getValues(row); return <tr key={'id' in row ? row.id : row.resumeId || row.fileName} className="border-b"><td className="p-3 font-medium">{values.name || '—'}</td><td className="p-3">{values.email || '—'}</td><td className="p-3">{values.phone || '—'}</td><td className="p-3 max-w-md">{values.skills || '—'}</td><td className="p-3">{values.resumeFile || '—'}</td><td className="p-3"><span className="rounded-full px-2 py-1 bg-gray-100">{values.status || '—'}</span>{values.error && <div className="text-red-500 mt-1">{values.error}</div>}</td></tr>; })}
-            {!display.length && <tr><td colSpan={6} className="p-8 text-center text-gray-500">No resumes yet. Upload a folder to begin.</td></tr>}
+          <Card><CardHeader><CardTitle>{results.length ? 'Search results' : 'Resume repository'}</CardTitle></CardHeader><CardContent><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b text-left"><th className="p-3">Name</th><th className="p-3">Email</th><th className="p-3">Phone</th><th className="p-3">Skills</th><th className="p-3">Resume</th><th className="p-3">Status</th><th className="p-3">Actions</th></tr></thead><tbody>
+            {display.map((row) => { const values = getValues(row); return <tr key={'id' in row ? row.id : row.resumeId || row.fileName} className="border-b"><td className="p-3 font-medium">{values.name || '—'}</td><td className="p-3">{values.email || '—'}</td><td className="p-3">{values.phone || '—'}</td><td className="p-3 max-w-md">{values.skills || '—'}</td><td className="p-3">{values.resumeFile || '—'}</td><td className="p-3"><span className="rounded-full px-2 py-1 bg-gray-100">{values.status || '—'}</span>{values.error && <div className="text-red-500 mt-1">{values.error}</div>}</td><td className="p-3"><div className="flex gap-2"><Button onClick={() => void showDetail(('id' in row ? row.id : row.resumeId) as number)}>Details</Button>{('id' in row && row.status === 'failed') && <Button onClick={() => void retry(row.id)} disabled={actionId === row.id}>{actionId === row.id ? 'Retrying…' : 'Retry'}</Button>}{'id' in row && <Button onClick={() => void download(row.id, row.fileName)}>Download</Button>}</div></td></tr>; })}
+            {!display.length && <tr><td colSpan={7} className="p-8 text-center text-gray-500">No resumes yet. Upload a folder to begin.</td></tr>}
           </tbody></table></div></CardContent></Card>
         </Container>
       </main><Footer />
