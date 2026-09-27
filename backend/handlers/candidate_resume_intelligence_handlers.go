@@ -18,6 +18,10 @@ func GetCandidateResumeIntelligence(w http.ResponseWriter, r *http.Request) {
 	candidateID, err := strconv.Atoi(mux.Vars(r)["id"])
 	if err != nil || candidateID <= 0 { respondWithError(w, http.StatusBadRequest, "Invalid candidate ID"); return }
 
+	var candidateExists bool
+	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM candidates WHERE id=$1 AND tenant_id=$2)", candidateID, tenantID).Scan(&candidateExists); err != nil { respondWithError(w,http.StatusInternalServerError,"Failed to verify candidate"); return }
+	if !candidateExists { respondWithError(w,http.StatusNotFound,"Candidate not found"); return }
+
 	var resumeID int
 	var fileName string
 	var parsedAt time.Time
