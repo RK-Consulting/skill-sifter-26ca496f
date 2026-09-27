@@ -2,7 +2,8 @@ package screening
 
 import (
 	"database/sql"
-	"errors"\n\t"time"
+	"errors"
+	"time"
 )
 
 var ErrNotFound = errors.New("recruitment screening not found")
@@ -13,7 +14,9 @@ type Repository interface {
 	ListByAssignment(tenantID string, assignmentID int) ([]*Screening, error)
 }
 
-type PostgresRepository struct { db *sql.DB }
+type PostgresRepository struct {
+	db *sql.DB
+}
 
 func NewPostgresRepository(dbConn *sql.DB) *PostgresRepository {
 	return &PostgresRepository{db: dbConn}
@@ -39,12 +42,23 @@ func scanScreening(row *sql.Row) (*Screening, error) {
 		&s.ScreenedAt, &s.CreatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) { return nil, ErrNotFound }
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrNotFound
+		}
 		return nil, err
 	}
-	if lastWorkingDay.Valid { t := lastWorkingDay.Time; s.LastWorkingDay = &t }
-	if willingToRelocate.Valid { v := willingToRelocate.Bool; s.WillingToRelocate = &v }
-	if availabilityDate.Valid { t := availabilityDate.Time; s.AvailabilityDate = &t }
+	if lastWorkingDay.Valid {
+		t := lastWorkingDay.Time
+		s.LastWorkingDay = &t
+	}
+	if willingToRelocate.Valid {
+		v := willingToRelocate.Bool
+		s.WillingToRelocate = &v
+	}
+	if availabilityDate.Valid {
+		t := availabilityDate.Time
+		s.AvailabilityDate = &t
+	}
 	return s, nil
 }
 
@@ -82,7 +96,9 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 		 WHERE tenant_id = $1 AND assignment_id = $2 ORDER BY screened_at DESC, id DESC`,
 		tenantID, assignmentID,
 	)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 	defer rows.Close()
 
 	var results []*Screening
@@ -90,6 +106,7 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 		s := &Screening{}
 		var lastWorkingDay, availabilityDate sql.NullTime
 		var willingToRelocate sql.NullBool
+
 		if err := rows.Scan(
 			&s.ID, &s.TenantID, &s.AssignmentID, &s.RecruiterUserID,
 			&s.CurrentCTC, &s.ExpectedCTC, &s.NoticePeriod, &lastWorkingDay,
@@ -97,27 +114,46 @@ func (r *PostgresRepository) ListByAssignment(tenantID string, assignmentID int)
 			&s.ReasonForChange, &s.OffersInHand, &s.CandidateInterest, &availabilityDate,
 			&s.RelevantExperience, &s.RecruiterAssessment, &s.Notes,
 			&s.ScreenedAt, &s.CreatedAt,
-		); err != nil { return nil, err }
-		if lastWorkingDay.Valid { t := lastWorkingDay.Time; s.LastWorkingDay = &t }
-		if willingToRelocate.Valid { v := willingToRelocate.Bool; s.WillingToRelocate = &v }
-		if availabilityDate.Valid { t := availabilityDate.Time; s.AvailabilityDate = &t }
+		); err != nil {
+			return nil, err
+		}
+		if lastWorkingDay.Valid {
+			t := lastWorkingDay.Time
+			s.LastWorkingDay = &t
+		}
+		if willingToRelocate.Valid {
+			v := willingToRelocate.Bool
+			s.WillingToRelocate = &v
+		}
+		if availabilityDate.Valid {
+			t := availabilityDate.Time
+			s.AvailabilityDate = &t
+		}
 		results = append(results, s)
 	}
-	if results == nil { results = []*Screening{} }
+	if results == nil {
+		results = []*Screening{}
+	}
 	return results, rows.Err()
 }
 
 func nullableString(v string) interface{} {
-	if v == "" { return nil }
+	if v == "" {
+		return nil
+	}
 	return v
 }
 
 func nullableTime(v *time.Time) interface{} {
-	if v == nil { return nil }
+	if v == nil {
+		return nil
+	}
 	return *v
 }
 
 func nullableBool(v *bool) interface{} {
-	if v == nil { return nil }
+	if v == nil {
+		return nil
+	}
 	return *v
 }
