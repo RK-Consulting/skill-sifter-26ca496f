@@ -24,7 +24,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.DB.Query(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, pipeline_stage, created_at, tenant_id, company_name
+		       status, pipeline_stage, screening_count, screening_limit, interview_locked, created_at, tenant_id, company_name
 		FROM candidates
 		WHERE tenant_id = $1
 		ORDER BY id`, tenantID)
@@ -53,6 +53,9 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 			&c.JobDescription,
 			&c.Status,
 			&c.PipelineStage,
+			&c.ScreeningCount,
+			&c.ScreeningLimit,
+			&c.InterviewLocked,
 			&c.CreatedAt,
 			&c.TenantID,
 			&c.CompanyName,
@@ -101,7 +104,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 	err = db.DB.QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, pipeline_stage, created_at, tenant_id, company_name
+		       status, pipeline_stage, screening_count, screening_limit, interview_locked, created_at, tenant_id, company_name
 		FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
 		id,
@@ -189,7 +192,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
 			$11, $12, $13
 		)
-		RETURNING id, created_at`,
+		RETURNING id, screening_count, screening_limit, interview_locked, created_at`,
 		c.Name,
 		c.Email,
 		c.Phone,
@@ -203,7 +206,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		c.Status,
 		c.TenantID,
 		c.CompanyName,
-	).Scan(&c.ID, &c.CreatedAt)
+	).Scan(&c.ID, &c.ScreeningCount, &c.ScreeningLimit, &c.InterviewLocked, &c.CreatedAt)
 
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating candidate")
