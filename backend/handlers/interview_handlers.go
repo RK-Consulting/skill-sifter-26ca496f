@@ -332,6 +332,22 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var existingCandidateID int
+	var existingRequirementID int
+	if err := db.DB.QueryRow(
+		`SELECT candidate_id, requirement_id
+		 FROM interviews
+		 WHERE id = $1 AND tenant_id = $2`,
+		id, tenantID,
+	).Scan(&existingCandidateID, &existingRequirementID); err != nil {
+		respondWithError(w, http.StatusNotFound, "Interview not found")
+		return
+	}
+	if interview.CandidateID != existingCandidateID || *interview.RequirementID != existingRequirementID {
+		respondWithError(w, http.StatusBadRequest, "Interview Candidate and Requirement cannot be changed")
+		return
+	}
+
 	candidateName, jobID, requirementTitle, err := validateInterviewReferences(
 		interview.CandidateID, *interview.RequirementID, tenantID,
 	)
