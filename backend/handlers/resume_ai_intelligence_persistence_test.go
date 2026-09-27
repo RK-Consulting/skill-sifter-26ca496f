@@ -285,3 +285,51 @@ func TestPersistResumeIntelligencePartialFailureRollsBack(t *testing.T) {
 		t.Fatalf("partial persistence remained after failure: profile=%d skills=%d employment=%d projects=%d", profileCount, skillCount, employmentCount, projectCount)
 	}
 }
+
+
+func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
+	fx := setupResumeAITestFixture(t)
+
+	first := resumeAIResult{
+		CurrentTitle:      "First Title",
+		Skills:            []string{"Go"},
+		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp", JobTitle: "Architect"}},
+		Projects:          []resumeProject{{ProjectName: "Project Atlas"}},
+	}
+	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, first); err != nil {
+		t.Fatalf("first persistence failed: %v", err)
+	}
+
+	second := resumeAIResult{
+		CurrentTitle:      "Updated Title",
+		Skills:            []string{"Go", "Postgres"},
+		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp", JobTitle: "Principal Architect"}},
+		Projects:          []resumeProject{{ProjectName: "Project Atlas v2"}},
+	}
+	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, second); err != nil {
+		t.Fatalf("second persistence failed: %v", err)
+	}
+
+	var employmentCount, projectCount, skillCount int
+	if err := fx.db.QueryRow("SELECT COUNT(*) FROM candidate_employment_history WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3", fx.tenantID, fx.candidateID, fx.resumeID).Scan(&employmentCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.db.QueryRow("SELECT COUNT(*) FROM candidate_projects WHERE tenant_id=$1 AND candidate_id=$2 AND source_resume_id=$3", fx.tenantID, fx.candidateID, fx.resumeID).Scan(&projectCount); err != nil {
+		t.Fatal(err)
+	}
+	if err := fx.db.QueryRow("SELECT COUNT(*) FROM candidate_expertise WHERE tenant_id=$1 AND candidate_id=$2 AND category='resume_import'", fx.tenantID, fx.candidateID).Scan(&skillCount); err != nil {
+		t.Fatal(err)
+	}
+
+	if employmentCount != 1 || projectCount != 1 || skillCount != 2 {
+		t.Fatalf("reprocessing counts = employment:%d projects:%d skills:%d, want 1,1,2", employmentCount, projectCount, skillCount)
+	}
+
+	var title string
+	if err := fx.db.QueryRow("SELECT current_title FROM candidate_professional_profiles WHERE tenant_id=$1 AND candidate_id=$2", fx.tenantID, fx.candidateID).Scan(&title); err != nil {
+		t.Fatal(err)
+	}
+	if title != "Updated Title" {
+		t.Fatalf("current title = %q, want Updated Title", title)
+	}
+}
