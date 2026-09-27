@@ -11,7 +11,7 @@ var (
 	ErrSubmissionNotFound = errors.New("recruitment submission not found")
 	ErrFeedbackActorNotFound = errors.New("feedback actor not found")
 	ErrInvalidOutcome = errors.New("invalid feedback outcome")
-	ErrInvalidReasonCode = errors.New("reason code is required for hold or reject feedback")
+	ErrInvalidReasonCode = errors.New("a valid reason code is required for hold or reject feedback")
 )
 
 type Service struct {
@@ -33,8 +33,11 @@ func (s *Service) CreateFeedback(tenantID string, input CreateInput) (*Feedback,
 	if !input.Outcome.Valid() {
 		return nil, ErrInvalidOutcome
 	}
+	if input.ReasonCode != "" && !ReasonCode(strings.TrimSpace(input.ReasonCode)).Valid() {
+		return nil, ErrInvalidReasonCode
+	}
 	if (input.Outcome == OutcomeHold || input.Outcome == OutcomeReject) &&
-		strings.TrimSpace(input.ReasonCode) == "" {
+		!ReasonCode(strings.TrimSpace(input.ReasonCode)).Valid() {
 		return nil, ErrInvalidReasonCode
 	}
 
