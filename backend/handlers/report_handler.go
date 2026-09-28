@@ -32,7 +32,7 @@ type ActivityLogRow struct {
 }
 
 func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
-	company := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 	period := r.URL.Query().Get("period")
 	if period == "" {
 		period = "monthly"
@@ -53,8 +53,8 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
 	}
-	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
-	rows, err := db.DB.Query(query, company)
+	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE tenant_id=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
+	rows, err := db.DB.Query(query, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Failed to build report")
 		return
@@ -87,8 +87,8 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	action := r.URL.Query().Get("action")
-	query := `SELECT id,action,entity_type,COALESCE(entity_id,''),COALESCE(description,''),actor_user_id,created_at FROM activity_logs WHERE company_name=$1`
-	args := []interface{}{company}
+	query := `SELECT id,action,entity_type,COALESCE(entity_id,''),COALESCE(description,''),actor_user_id,created_at FROM activity_logs WHERE tenant_id=$1`
+	args := []interface{}{tenantID}
 	if action != "" {
 		query += ` AND action=$2`
 		args = append(args, action)
@@ -114,7 +114,7 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 
 func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	company := r.Context().Value("companyName").(string)
-	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE company_name=$1 ORDER BY created_at DESC LIMIT 10`, company)
+	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 10`, company)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching recent activity")
 		return
@@ -135,7 +135,7 @@ func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 
 func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 	company := r.Context().Value("companyName").(string)
-	rows, err := db.DB.Query(`SELECT TO_CHAR(DATE_TRUNC('month',interview_date),'YYYY-MM'),COUNT(*) FROM interviews WHERE company_name=$1 GROUP BY 1 ORDER BY 1`, company)
+	rows, err := db.DB.Query(`SELECT TO_CHAR(DATE_TRUNC('month',interview_date),'YYYY-MM'),COUNT(*) FROM interviews WHERE tenant_id=$1 GROUP BY 1 ORDER BY 1`, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Failed to fetch hiring report")
 		return
