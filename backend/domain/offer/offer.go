@@ -9,7 +9,7 @@ StatusAccepted = "accepted"
 StatusDeclined = "declined"
 StatusExpired = "expired"
 StatusWithdrawn = "withdrawn"
- )
+)
 
 type Offer struct {
 ID int
