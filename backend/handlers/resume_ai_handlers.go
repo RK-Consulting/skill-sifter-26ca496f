@@ -353,7 +353,7 @@ func upsertResumeCandidate(
 		return nil, err
 	}
 
-	err = db.RequestDB(r).QueryRow(`
+	err = database.QueryRow(`
 		INSERT INTO candidates (
 			name,
 			email,
@@ -408,7 +408,7 @@ func saveCandidateTechnicalExpertise(
 			continue
 		}
 
-		_, err := db.RequestDB(r).Exec(`
+		_, err := database.Exec(`
 			INSERT INTO candidate_expertise (
 				tenant_id,
 				candidate_id,
