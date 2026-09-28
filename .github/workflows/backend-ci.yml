@@ -58,7 +58,7 @@ jobs:
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/handlers/phase9_auth_handlers.go
+          git add handlers/phase9_auth_handlers.go
           git commit -m "chore: gofmt phase9 auth handler"
           git push
 
