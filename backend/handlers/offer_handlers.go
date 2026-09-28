@@ -17,8 +17,8 @@ type offerUpdateRequest struct {
 	Accepted bool `json:"accepted"`
 }
 
-func offerService() *offer.Service {
-	return offer.NewService(offer.NewPostgresRepository(db.DB), db.DB)
+func offerService(r *http.Request) *offer.Service {
+	return offer.NewService(offer.NewPostgresRepository(db.RequestDB(r.Context())), db.RequestDB(r.Context()))
 }
 
 func parseOfferPair(r *http.Request) (int, int, error) {
@@ -40,7 +40,7 @@ func GetCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
-	o, err := offerService().Get(tenantID, candidateID, requirementID)
+	o, err := offerService(r).Get(tenantID, candidateID, requirementID)
 	if errors.Is(err, offer.ErrNotFound) {
 		respondWithError(w, http.StatusNotFound, "Offer not found")
 		return
@@ -63,7 +63,7 @@ func CreateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
-	o, err := offerService().Create(tenantID, offer.CreateInput{
+	o, err := offerService(r).Create(tenantID, offer.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
 	})
@@ -104,7 +104,7 @@ func UpdateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
-	o, err := offerService().Update(tenantID, candidateID, requirementID, offer.UpdateInput{
+	o, err := offerService(r).Update(tenantID, candidateID, requirementID, offer.UpdateInput{
 		Accepted: req.Accepted,
 	})
 	switch {
