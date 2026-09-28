@@ -1,0 +1,237 @@
+package handlers
+
+import (
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/RK-Consulting/skill-sifter/auth"
+	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/domain/platformaccess"
+	"github.com/RK-Consulting/skill-sifter/models"
+	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
+)
+
+func RegisterUser(w http.ResponseWriter, r *http.Request) {
+	var creds models.Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	if creds.Email == "" || creds.Password == "" || creds.Username == "" {
+		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
+		return
+	}
+	if creds.CompanyName == "" {
+		respondWithError(w, http.StatusBadRequest, "Company name is required")
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(creds.Password), bcrypt.DefaultCost)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not hash password")
+		return
+	}
+
+	tx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	var exists bool
+	if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	if exists {
+		respondWithError(w, http.StatusConflict, "Company already has a SkillSifter account; ask its administrator to create your user")
+		return
+	}
+
+	companyID := fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
+	if _, err = tx.Exec(
+		"INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+		companyID, creds.CompanyName, time.Now(),
+	); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create company")
+		return
+	}
+
+	role := "admin"
+	var userID int
+	if err = tx.QueryRow(\`
+		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
+		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
+	\`, creds.Username, creds.Email, hashedPassword, role, companyID, creds.CompanyName, time.Now()).Scan(&userID); err != nil {
+		if strings.Contains(err.Error(), "unique constraint") {
+			respondWithError(w, http.StatusConflict, "Email already exists")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not register user")
+		return
+	}
+
+	if _, err = tx.Exec(\`
+		INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
+		VALUES($1, $2, 'ACTIVE', 'READY')
+		ON CONFLICT (tenant_id) DO NOTHING
+	\`, companyID, creds.CompanyName); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
+		return
+	}
+
+	if _, err = tx.Exec(\`
+		INSERT INTO platform_subscriptions(tenant_id, plan_code, status, user_limit)
+		VALUES($1, 'legacy', 'ACTIVE', 1)
+		WHERE NOT EXISTS (
+			SELECT 1 FROM platform_subscriptions
+			WHERE tenant_id = $1 AND status IN ('TRIAL', 'ACTIVE')
+		)
+	\`, companyID); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform subscription")
+		return
+	}
+
+	if _, err = tx.Exec(\`
+		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
+		VALUES($1, $2, $3, $4)
+		ON CONFLICT (user_id) DO UPDATE
+		SET tenant_id = EXCLUDED.tenant_id,
+		    email = EXCLUDED.email,
+		    role = EXCLUDED.role,
+		    updated_at = NOW()
+	\`, userID, companyID, creds.Email, role); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
+		return
+	}
+
+	if err = tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
+		return
+	}
+
+	user := models.User{
+		ID:          userID,
+		Username:    creds.Username,
+		Email:       creds.Email,
+		Role:        role,
+		TenantID:    companyID,
+		CompanyName: creds.CompanyName,
+		CreatedAt:   time.Now(),
+	}
+	tokenString, err := auth.GenerateToken(user, role)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
+		Success: true,
+		Message: "User registered successfully",
+		Data: models.TokenResponse{
+			Token:  tokenString,
+			User:   user,
+		},
+	})
+}
+
+func LoginUser(w http.ResponseWriter, r *http.Request) {
+	var creds models.Credentials
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
+
+	var user models.User
+	var hashedPassword string
+	err := db.DB.QueryRow(\`
+		SELECT u.id, u.username, u.email, u.password, u.role, u.tenant_id, u.company_name, u.created_at
+		FROM users u
+		WHERE u.email = $1
+	\`, creds.Email).Scan(
+		&user.ID, &user.Username, &user.Email, &hashedPassword,
+		&user.Role, &user.TenantID, &user.CompanyName, &user.CreatedAt,
+	)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusUnauthorized, "Invalid credentials")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
+	if err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(creds.Password)); err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid credentials")
+		return
+	}
+
+	user.Password = ""
+	access, err := platformaccess.ResolveLoginAccess(db.DB, user.ID, user.TenantID)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+		return
+	}
+	user.Role = access.Role
+	user.TenantID = access.TenantID
+
+	tokenString, err := auth.GenerateToken(user, user.Role)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not generate token")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Login successful",
+		Data: models.TokenResponse{
+			Token:              tokenString,
+			User:               user,
+			SubscriptionStatus: access.SubscriptionStatus,
+			PlanCode:           access.PlanCode,
+		},
+	})
+}
+
+func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok || userID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication context missing")
+		return
+	}
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
+
+	access, err := platformaccess.ResolveLoginAccess(db.DB, userID, tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+		return
+	}
+
+	companyName, _ := r.Context().Value("companyName").(string)
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Account access retrieved successfully",
+		Data: map[string]interface{}{
+			"userId":             userID,
+			"tenantId":           access.TenantID,
+			"companyName":        companyName,
+			"role":               access.Role,
+			"accountStatus":      access.AccountStatus,
+			"subscriptionStatus": access.SubscriptionStatus,
+			"planCode":           access.PlanCode,
+		},
+	})
+}
