@@ -337,14 +337,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The tenant administrator is created by public registration. Additional
-	// tenant users are limited by the active subscription and may only use
-	// the operational V1 roles.
-	validRoles := map[string]bool{
-		"manager":     true,
-		"recruiter":   true,
-		"team_leader": true,
-	}
+	validRoles := map[string]bool{"manager": true, "recruiter": true, "team_leader": true}
 	if !validRoles[input.Role] {
 		respondWithError(w, http.StatusBadRequest, "Additional users must have role manager, recruiter, or team_leader")
 		return
@@ -390,8 +383,8 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	var userID int
 	err = tx.QueryRow(`
-        INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
-        VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
+		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
 		input.Username, input.Email, hashedPassword, input.Role, tenantID, companyName, time.Now()).Scan(&userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
@@ -403,10 +396,10 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = tx.Exec(`
-        INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
-        VALUES($1, $2, $3, $4)
-        ON CONFLICT (user_id) DO UPDATE
-        SET tenant_id = EXCLUDED.tenant_id, email = EXCLUDED.email, role = EXCLUDED.role, updated_at = NOW()`,
+		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
+		VALUES($1, $2, $3, $4)
+		ON CONFLICT (user_id) DO UPDATE
+		SET tenant_id = EXCLUDED.tenant_id, email = EXCLUDED.email, role = EXCLUDED.role, updated_at = NOW()`,
 		userID, tenantID, input.Email, input.Role)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
@@ -489,13 +482,12 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Keep the control-plane role/email mirror authoritative for login.
 	_, err = db.DB.Exec(
 		`UPDATE platform_user_accounts
-		 SET email = COALESCE(NULLIF($1, ''), email),
-		     role = COALESCE(NULLIF($2, ''), role),
-		     updated_at = NOW()
-		 WHERE user_id = $3 AND tenant_id = $4`,
+		SET email = COALESCE(NULLIF($1, ''), email),
+		    role = COALESCE(NULLIF($2, ''), role),
+		    updated_at = NOW()
+		WHERE user_id = $3 AND tenant_id = $4`,
 		update.Email, update.Role, targetID, tenantID,
 	)
 	if err != nil {
@@ -509,12 +501,6 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteUser deletes a user, enforcing the role hierarchy defined in
-// docs/architecture.md section 13.3:
-//   - Admin can never be deleted, by anyone, under any circumstance.
-//   - Manager can only be deleted by Admin.
-//   - Recruiter/Team Leader can be deleted by Admin or Manager.
-//
 // DeleteUser removes a non-admin tenant user.
 // Admin is the only role allowed to manage tenant users in V1.
 // The admin account itself can never be deleted through this endpoint.
