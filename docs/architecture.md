@@ -1,5 +1,7 @@
 # SkillSifter — Architecture Document
 
+> **Current-runtime note (2026-09-28):** This document contains historical architecture descriptions from the earlier shared-schema/company-name tenancy model. The current authoritative Phase 9 runtime contract is defined by ADR 0014, ADR 0015, `docs/phase-9-saas-subscription-bridge-tenancy.md`, and `docs/phase-9-implementation-status.md`. In particular, trusted `tenantID` and platform access context now supersede `companyName` as the authorization/isolation identity. Do not use the historical sections below as the current security contract.
+
 ## 1. Overview
 
 SkillSifter is a **multi-tenant Applicant Tracking System (ATS)** for recruitment/staffing firms. It is a classic three-tier web application:
