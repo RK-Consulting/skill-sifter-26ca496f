@@ -231,7 +231,7 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := upsertResumeCandidate("Fixture Company", fx.tenantID, resumeAIResult{
+	got, err := upsertResumeCandidate(db.DB, "Fixture Company", fx.tenantID, resumeAIResult{
 		Name:  "Tenant A Candidate",
 		Email: "shared@example.com",
 		Phone: "9222222222",
