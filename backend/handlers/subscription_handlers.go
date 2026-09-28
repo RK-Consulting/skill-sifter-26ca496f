@@ -225,7 +225,7 @@ func CancelSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, status, err := razorpayRequest(http.MethodPost, "/subscriptions/"+ref+"/cancel", []byte("{"cancel_at_cycle_end":1}"))
+	body, status, err := razorpayRequest(http.MethodPost, "/subscriptions/"+ref+"/cancel", []byte("{\"cancel_at_cycle_end\":1}"))
 	_ = body
 	if err != nil {
 		respondWithError(w, status, "Payment provider unavailable")
