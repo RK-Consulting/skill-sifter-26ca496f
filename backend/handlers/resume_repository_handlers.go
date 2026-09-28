@@ -36,7 +36,7 @@ func GetResumeDetail(w http.ResponseWriter, r *http.Request) {
 	var candidateID sql.NullInt64
 	var uploadedAt time.Time
 	var parsedAt sql.NullTime
-	err := db.DB.QueryRow("SELECT id,file_name,COALESCE(mime_type,''),parsing_status,COALESCE(parse_error,''),COALESCE(parser_model,''),candidate_id,uploaded_at,parsed_at,file_path FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).
+	err := db.RequestDB(r).QueryRow("SELECT id,file_name,COALESCE(mime_type,''),parsing_status,COALESCE(parse_error,''),COALESCE(parser_model,''),candidate_id,uploaded_at,parsed_at,file_path FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).
 		Scan(&idv, &name, &mime, &status, &parseError, &parserModel, &candidateID, &uploadedAt, &parsedAt, &filePath)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "Resume not found")
@@ -84,7 +84,7 @@ func DownloadResume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var path, name, mime string
-	err := db.DB.QueryRow("SELECT file_path,file_name,COALESCE(mime_type,'') FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).Scan(&path, &name, &mime)
+	err := db.RequestDB(r).QueryRow("SELECT file_path,file_name,COALESCE(mime_type,'') FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).Scan(&path, &name, &mime)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "Resume not found")
 		return
@@ -119,7 +119,7 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 
 	var path, name, text string
 	var candidateID sql.NullInt64
-	err := db.DB.QueryRow("SELECT file_path,file_name,COALESCE(extracted_text,''),candidate_id FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).Scan(&path, &name, &text, &candidateID)
+	err := db.RequestDB(r).QueryRow("SELECT file_path,file_name,COALESCE(extracted_text,''),candidate_id FROM resumes WHERE id=$1 AND tenant_id=$2", id, tenantID).Scan(&path, &name, &text, &candidateID)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "Resume not found")
 		return
@@ -146,42 +146,42 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, _ = db.DB.Exec("UPDATE resumes SET parsing_status='processing',parse_error=NULL,parser_model=$1 WHERE id=$2 AND tenant_id=$3", ollamaModel(), id, tenantID)
+	_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='processing',parse_error=NULL,parser_model=$1 WHERE id=$2 AND tenant_id=$3", ollamaModel(), id, tenantID)
 	ai, parseErr := callOllama(text)
 	if parseErr != "" {
-		_, _ = db.DB.Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", parseErr, id, tenantID)
+		_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", parseErr, id, tenantID)
 		respondWithError(w, http.StatusUnprocessableEntity, parseErr)
 		return
 	}
 
 	var candidate *models.Candidate
 	if candidateID.Valid {
-		candidate, err = resumeExistingCandidate(int(candidateID.Int64), tenantID, ai)
+		candidate, err = resumeExistingCandidate(r, int(candidateID.Int64), tenantID, ai)
 	} else {
 		company, _ := r.Context().Value("companyName").(string)
 		candidate, err = upsertResumeCandidate(company, tenantID, ai)
 	}
 	if err != nil {
-		_, _ = db.DB.Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
+		_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
 		respondWithError(w, http.StatusInternalServerError, "Failed to persist extracted candidate intelligence")
 		return
 	}
 	if candidate != nil {
 		if err = persistResumeIntelligence(id, candidate.ID, tenantID, ai); err != nil {
-			_, _ = db.DB.Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
+			_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
 			respondWithError(w, http.StatusInternalServerError, "Failed to persist extracted candidate intelligence")
 			return
 		}
-		_, _ = db.DB.Exec("UPDATE resumes SET candidate_id=$1,parsing_status='completed',parsed_at=NOW(),parse_error=NULL WHERE id=$2 AND tenant_id=$3", candidate.ID, id, tenantID)
+		_, _ = db.RequestDB(r).Exec("UPDATE resumes SET candidate_id=$1,parsing_status='completed',parsed_at=NOW(),parse_error=NULL WHERE id=$2 AND tenant_id=$3", candidate.ID, id, tenantID)
 	} else {
-		_, _ = db.DB.Exec("UPDATE resumes SET parsing_status='completed',parsed_at=NOW(),parse_error=NULL WHERE id=$1 AND tenant_id=$2", id, tenantID)
+		_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='completed',parsed_at=NOW(),parse_error=NULL WHERE id=$1 AND tenant_id=$2", id, tenantID)
 	}
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Resume reprocessed successfully", Data: map[string]interface{}{"resumeId": id, "status": "completed"}})
 }
 
-func resumeExistingCandidate(candidateID int, tenantID string, ai resumeAIResult) (*models.Candidate, error) {
+func resumeExistingCandidate(r *http.Request, candidateID int, tenantID string, ai resumeAIResult) (*models.Candidate, error) {
 	var c models.Candidate
-	err := db.DB.QueryRow("SELECT id,name,email,phone,position,location,experience,currentctc,expectedctc,noticeperiod,jobdescription,status,created_at,tenant_id,company_name FROM candidates WHERE id=$1 AND tenant_id=$2", candidateID, tenantID).
+	err := db.RequestDB(r).QueryRow("SELECT id,name,email,phone,position,location,experience,currentctc,expectedctc,noticeperiod,jobdescription,status,created_at,tenant_id,company_name FROM candidates WHERE id=$1 AND tenant_id=$2", candidateID, tenantID).
 		Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location, &c.Experience, &c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JobDescription, &c.Status, &c.CreatedAt, &c.TenantID, &c.CompanyName)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("candidate not found")
@@ -189,7 +189,7 @@ func resumeExistingCandidate(candidateID int, tenantID string, ai resumeAIResult
 	if err != nil {
 		return nil, err
 	}
-	_, err = db.DB.Exec("UPDATE candidates SET name=COALESCE(NULLIF($1,''),name),email=COALESCE(NULLIF($2,''),email),phone=COALESCE(NULLIF($3,''),phone) WHERE id=$4 AND tenant_id=$5", ai.Name, ai.Email, ai.Phone, candidateID, tenantID)
+	_, err = db.RequestDB(r).Exec("UPDATE candidates SET name=COALESCE(NULLIF($1,''),name),email=COALESCE(NULLIF($2,''),email),phone=COALESCE(NULLIF($3,''),phone) WHERE id=$4 AND tenant_id=$5", ai.Name, ai.Email, ai.Phone, candidateID, tenantID)
 	if err != nil {
 		return nil, err
 	}
