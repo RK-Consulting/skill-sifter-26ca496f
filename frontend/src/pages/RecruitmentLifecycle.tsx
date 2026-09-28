@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -62,6 +63,7 @@ const RecruitmentLifecycle = () => {
   const [assessment, setAssessment] = useState('');
   const [feedbackOutcome, setFeedbackOutcome] = useState('shortlist');
   const [feedbackComments, setFeedbackComments] = useState('');
+  const [feedbackReason, setFeedbackReason] = useState('other');
   const [interviewDate, setInterviewDate] = useState('');
   const [interviewOutcome, setInterviewOutcome] = useState('');
   const [joiningDate, setJoiningDate] = useState('');
@@ -190,6 +192,7 @@ const RecruitmentLifecycle = () => {
       await candidateRecruitmentService.createSubmissionFeedback(submission.id, {
         outcome: feedbackOutcome,
         comments: feedbackComments,
+        ...(feedbackOutcome !== 'shortlist' ? { reasonCode: feedbackReason } : {}),
       });
       await refresh();
       toast.success('Client feedback recorded');
@@ -294,7 +297,7 @@ const RecruitmentLifecycle = () => {
     }
   };
 
-  const stage = (number: number, title: string, content: React.ReactNode) => (
+  const stage = (number: number, title: string, content: ReactNode) => (
     <Card>
       <CardHeader><CardTitle>{number}. {title}</CardTitle></CardHeader>
       <CardContent>{content}</CardContent>
@@ -381,6 +384,22 @@ const RecruitmentLifecycle = () => {
                       <SelectItem value="reject">Reject</SelectItem>
                     </SelectContent>
                   </Select>
+                  {feedbackOutcome !== 'shortlist' && (
+                    <Select value={feedbackReason} onValueChange={setFeedbackReason}>
+                      <SelectTrigger><SelectValue placeholder="Reason" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="skills_gap">Skills gap</SelectItem>
+                        <SelectItem value="experience_gap">Experience gap</SelectItem>
+                        <SelectItem value="compensation_mismatch">Compensation mismatch</SelectItem>
+                        <SelectItem value="location_mismatch">Location mismatch</SelectItem>
+                        <SelectItem value="notice_period">Notice period</SelectItem>
+                        <SelectItem value="candidate_not_interested">Candidate not interested</SelectItem>
+                        <SelectItem value="availability">Availability</SelectItem>
+                        <SelectItem value="profile_mismatch">Profile mismatch</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                   <Input value={feedbackComments} onChange={(e) => setFeedbackComments(e.target.value)} placeholder="Client feedback (optional)" />
                   <Button onClick={createFeedback}>Record Feedback</Button>
                 </div>
