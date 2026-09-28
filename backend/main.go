@@ -109,6 +109,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/joining", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.CreateCandidateRequirementJoining)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/joining", handlers.GetCandidateRequirementJoining).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/joining", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidateRequirementJoining)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/billing", handlers.GetBillingWorklist).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/billing", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.CreateCandidateRequirementBilling)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/billing", handlers.GetCandidateRequirementBilling).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidateRequirementSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
