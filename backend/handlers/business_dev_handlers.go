@@ -25,7 +25,7 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 	query := "SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE tenant_id = $1 ORDER BY created_at DESC"
 
 	var tableExists bool
-	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	tableCheckErr := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
 	if tableCheckErr != nil {
 		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
 		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
@@ -42,7 +42,7 @@ func GetBusinessDevs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.Query(query, tenantID)
+	rows, err := db.RequestDB(r.Context()).Query(query, tenantID)
 	if err != nil {
 		fmt.Printf("Database error in GetBusinessDevs: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error querying business development records")
@@ -99,7 +99,7 @@ func GetBusinessDevByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tableExists bool
-	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	tableCheckErr := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
 	if tableCheckErr != nil {
 		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
 		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
@@ -112,7 +112,7 @@ func GetBusinessDevByID(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var b models.BusinessDev
-	err = db.DB.QueryRow("SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE id = $1 AND tenant_id = $2", id, tenantID).
+	err = db.RequestDB(r.Context()).QueryRow("SELECT id, client_name, partner_name, contact_person, contact_number, contact_email, created_at, last_modified FROM business_dev WHERE id = $1 AND tenant_id = $2", id, tenantID).
 		Scan(&b.ID, &b.ClientName, &b.PartnerName, &b.ContactPerson, &b.ContactNumber, &b.ContactEmail, &b.CreatedAt, &b.LastModified)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Business dev record not found")
@@ -149,7 +149,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	var tableExists bool
-	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	tableCheckErr := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
 	if tableCheckErr != nil {
 		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
 		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
@@ -163,7 +163,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 		// isolation column added by migration 006. In practice this table
 		// already exists via migrations/001_baseline.sql, so this branch
 		// should not run in a correctly migrated environment.
-		_, err := db.DB.Exec(`
+		_, err := db.RequestDB(r.Context()).Exec(`
 			CREATE TABLE IF NOT EXISTS business_dev (
 				id SERIAL PRIMARY KEY,
 				client_name VARCHAR(255) NOT NULL,
@@ -183,7 +183,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = db.DB.Exec("CREATE INDEX IF NOT EXISTS idx_business_dev_tenant ON business_dev(tenant_id)")
+		_, err = db.RequestDB(r.Context()).Exec("CREATE INDEX IF NOT EXISTS idx_business_dev_tenant ON business_dev(tenant_id)")
 		if err != nil {
 			fmt.Printf("Error creating business_dev index: %v\n", err)
 		}
@@ -195,7 +195,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 	b.LastModified = time.Now()
 
 	var id int
-	err := db.DB.QueryRow(
+	err := db.RequestDB(r.Context()).QueryRow(
 		"INSERT INTO business_dev (client_name, partner_name, contact_person, contact_number, contact_email, tenant_id, company_name, created_at, last_modified) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
 		b.ClientName, b.PartnerName, b.ContactPerson, b.ContactNumber, b.ContactEmail, b.TenantID, b.CompanyName, b.CreatedAt, b.LastModified,
 	).Scan(&id)
@@ -233,7 +233,7 @@ func UpdateBusinessDev(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tableExists bool
-	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	tableCheckErr := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
 	if tableCheckErr != nil {
 		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
 		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
@@ -258,7 +258,7 @@ func UpdateBusinessDev(w http.ResponseWriter, r *http.Request) {
 	b.ID = id
 	b.LastModified = time.Now()
 
-	result, err := db.DB.Exec(
+	result, err := db.RequestDB(r.Context()).Exec(
 		"UPDATE business_dev SET client_name = $1, partner_name = $2, contact_person = $3, contact_number = $4, contact_email = $5, last_modified = $6 WHERE id = $7 AND tenant_id = $8",
 		b.ClientName, b.PartnerName, b.ContactPerson, b.ContactNumber, b.ContactEmail, b.LastModified, b.ID, tenantID,
 	)
@@ -302,7 +302,7 @@ func DeleteBusinessDev(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var tableExists bool
-	tableCheckErr := db.DB.QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
+	tableCheckErr := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'business_dev')").Scan(&tableExists)
 	if tableCheckErr != nil {
 		fmt.Printf("Error checking if business_dev table exists: %v\n", tableCheckErr)
 		respondWithError(w, http.StatusInternalServerError, "Error checking database schema")
@@ -314,7 +314,7 @@ func DeleteBusinessDev(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.DB.Exec("DELETE FROM business_dev WHERE id = $1 AND tenant_id = $2", id, tenantID)
+	result, err := db.RequestDB(r.Context()).Exec("DELETE FROM business_dev WHERE id = $1 AND tenant_id = $2", id, tenantID)
 	if err != nil {
 		fmt.Printf("Error deleting business dev record: %v\n", err)
 		respondWithError(w, http.StatusInternalServerError, "Error deleting business dev record")
