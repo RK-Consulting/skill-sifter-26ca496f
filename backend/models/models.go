@@ -195,6 +195,23 @@ type Joining struct {
 	LastModified  time.Time  `json:"lastModified" db:"last_modified"`
 }
 
+// Billing records a recruitment-firm billing event for a joined Candidate × Requirement.
+// It is not an accounting, payment, tax, or employee record.
+type Billing struct {
+	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID         string    `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID      int       `json:"candidateId" db:"candidate_id,notnull"`
+	RequirementID    int       `json:"requirementId" db:"requirement_id,notnull"`
+	ClientID         int       `json:"clientId" db:"client_id,notnull"`
+	JoiningID        int       `json:"joiningId" db:"joining_id,notnull"`
+	BillingDate      time.Time `json:"billingDate" db:"billing_date,notnull"`
+	Amount           string    `json:"amount" db:"amount,notnull"`
+	Currency         string    `json:"currency" db:"currency,notnull"`
+	InvoiceReference string    `json:"invoiceReference,omitempty" db:"invoice_reference"`
+	CreatedAt        time.Time `json:"createdAt" db:"created_at"`
+	LastModified     time.Time `json:"lastModified" db:"last_modified"`
+}
+
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
