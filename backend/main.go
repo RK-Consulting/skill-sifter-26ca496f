@@ -117,7 +117,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/billing", handlers.GetCandidateRequirementBilling).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidateRequirementSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", handlers.GetCandidateRequirementSubmissions).Methods("GET", "OPTIONS")
-	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, handlers.AddBusinessDev, handlers.GetBusinessDevByID, handlers.UpdateBusinessDev, handlers.DeleteBusinessDev)
+	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, managerOnly(handlers.AddBusinessDev), handlers.GetBusinessDevByID, managerOnly(handlers.UpdateBusinessDev), managerOnly(handlers.DeleteBusinessDev))
 	api.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/activity", handlers.GetRecentActivity).Methods("GET", "OPTIONS")
