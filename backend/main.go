@@ -74,6 +74,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
+	api.HandleFunc("/admin/tenant/provision", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.ProvisionCurrentTenant)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates", handlers.GetCandidates).Methods("GET", "OPTIONS")
 	api.HandleFunc("/candidates", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidate)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}", handlers.GetCandidateByID).Methods("GET", "OPTIONS")

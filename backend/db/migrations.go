@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -258,5 +259,82 @@ func applySchemaDefinition(f schemaDefinition) error {
 		return fmt.Errorf("schema definition %d (%s): could not commit: %w", f.version, f.name, err)
 	}
 
+	return nil
+}
+
+// InitializeTenantSchema applies only tenant-owned schema definitions.
+// Control-plane definitions (035+) intentionally remain in the control-plane database.
+func InitializeTenantSchema(tenantDB *sql.DB) error {
+	dir, err := schemaDefinitionsDir()
+	if err != nil {
+		return err
+	}
+	files, err := discoverSchemaDefinitions(dir)
+	if err != nil {
+		return err
+	}
+
+	_, err = tenantDB.Exec(`
+		CREATE TABLE IF NOT EXISTS schema_versions (
+			version INTEGER PRIMARY KEY,
+			name VARCHAR(255) NOT NULL,
+			checksum VARCHAR(64) NOT NULL,
+			applied_at TIMESTAMP NOT NULL DEFAULT NOW()
+		)`)
+	if err != nil {
+		return fmt.Errorf("could not create tenant schema_versions: %w", err)
+	}
+
+	for _, f := range files {
+		if f.version > 34 {
+			continue
+		}
+
+		var recorded string
+		err := tenantDB.QueryRow(
+			`SELECT checksum FROM schema_versions WHERE version=$1`,
+			f.version,
+		).Scan(&recorded)
+
+		if err == nil {
+			checksum, checksumErr := schemaDefinitionChecksum(f.path)
+			if checksumErr != nil {
+				return checksumErr
+			}
+			if checksum != recorded {
+				return fmt.Errorf("tenant schema definition %d checksum mismatch", f.version)
+			}
+			continue
+		}
+		if err != sql.ErrNoRows {
+			return err
+		}
+
+		data, err := os.ReadFile(f.path)
+		if err != nil {
+			return fmt.Errorf("could not read tenant schema definition %d: %w", f.version, err)
+		}
+		sum := sha256.Sum256(data)
+		checksum := hex.EncodeToString(sum[:])
+
+		tx, err := tenantDB.Begin()
+		if err != nil {
+			return fmt.Errorf("could not start tenant schema transaction: %w", err)
+		}
+		if _, err := tx.Exec(string(data)); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("tenant schema definition %d failed: %w", f.version, err)
+		}
+		if _, err := tx.Exec(
+			`INSERT INTO schema_versions(version,name,checksum) VALUES($1,$2,$3)`,
+			f.version, f.name, checksum,
+		); err != nil {
+			_ = tx.Rollback()
+			return fmt.Errorf("could not record tenant schema definition %d: %w", f.version, err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("could not commit tenant schema definition %d: %w", f.version, err)
+		}
+	}
 	return nil
 }

@@ -1,9 +1,13 @@
 package db
 
 import (
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -11,30 +15,153 @@ import (
 // Database connection
 var DB *sql.DB
 
-// Initialize the database connection
-func InitDB() {
-	// Load .env file if exists
-	godotenv.Load()
-
+// OpenDatabase opens a PostgreSQL connection using the application's database credentials.
+func OpenDatabase(dbname string) (*sql.DB, error) {
 	host := GetEnv("DB_HOST", "localhost")
 	port := GetEnv("DB_PORT", "5432")
 	user := GetEnv("DB_USER", "skillsifter")
 	password := GetEnv("DB_PASSWORD", "ROOT")
-	dbname := GetEnv("DB_NAME", "postgres")
 
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s search_path=public sslmode=disable",
 		host, port, user, password, dbname)
 
+	conn, err := sql.Open("postgres", psqlInfo)
+	if err != nil {
+		return nil, err
+	}
+	if err := conn.Ping(); err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
+// TenantDatabaseName returns a deterministic, safe PostgreSQL database name.
+func TenantDatabaseName(tenantID string) string {
+	sum := sha256.Sum256([]byte(tenantID))
+	return "skillsifter_t_" + hex.EncodeToString(sum[:])[:20]
+}
+
+// InitDB initializes the application's control-plane database connection.
+func InitDB() {
+	godotenv.Load()
+
 	var err error
-	DB, err = sql.Open("postgres", psqlInfo)
+	DB, err = OpenDatabase(GetEnv("DB_NAME", "postgres"))
 	if err != nil {
 		log.Fatalf("Could not connect to database: %v", err)
 	}
 
-	err = DB.Ping()
-	if err != nil {
-		log.Fatalf("Could not ping database: %v", err)
+	fmt.Println("Successfully connected to database")
+}
+
+func setTenantProvisioningStatus(controlDB *sql.DB, tenantID, status, databaseName string) {
+	_, _ = controlDB.Exec(
+		`UPDATE platform_tenants
+		 SET provisioning_status=$1, tenant_database=NULLIF($2,''), updated_at=NOW()
+		 WHERE tenant_id=$3`,
+		status, databaseName, tenantID,
+	)
+}
+
+// ProvisionTenantDatabase creates or resumes a deterministic tenant database,
+// initializes tenant-owned schema definitions, and mirrors the tenant's users.
+// It is safe to call repeatedly.
+func ProvisionTenantDatabase(controlDB *sql.DB, tenantID, companyName string) (databaseName string, err error) {
+	if tenantID == "" || companyName == "" {
+		return "", fmt.Errorf("tenant id and company name are required")
 	}
 
-	fmt.Println("Successfully connected to database")
+	databaseName = TenantDatabaseName(tenantID)
+	setTenantProvisioningStatus(controlDB, tenantID, "PROVISIONING", databaseName)
+
+	defer func() {
+		if err != nil {
+			setTenantProvisioningStatus(controlDB, tenantID, "FAILED", databaseName)
+		}
+	}()
+
+	adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
+	if err != nil {
+		return "", fmt.Errorf("open control database for provisioning: %w", err)
+	}
+	defer adminDB.Close()
+
+	var exists bool
+	if err = adminDB.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)`,
+		databaseName,
+	).Scan(&exists); err != nil {
+		return "", fmt.Errorf("check tenant database: %w", err)
+	}
+
+	if !exists {
+		if _, err = adminDB.Exec(`CREATE DATABASE ` + databaseName); err != nil && !strings.Contains(err.Error(), "already exists") {
+			return "", fmt.Errorf("create tenant database: %w", err)
+		}
+	}
+
+	tenantDB, err := OpenDatabase(databaseName)
+	if err != nil {
+		return "", fmt.Errorf("open tenant database: %w", err)
+	}
+	defer tenantDB.Close()
+
+	if err = InitializeTenantSchema(tenantDB); err != nil {
+		return "", err
+	}
+
+	if _, err = tenantDB.Exec(
+		`INSERT INTO companies(id,name)
+		 VALUES($1,$2)
+		 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name`,
+		tenantID, companyName,
+	); err != nil {
+		return "", fmt.Errorf("seed tenant company: %w", err)
+	}
+
+	rows, err := controlDB.Query(
+		`SELECT id, username, email, password, role, tenant_id, company_name, created_at
+		 FROM users WHERE tenant_id=$1 ORDER BY id`,
+		tenantID,
+	)
+	if err != nil {
+		return "", fmt.Errorf("read tenant users: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id int
+		var username, email, password, role, userTenantID, userCompany string
+		var createdAt time.Time
+		if err := rows.Scan(&id, &username, &email, &password, &role, &userTenantID, &userCompany, &createdAt); err != nil {
+			return "", fmt.Errorf("read tenant user: %w", err)
+		}
+		if _, err := tenantDB.Exec(
+			`INSERT INTO users(id,username,email,password,role,tenant_id,company_name,created_at)
+			 VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+			 ON CONFLICT(id) DO UPDATE
+			 SET username=EXCLUDED.username,
+			     email=EXCLUDED.email,
+			     password=EXCLUDED.password,
+			     role=EXCLUDED.role,
+			     tenant_id=EXCLUDED.tenant_id,
+			     company_name=EXCLUDED.company_name`,
+			id, username, email, password, role, userTenantID, userCompany, createdAt,
+		); err != nil {
+			return "", fmt.Errorf("seed tenant user %d: %w", id, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("read tenant users: %w", err)
+	}
+
+	if _, err = tenantDB.Exec(
+		`SELECT setval(pg_get_serial_sequence('users','id'), COALESCE(MAX(id),1), true) FROM users`,
+	); err != nil {
+		return "", fmt.Errorf("sync tenant user sequence: %w", err)
+	}
+
+	setTenantProvisioningStatus(controlDB, tenantID, "READY", databaseName)
+	return databaseName, nil
 }

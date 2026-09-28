@@ -7,6 +7,7 @@ import (
 
 type LoginAccess struct {
 	TenantID           string
+	ProvisioningStatus string
 	AccountStatus      string
 	SubscriptionStatus string
 	PlanCode           string
@@ -18,6 +19,7 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 	err := dbConn.QueryRow(`
 		SELECT
 			pua.tenant_id,
+			pt.provisioning_status,
 			pt.account_status,
 			COALESCE(active_sub.status, ''),
 			COALESCE(active_sub.plan_code, ''),
@@ -37,6 +39,7 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 		  AND pua.tenant_id = $2
 	`, userID, tenantID).Scan(
 		&access.TenantID,
+		&access.ProvisioningStatus,
 		&access.AccountStatus,
 		&access.SubscriptionStatus,
 		&access.PlanCode,
@@ -49,6 +52,9 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 		return LoginAccess{}, fmt.Errorf("resolve tenant access: %w", err)
 	}
 
+	if access.ProvisioningStatus != "READY" {
+		return LoginAccess{}, fmt.Errorf("tenant database is not ready")
+	}
 	if access.AccountStatus != "ACTIVE" {
 		return LoginAccess{}, fmt.Errorf("tenant account is %s", access.AccountStatus)
 	}
