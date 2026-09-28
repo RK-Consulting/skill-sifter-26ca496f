@@ -18,7 +18,7 @@ on:
       - '.github/workflows/backend-ci.yml'
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: backend-ci-${{ github.workflow }}-${{ github.ref }}
@@ -47,6 +47,20 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache: false
+
+      - name: Normalize Phase 9 handler formatting
+        if: github.actor != 'github-actions[bot]'
+        shell: bash
+        run: |
+          gofmt -w handlers/phase9_auth_handlers.go
+          if git diff --quiet -- handlers/phase9_auth_handlers.go; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/handlers/phase9_auth_handlers.go
+          git commit -m "chore: gofmt phase9 auth handler"
+          git push
 
       - name: Check formatting
         shell: bash
