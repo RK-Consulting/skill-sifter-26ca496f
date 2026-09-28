@@ -170,6 +170,25 @@ type Requirement struct {
 	TenantID               string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 
+// Offer represents an offer made for a selected Candidate × Requirement.
+// It is a recruitment transaction record, not an employee/HRMS contract.
+type Offer struct {
+	ID int `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID string `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID int `json:"candidateId" db:"candidate_id,notnull"`
+	RequirementID int `json:"requirementId" db:"requirement_id,notnull"`
+	SelectionID int `json:"selectionId" db:"selection_id,notnull"`
+	OfferReference string `json:"offerReference,omitempty" db:"offer_reference"`
+	Status string `json:"status" db:"status,notnull"`
+	OfferedDate time.Time `json:"offeredDate" db:"offered_date,notnull"`
+	ExpectedJoiningDate *time.Time `json:"expectedJoiningDate,omitempty" db:"expected_joining_date"`
+	Compensation string `json:"compensation,omitempty" db:"compensation"`
+	Terms string `json:"terms,omitempty" db:"terms"`
+	Notes string `json:"notes,omitempty" db:"notes"`
+	DecisionAt *time.Time `json:"decisionAt,omitempty" db:"decision_at"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	LastModified time.Time `json:"lastModified" db:"last_modified"`
+}
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
