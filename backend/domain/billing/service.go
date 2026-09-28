@@ -117,3 +117,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 func (s *Service) Get(tenantID string, candidateID, requirementID int) (*Billing, error) {
 	return s.repo.GetByPair(tenantID, candidateID, requirementID)
 }
+
+func (s *Service) ListWorklist(tenantID string) ([]WorklistItem, error) {
+	return s.repo.ListWorklist(tenantID)
+}

@@ -210,6 +210,9 @@ export const candidateRecruitmentService = {
   updateJoining: async (candidateId: number, requirementId: number, joining: { joiningDate?: string; joined: boolean }) => {
     return api.put(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`, joining);
   },
+  getBillingWorklist: async () => {
+    return api.get('/api/v1/billing');
+  },
   getBilling: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`);
   },

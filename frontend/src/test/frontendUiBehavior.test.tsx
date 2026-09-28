@@ -261,60 +261,55 @@ describe('recruitment lifecycle UI behavior', () => {
     renderPage(<RecruitmentLifecycle />);
 
     expect(await screen.findByText('Recruitment Lifecycle')).toBeInTheDocument();
-    expect(screen.getByText(/Candidate × Requirement context/i)).toBeInTheDocument();
+    expect(screen.getByText('Select candidate')).toBeInTheDocument();
     expect(screen.getByText('Select candidate')).toBeInTheDocument();
     expect(screen.getByText('Select requirement')).toBeInTheDocument();
   });
 });
 
 describe('Billing UI behavior', () => {
-  const prepareBillingContext = async (joined: boolean, billing: unknown = null) => {
-    mocks.candidateService.getAllCandidates.mockResolvedValueOnce({
-      data: { data: [{ id: 12, name: 'Alice Candidate' }] },
-    });
-    mocks.requirementService.getAllRequirements.mockResolvedValueOnce({
-      data: { data: [{ id: 34, title: 'Senior Go Developer', status: 'Open' }] },
-    });
-    mocks.candidateRecruitmentService.getJoining.mockResolvedValue({
-      data: { data: joined ? { joined: true, joiningDate: '2026-10-01' } : null },
-    });
-    mocks.candidateRecruitmentService.getBilling.mockResolvedValue({
-      data: { data: billing },
+  const prepareBillingWorklist = async (billing: unknown = null) => {
+    mocks.candidateRecruitmentService.getBillingWorklist.mockResolvedValueOnce({
+      data: {
+        data: [{
+          candidateId: 12,
+          candidateName: 'Alice Candidate',
+          requirementId: 34,
+          requirementJobId: 'REQ-34',
+          requirementTitle: 'Senior Go Developer',
+          clientId: 56,
+          clientName: 'Acme Client',
+          joiningId: 78,
+          joiningDate: '2026-10-01',
+          billingId: billing ? 77 : undefined,
+          billingDate: billing ? '2026-09-28T00:00:00.000Z' : undefined,
+          amount: billing ? '50000.00' : undefined,
+          currency: billing ? 'INR' : undefined,
+          invoiceReference: billing ? 'INV-001' : undefined,
+          billed: !!billing,
+        }],
+      },
     });
 
     renderPage(<Billing />);
 
-    expect(await screen.findByText('Billing')).toBeInTheDocument();
-
-    const [candidateTrigger, requirementTrigger] = screen.getAllByRole('combobox');
-    fireEvent.click(candidateTrigger);
-    fireEvent.click(await screen.findByRole('option', { name: 'Alice Candidate' }));
-
-    fireEvent.click(requirementTrigger);
-    fireEvent.click(await screen.findByRole('option', { name: /Senior Go Developer/ }));
-
-    await waitFor(() => expect(mocks.candidateRecruitmentService.getJoining).toHaveBeenCalledWith(12, 34));
+    expect(await screen.findByText('Candidate Billing Worklist')).toBeInTheDocument();
+    expect(screen.getByText('Alice Candidate')).toBeInTheDocument();
   };
 
-  it('does not allow billing before the candidate is joined', async () => {
-    await prepareBillingContext(false);
-
-    expect(
-      await screen.findByText(/Billing can be recorded only after/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Create Billing' })).not.toBeInTheDocument();
+  it('shows joined candidates as billing worklist entries', async () => {
+    await prepareBillingWorklist();
+    expect(screen.getByText('Pending')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Create Billing' })).toBeInTheDocument();
   });
 
-  it('allows billing after joining and submits the commercial fields', async () => {
-    await prepareBillingContext(true);
+  it('allows billing creation from a pending worklist entry', async () => {
+    await prepareBillingWorklist();
 
-    fireEvent.change(await screen.findByLabelText('Amount'), {
+    fireEvent.change(screen.getByLabelText('Amount'), {
       target: { value: '50000' },
     });
-    fireEvent.change(screen.getByLabelText('Currency'), {
-      target: { value: 'inr' },
-    });
-    fireEvent.change(screen.getByLabelText('Invoice reference'), {
+    fireEvent.change(screen.getByPlaceholderText('Optional'), {
       target: { value: 'INV-001' },
     });
 
@@ -329,16 +324,15 @@ describe('Billing UI behavior', () => {
     );
   });
 
-  it('displays an existing billing record instead of the creation form', async () => {
-    await prepareBillingContext(true, {
+  it('displays an existing billing record as billed', async () => {
+    await prepareBillingWorklist({
       id: 77,
       amount: '50000',
       currency: 'INR',
       invoiceReference: 'INV-001',
-      billingDate: '2026-09-28T00:00:00.000Z',
     });
 
-    expect(await screen.findByText('INR 50000')).toBeInTheDocument();
+    expect(await screen.findByText('INR 50000.00')).toBeInTheDocument();
     expect(screen.getByText('INV-001')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Create Billing' })).not.toBeInTheDocument();
   });
