@@ -23,6 +23,26 @@ func billingService() *billing.Service {
 	return billing.NewService(billing.NewPostgresRepository(db.DB), db.DB)
 }
 
+func GetBillingWorklist(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
+
+	items, err := billingService().ListWorklist(tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching billing worklist")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Billing worklist retrieved successfully",
+		Data:    items,
+	})
+}
+
 func parseBillingPair(r *http.Request) (int, int, error) {
 	candidateID, err := strconv.Atoi(mux.Vars(r)["candidateId"])
 	if err != nil {
