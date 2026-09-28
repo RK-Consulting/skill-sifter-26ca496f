@@ -143,7 +143,7 @@ const Requirements = () => {
                     <TableBody>
                       {filtered.length > 0 ? (
                         filtered.map((r) => (
-                          <TableRow key={r.id} className="cursor-pointer hover:bg-ats-gray-50" onClick={() => navigate(`/requirements/${r.id}`)}>
+                          <TableRow key={r.id}>
                             <TableCell className="font-mono">{r.jobId || '—'}</TableCell>
                             <TableCell>{clientNames[r.clientId] || `Client #${r.clientId}`}</TableCell>
                             <TableCell className="capitalize">{r.jobType || '—'}</TableCell>

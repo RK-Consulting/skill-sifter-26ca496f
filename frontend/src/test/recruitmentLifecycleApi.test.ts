@@ -40,7 +40,7 @@ describe('candidateRecruitmentService lifecycle APIs', () => {
 
   it('uses the Candidate × Requirement joining endpoint', async () => {
     const { candidateRecruitmentService } = await import('@/services/api');
-    const joining = { joiningDate: '2026-10-01T00:00:00.000Z', joined: true };
+    const joining = { joiningDate: '2026-10-01', joined: true };
 
     await candidateRecruitmentService.createJoining(12, 34, joining);
     await candidateRecruitmentService.updateJoining(12, 34, joining);
