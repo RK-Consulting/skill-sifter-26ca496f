@@ -281,7 +281,7 @@ Resume text:
 }
 
 func upsertResumeCandidate(
-	r *http.Request,
+	database *sql.DB,
 	company string,
 	tenantID string,
 	ai resumeAIResult,
@@ -292,7 +292,7 @@ func upsertResumeCandidate(
 
 	var existing models.Candidate
 
-	err := db.RequestDB(r).QueryRow(`
+	err := database.QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
 		       status, created_at, tenant_id, company_name
@@ -396,7 +396,7 @@ func firstNonEmpty(a, b string) string {
 }
 
 func saveCandidateTechnicalExpertise(
-	r *http.Request,
+	database *sql.DB,
 	candidateID int,
 	tenantID string,
 	skills []string,
@@ -638,7 +638,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		candidate, err := upsertResumeCandidate(
-			r, company,
+			db.RequestDB(r), company,
 			tenantID,
 			ai,
 		)
