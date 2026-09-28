@@ -3,10 +3,10 @@ package joining
 import "time"
 
 const (
-	StatusPending   = "pending"
+	StatusScheduled = "scheduled"
 	StatusJoined    = "joined"
-	StatusNotJoined = "not_joined"
-	StatusWithdrawn = "withdrawn"
+	StatusNoShow    = "no_show"
+	StatusCancelled = "cancelled"
 )
 
 type Joining struct {
