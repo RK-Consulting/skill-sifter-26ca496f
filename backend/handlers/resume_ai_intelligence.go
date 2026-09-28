@@ -1,13 +1,13 @@
 package handlers
 
 import (
+	"database/sql"
 	"fmt"
 	"net/mail"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/lib/pq"
 )
 
