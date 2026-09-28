@@ -130,7 +130,7 @@ jobs:
         run: go test ./db -run 'Test(DiscoverSchemaDefinitions|InitializeSchema)' -count=1
 
       - name: Test with coverage
-        run: go test ./... -coverprofile=coverage.out -covermode=atomic
+        run: go test -p 1 ./... -coverprofile=coverage.out -covermode=atomic
 
       - name: Publish coverage summary
         shell: bash
