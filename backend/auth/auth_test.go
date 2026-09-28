@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -152,9 +151,7 @@ func TestJwtKeyIsNotTheKnownInsecureDefault(t *testing.T) {
 
 
 func TestRequestDBUsesTenantDatabaseFromContext(t *testing.T) {
-	control := &sql.DB{}
 	tenant := &sql.DB{}
-	_ = control
 	ctx := db.WithRequestDB(context.Background(), tenant)
 	if got := db.RequestDB(ctx); got != tenant {
 		t.Fatal("RequestDB did not return the request-scoped tenant database")
