@@ -191,7 +191,7 @@ describe('authentication UI behavior', () => {
     fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'admin@example.com' },
     });
-    fireEvent.change(await screen.findByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByLabelText('Password'), {
       target: { value: 'password123' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
