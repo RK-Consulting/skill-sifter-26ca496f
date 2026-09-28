@@ -80,4 +80,37 @@ describe('candidateRecruitmentService lifecycle APIs', () => {
       billing,
     );
   });
+  it('uses screening and submission endpoints', async () => {
+    const { candidateRecruitmentService } = await import('@/services/api');
+
+    await candidateRecruitmentService.getScreenings(12);
+    await candidateRecruitmentService.createScreening(12, { requirementId: 34, recruiterUserId: 7 });
+    await candidateRecruitmentService.updateScreening(12, 56, 'completed');
+    await candidateRecruitmentService.getSubmissions(12, 34);
+    await candidateRecruitmentService.createSubmission(12, 34, { recipientType: 'client', recipientClientId: 9 });
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/candidates/12/screenings');
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/candidates/12/screenings', {
+      requirementId: 34,
+      recruiterUserId: 7,
+    });
+    expect(mockPut).toHaveBeenCalledWith('/api/v1/candidates/12/screenings/56', { status: 'completed' });
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/candidates/12/requirements/34/submissions');
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/candidates/12/requirements/34/submissions', {
+      recipientType: 'client',
+      recipientClientId: 9,
+    });
+  });
+
+  it('uses submission feedback endpoints', async () => {
+    const { candidateRecruitmentService } = await import('@/services/api');
+    const feedback = { outcome: 'shortlist', comments: 'Proceed to interview' };
+
+    await candidateRecruitmentService.getSubmissionFeedback(88);
+    await candidateRecruitmentService.createSubmissionFeedback(88, feedback);
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/submissions/88/feedback');
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/submissions/88/feedback', feedback);
+  });
+
 });
