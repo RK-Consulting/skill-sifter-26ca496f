@@ -80,7 +80,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = tx.Exec(`
 		INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
-		VALUES($1, $2, 'ACTIVE', 'READY')
+		VALUES($1, $2, 'ACTIVE', 'PENDING')
 		ON CONFLICT (tenant_id) DO NOTHING
 	`, companyID, creds.CompanyName); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
@@ -114,6 +114,11 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if err = tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
+		return
+	}
+
+	if _, err = db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName); err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed; administrator can retry provisioning")
 		return
 	}
 
@@ -245,10 +250,41 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 			"companyName":        companyName,
 			"role":               access.Role,
 			"accountStatus":      access.AccountStatus,
+			"provisioningStatus": access.ProvisioningStatus,
 			"subscriptionStatus": access.SubscriptionStatus,
 			"planCode":           access.PlanCode,
 			"userCount":          userCount,
 			"userLimit":          userLimit,
+		},
+	})
+}
+
+
+func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
+	companyName, _ := r.Context().Value("companyName").(string)
+	if companyName == "" {
+		respondWithError(w, http.StatusBadRequest, "Tenant company name missing")
+		return
+	}
+
+	databaseName, err := db.ProvisionTenantDatabase(db.DB, tenantID, companyName)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Tenant database is ready",
+		Data: map[string]interface{}{
+			"tenantId": tenantID,
+			"database": databaseName,
+			"status":   "READY",
 		},
 	})
 }
