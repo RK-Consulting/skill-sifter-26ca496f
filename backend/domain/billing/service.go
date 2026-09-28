@@ -18,7 +18,27 @@ var (
 
 var (
 	currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}$`)
-	amountPattern   = regexp.MustCompile(`^[0-9]+(\\.[0-9]{1,2})?$`)
+	amountPattern   = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,2})?package billing
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var (
+	ErrCandidateRequirementNotFound = errors.New("candidate or requirement not found")
+	ErrJoiningNotFound              = errors.New("joined recruitment record not found")
+	ErrBillingExists                = errors.New("billing record already exists for candidate and requirement")
+	ErrInvalidAmount                = errors.New("billing amount is required")
+	ErrInvalidCurrency              = errors.New("billing currency must be a three-letter code")
+)
+
+var (
+	currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}$`)
+	)
 )
 
 type Service struct {
