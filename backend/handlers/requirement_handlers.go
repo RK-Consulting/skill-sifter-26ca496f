@@ -24,9 +24,9 @@ var validRequirementStatuses = map[string]bool{
 // authenticated tenant, so a requirement can never be attached to another
 // tenant's client (which would otherwise let a requirement's tenant_id and
 // its client's actual tenant silently diverge).
-func clientBelongsToTenant(clientID int, tenantID string) (bool, error) {
+func clientBelongsToTenant(r *http.Request, clientID int, tenantID string) (bool, error) {
 	var exists bool
-	err := db.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1 AND tenant_id = $2)`, clientID, tenantID).Scan(&exists)
+	err := db.RequestDB(r).QueryRow(`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1 AND tenant_id = $2)`, clientID, tenantID).Scan(&exists)
 	return exists, err
 }
 
@@ -35,7 +35,7 @@ func clientBelongsToTenant(clientID int, tenantID string) (bool, error) {
 func GetRequirements(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r).Query(`
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
@@ -85,7 +85,7 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
 	var req models.Requirement
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
@@ -163,7 +163,7 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 
 	req.TenantID = r.Context().Value("tenantID").(string)
 
-	belongs, err := clientBelongsToTenant(req.ClientID, req.TenantID)
+	belongs, err := clientBelongsToTenant(r, req.ClientID, req.TenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error validating client")
 		return
@@ -180,7 +180,7 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 		openedDate = req.OpenedDate
 	}
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		INSERT INTO requirements (client_id, job_id, job_type, title, department, experience_required, budget,
 			language_requirement, certifications_required, notice_period, work_arrangement,
 			required_skills, mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
@@ -251,7 +251,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	req.TenantID = tenantID
 
 	var existingJobID string
-	if err := db.DB.QueryRow(`SELECT COALESCE(job_id, '') FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&existingJobID); err != nil {
+	if err := db.RequestDB(r).QueryRow(`SELECT COALESCE(job_id, '') FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&existingJobID); err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 		return
 	}
@@ -260,7 +260,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	belongs, err := clientBelongsToTenant(req.ClientID, tenantID)
+	belongs, err := clientBelongsToTenant(r, req.ClientID, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error validating client")
 		return
@@ -275,7 +275,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		openedDate = req.OpenedDate
 	}
 
-	result, err := db.DB.Exec(`
+	result, err := db.RequestDB(r).Exec(`
 		UPDATE requirements SET client_id = $1, job_id = $2, job_type = $3, title = $4, department = $5,
 			experience_required = $6, budget = $7, language_requirement = $8,
 			certifications_required = $9, notice_period = $10, work_arrangement = $11,
@@ -319,7 +319,7 @@ func DeleteRequirement(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value("tenantID").(string)
 
-	result, err := db.DB.Exec(`DELETE FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := db.RequestDB(r).Exec(`DELETE FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error deleting requirement")
 		return
