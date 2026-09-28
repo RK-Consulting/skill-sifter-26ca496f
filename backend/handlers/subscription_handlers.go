@@ -165,7 +165,7 @@ func StartSubscriptionCheckout(w http.ResponseWriter, r *http.Request) {
 	payload, _ := json.Marshal(map[string]interface{}{
 		"plan_id": providerRef, "total_count": totalCount, "quantity": 1,
 		"customer_notify": 1,
-		"notes": map[string]string{"tenant_id": tenantID, "plan_code": input.PlanCode},
+		"notes":           map[string]string{"tenant_id": tenantID, "plan_code": input.PlanCode},
 	})
 	body, status, err := razorpayRequest(http.MethodPost, "/subscriptions", payload)
 	if err != nil {
