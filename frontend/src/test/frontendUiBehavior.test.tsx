@@ -221,7 +221,7 @@ describe('authentication UI behavior', () => {
     fireEvent.change(await screen.findByPlaceholderText('Enter your company name'), {
       target: { value: 'Test Company' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Tenant Account' }));
 
     expect(await screen.findByText("Passwords don't match")).toBeInTheDocument();
     expect(mocks.authService.register).not.toHaveBeenCalled();
