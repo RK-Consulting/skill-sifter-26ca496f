@@ -72,8 +72,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager := api.PathPrefix("/manager").Subrouter()
 	manager.Use(auth.RoleMiddleware("manager", "admin"))
 	manager.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
-	manager.HandleFunc("/users/{id}", handlers.UpdateUser).Methods("PUT", "OPTIONS")
-	manager.HandleFunc("/users/{id}", handlers.DeleteUser).Methods("DELETE", "OPTIONS")
 	api.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/candidates", handlers.GetCandidates).Methods("GET", "OPTIONS")
