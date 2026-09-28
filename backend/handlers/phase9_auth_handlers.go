@@ -90,7 +90,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	if _, err = tx.Exec(\`
 		INSERT INTO platform_subscriptions(tenant_id, plan_code, status, user_limit)
-		VALUES($1, 'legacy', 'ACTIVE', 1)
+		SELECT $1, 'legacy', 'ACTIVE', 1
 		WHERE NOT EXISTS (
 			SELECT 1 FROM platform_subscriptions
 			WHERE tenant_id = $1 AND status IN ('TRIAL', 'ACTIVE')
