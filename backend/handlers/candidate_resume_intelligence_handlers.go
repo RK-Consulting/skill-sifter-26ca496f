@@ -124,7 +124,7 @@ func GetCandidateResumeIntelligence(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func queryCandidateResumeRows(r, r *http.Request, query, tenantID string, candidateID, sourceResumeID interface{}, keys []string) ([]map[string]interface{}, error) {
+func queryCandidateResumeRows(r *http.Request, query, tenantID string, candidateID, sourceResumeID interface{}, keys []string) ([]map[string]interface{}, error) {
 	args := []interface{}{tenantID, candidateID}
 	if sourceResumeID != nil {
 		args = append(args, sourceResumeID)
