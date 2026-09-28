@@ -1,8 +1,8 @@
 package db
 
 import (
-	"database/sql"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -54,7 +54,6 @@ func InitDB() {
 
 	fmt.Println("Successfully connected to database")
 }
-
 
 func setTenantProvisioningStatus(controlDB *sql.DB, tenantID, status, databaseName string) {
 	_, _ = controlDB.Exec(
