@@ -167,7 +167,7 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if candidate != nil {
-		if err = persistResumeIntelligence(r, id, candidate.ID, tenantID, ai); err != nil {
+		if err = persistResumeIntelligence(db.RequestDB(r), id, candidate.ID, tenantID, ai); err != nil {
 			_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
 			respondWithError(w, http.StatusInternalServerError, "Failed to persist extracted candidate intelligence")
 			return
