@@ -128,7 +128,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes", handlers.ListResumes).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/resumes/{id}", handlers.GetResumeDetail).Methods("GET", "OPTIONS")
 	api.HandleFunc("/resume-ai/resumes/{id}/file", handlers.DownloadResume).Methods("GET", "OPTIONS")
-	api.HandleFunc("/resume-ai/resumes/{id}/retry", handlers.RetryResume).Methods("POST", "OPTIONS")
+	api.HandleFunc("/resume-ai/resumes/{id}/retry", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.RetryResume)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
 	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
