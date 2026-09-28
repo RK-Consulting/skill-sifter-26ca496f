@@ -101,7 +101,7 @@ describe('frontend UI smoke coverage', () => {
   ])('%s renders its primary UI', async (_name, page, heading, route = '/') => {
     setLoggedIn();
     renderPage(page, [route]);
-    expect(await screen.findByText(heading, { exact: false })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: heading, exact: false })).toBeInTheDocument();
   });
 });
 
@@ -168,23 +168,23 @@ describe('navigation UI behavior', () => {
     setLoggedIn();
     renderPage(<Navbar />);
 
-    expect(screen.getByRole('link', { name: 'Billing' })).toHaveAttribute('href', '/billing');
+    expect(screen.getByRole('link', { name: 'Billing', exact: true })).toHaveAttribute('href', '/billing');
   });
 
   it('shows Login and Register instead of protected navigation when logged out', () => {
     renderPage(<Navbar />);
 
-    expect(screen.getByRole('link', { name: 'Login' })).toHaveAttribute('href', '/login');
+    expect(screen.getAllByRole('link', { name: 'Login', exact: true }).some((link) => link.getAttribute('href') === '/login')).toBe(true);
     expect(screen.getByRole('link', { name: 'Register' })).toHaveAttribute('href', '/register');
-    expect(screen.queryByRole('link', { name: 'Billing' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Billing', exact: true })).not.toBeInTheDocument();
   });
 
   it('logs out from the user menu', async () => {
     setLoggedIn();
     renderPage(<Navbar />);
 
-    fireEvent.click(screen.getByRole('button'));
-    expect(await screen.findByText('Logout')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: '' }));
+    expect(await screen.findByText('Logout', { exact: true })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Logout'));
 
@@ -232,11 +232,11 @@ describe('Billing UI behavior', () => {
 
     expect(await screen.findByText('Billing')).toBeInTheDocument();
 
-    const candidateTrigger = screen.getByText('Select candidate');
+    const candidateTrigger = screen.getByRole('combobox', { name: 'Candidate' });
     fireEvent.click(candidateTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Alice Candidate' }));
 
-    const requirementTrigger = screen.getByText('Select requirement');
+    const requirementTrigger = screen.getByRole('combobox', { name: 'Requirement' });
     fireEvent.click(requirementTrigger);
     fireEvent.click(await screen.findByRole('option', { name: /Senior Go Developer/ }));
 
