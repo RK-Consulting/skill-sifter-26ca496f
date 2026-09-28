@@ -263,8 +263,10 @@ type ApiResponse struct {
 
 // TokenResponse for login/register
 type TokenResponse struct {
-	Token string `json:"token"`
-	User  User   `json:"user"`
+	Token              string `json:"token"`
+	User               User   `json:"user"`
+	SubscriptionStatus string `json:"subscriptionStatus,omitempty"`
+	PlanCode           string `json:"planCode,omitempty"`
 }
 
 // Reports
