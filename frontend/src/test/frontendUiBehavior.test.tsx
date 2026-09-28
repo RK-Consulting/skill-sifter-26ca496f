@@ -212,7 +212,7 @@ describe('authentication UI behavior', () => {
     fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'tester@example.com' },
     });
-    fireEvent.change(await screen.findByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Create a password'), {
       target: { value: 'password123' },
     });
     fireEvent.change(await screen.findByPlaceholderText('Confirm your password'), {
