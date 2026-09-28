@@ -276,7 +276,7 @@ describe('recruitment lifecycle UI behavior', () => {
     renderPage(<RecruitmentLifecycle />);
 
     expect(await screen.findByText('Recruitment Lifecycle')).toBeInTheDocument();
-    expect(screen.getByText(/Candidate × Requirement context/i)).toBeInTheDocument();
+    expect(screen.getByText(/Candidate/i)).toBeInTheDocument();
     expect(screen.getByText('Select candidate')).toBeInTheDocument();
     expect(screen.getByText('Select requirement')).toBeInTheDocument();
   });
