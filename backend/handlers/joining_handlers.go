@@ -19,8 +19,8 @@ type joiningRequest struct {
 	Joined      bool       `json:"joined"`
 }
 
-func joiningService() *joining.Service {
-	return joining.NewService(joining.NewPostgresRepository(db.DB), db.DB)
+func joiningService(r *http.Request) *joining.Service {
+	return joining.NewService(joining.NewPostgresRepository(db.RequestDB(r)), db.RequestDB(r))
 }
 
 func parseJoiningPair(r *http.Request) (int, int, error) {
@@ -42,7 +42,7 @@ func GetCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
-	j, err := joiningService().Get(tenantID, candidateID, requirementID)
+	j, err := joiningService(r).Get(tenantID, candidateID, requirementID)
 	if errors.Is(err, joining.ErrNotFound) {
 		respondWithError(w, http.StatusNotFound, "Joining record not found")
 		return
@@ -72,7 +72,7 @@ func CreateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
-	j, err := joiningService().Create(tenantID, joining.CreateInput{
+	j, err := joiningService(r).Create(tenantID, joining.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
 		JoiningDate:   req.JoiningDate,
@@ -117,7 +117,7 @@ func UpdateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
-	j, err := joiningService().Update(tenantID, candidateID, requirementID, joining.UpdateInput{
+	j, err := joiningService(r).Update(tenantID, candidateID, requirementID, joining.UpdateInput{
 		JoiningDate: req.JoiningDate,
 		Joined:      req.Joined,
 	})
