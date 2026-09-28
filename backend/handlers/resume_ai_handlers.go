@@ -762,7 +762,6 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN resumes r
 			ON r.candidate_id = c.id
 		   AND r.tenant_id = c.tenant_id
-		   AND r.company_name = c.company_name
 		WHERE c.tenant_id = $1
 		  AND (
 			   lower(c.name) LIKE $2
@@ -843,6 +842,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = db.DB.Exec(`
 		INSERT INTO resume_search_logs (
+			tenant_id,
 			company_name,
 			actor_user_id,
 			query_text,
@@ -850,24 +850,19 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 			results_count,
 			duration_ms
 		)
-		SELECT
-			$1,
-			$2,
-			$3,
-			COUNT(*),
-			$4,
-			$5
-		FROM resumes
-		WHERE company_name = $1`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+		tenantID,
 		r.Context().Value("companyName"),
 		actor,
 		q,
+		len(out),
 		len(out),
 		duration,
 	)
 
 	_, _ = db.DB.Exec(`
 		INSERT INTO activity_logs (
+			tenant_id,
 			company_name,
 			actor_user_id,
 			action,
@@ -878,11 +873,13 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		VALUES (
 			$1,
 			$2,
+			$3,
 			'RESUME_SEARCHED',
 			'resume_search',
-			$3,
-			$4
+			$4,
+			$5
 		)`,
+		tenantID,
 		r.Context().Value("companyName"),
 		actor,
 		"Resume search: "+q,
@@ -898,9 +895,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 
 func ListResumes(w http.ResponseWriter, r *http.Request) {
 	tenantID, _ := r.Context().Value("tenantID").(string)
-	companyName, _ := r.Context().Value("companyName").(string)
-
-	if tenantID == "" || companyName == "" {
+	if tenantID == "" {
 		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
 		return
 	}
@@ -935,12 +930,9 @@ func ListResumes(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN candidates c
 			ON c.id = r.candidate_id
 		   AND c.tenant_id = $1
-		   AND c.company_name = $2
 		WHERE r.tenant_id = $1
-		  AND r.company_name = $2
 		ORDER BY r.uploaded_at DESC`,
 		tenantID,
-		companyName,
 	)
 	if err != nil {
 		respondWithError(
