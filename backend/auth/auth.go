@@ -50,7 +50,7 @@ type Claims struct {
 // db.RequestDB(r) to access this request-scoped connection pool.
 func TenantDBMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/api/account" || r.URL.Path == "/api/admin/tenant/provision" {
+		if strings.HasPrefix(r.URL.Path, "/api/account") || r.URL.Path == "/api/admin/tenant/provision" {
 			next.ServeHTTP(w, r)
 			return
 		}
