@@ -18,7 +18,7 @@ var (
 
 var (
 	currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}$`)
-	amountPattern   = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,2})?$`)
+	amountPattern   = regexp.MustCompile(`^[0-9]+(\\.[0-9]{1,2})?$`)
 )
 
 type Service struct {
@@ -116,4 +116,8 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 
 func (s *Service) Get(tenantID string, candidateID, requirementID int) (*Billing, error) {
 	return s.repo.GetByPair(tenantID, candidateID, requirementID)
+}
+
+func (s *Service) ListWorklist(tenantID string) ([]WorklistItem, error) {
+	return s.repo.ListWorklist(tenantID)
 }
