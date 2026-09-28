@@ -45,7 +45,6 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-
 // TenantDBMiddleware resolves the authenticated tenant to its READY database.
 // Control-plane authentication remains on db.DB; tenant-owned handlers use
 // db.RequestDB(r) to access this request-scoped connection pool.
