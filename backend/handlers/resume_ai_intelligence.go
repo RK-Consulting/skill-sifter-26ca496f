@@ -265,7 +265,7 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 		return fmt.Errorf("candidate and tenant are required for resume intelligence")
 	}
 
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r.Context()).Begin()
 	if err != nil {
 		return err
 	}
