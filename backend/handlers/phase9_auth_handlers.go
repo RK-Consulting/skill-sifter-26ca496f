@@ -247,7 +247,7 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 			"accountStatus":      access.AccountStatus,
 			"subscriptionStatus": access.SubscriptionStatus,
 			"planCode":           access.PlanCode,
-			"userCount":           userCount,
+			"userCount":          userCount,
 			"userLimit":           userLimit,
 		},
 	})
