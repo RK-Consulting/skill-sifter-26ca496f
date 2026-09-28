@@ -94,6 +94,17 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			tenant_id VARCHAR(255) REFERENCES companies(id),
 			company_name VARCHAR(255) NOT NULL
 		)`,
+		`CREATE TABLE IF NOT EXISTS activity_logs (
+			id BIGSERIAL PRIMARY KEY,
+			company_name VARCHAR(255) NOT NULL,
+			actor_user_id INTEGER,
+			action VARCHAR(80) NOT NULL,
+			entity_type VARCHAR(80) NOT NULL,
+			entity_id VARCHAR(80),
+			description TEXT,
+			metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
+		)`,
 	}
 	for _, s := range statements {
 		if _, err := testDB.Exec(s); err != nil {
@@ -115,6 +126,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	for _, t := range []string{"interviews", "daily_jobs", "candidates", "users", "business_dev"} {
 		testDB.Exec("DELETE FROM " + t + " WHERE tenant_id IN ('tenant_a', 'tenant_b')")
 	}
+	testDB.Exec("DELETE FROM activity_logs WHERE company_name IN ('Tenant A Co', 'Tenant B Co')")
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_a', 'Tenant A Co') ON CONFLICT (id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_b', 'Tenant B Co') ON CONFLICT (id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_a', 'Tenant A Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
@@ -357,4 +369,74 @@ func TestTenantIsolation_BusinessDev(t *testing.T) {
 // vars from int IDs.
 func itoa(n int) string {
 	return strconv.Itoa(n)
+}
+
+// TestTenantIsolation_DailyJobsAndReports verifies the legacy operational/reporting
+// domains use the authenticated tenant boundary for both resource access and audit data.
+func TestTenantIsolation_DailyJobsAndReports(t *testing.T) {
+	testDB := setupIsolationTestDB(t)
+	defer testDB.Close()
+	db.DB = testDB
+
+	var assignedUserID int
+	if err := testDB.QueryRow(
+		`INSERT INTO users (username, email, password, role, tenant_id, company_name)
+		 VALUES ('b-recruiter', 'b-recruiter@test.com', 'x', 'recruiter', 'tenant_b', 'Tenant B Co') RETURNING id`,
+	).Scan(&assignedUserID); err != nil {
+		t.Fatalf("seed user failed: %v", err)
+	}
+
+	var dailyJobID int
+	if err := testDB.QueryRow(
+		`INSERT INTO daily_jobs (jd_no, instructions, assigned_user, tenant_id, company_name)
+		 VALUES (9001, 'Tenant B task', $1, 'tenant_b', 'Tenant B Co') RETURNING id`,
+		assignedUserID,
+	).Scan(&dailyJobID); err != nil {
+		t.Fatalf("seed daily job failed: %v", err)
+	}
+
+	if _, err := testDB.Exec(
+		`INSERT INTO activity_logs (company_name, action, entity_type, description)
+		 VALUES ('Tenant B Co', 'TEST', 'test', 'Tenant B activity')`,
+	); err != nil {
+		t.Fatalf("seed activity log failed: %v", err)
+	}
+
+	t.Run("cross-tenant daily job read returns 404", func(t *testing.T) {
+		req := isoCtx(httptest.NewRequest("GET", "/api/daily-jobs/x", nil), "tenant_a")
+		req = mux.SetURLVars(req, map[string]string{"id": itoa(dailyJobID)})
+		rec := httptest.NewRecorder()
+		GetDailyJobByID(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", rec.Code)
+		}
+	})
+
+	t.Run("cross-tenant daily job update returns 404 and preserves data", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]interface{}{"jdNo": 1, "instructions": "Hijacked", "assignedUser": assignedUserID})
+		req := isoCtx(httptest.NewRequest("PUT", "/api/daily-jobs/x", bytes.NewReader(body)), "tenant_a")
+		req = mux.SetURLVars(req, map[string]string{"id": itoa(dailyJobID)})
+		rec := httptest.NewRecorder()
+		UpdateDailyJob(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("status = %d, want 404", rec.Code)
+		}
+		var instructions string
+		testDB.QueryRow("SELECT instructions FROM daily_jobs WHERE id=$1", dailyJobID).Scan(&instructions)
+		if instructions != "Tenant B task" {
+			t.Errorf("Tenant B daily job was modified: %q", instructions)
+		}
+	})
+
+	t.Run("cross-tenant activity report never returns Tenant B activity", func(t *testing.T) {
+		req := isoCtx(httptest.NewRequest("GET", "/api/reports/activity", nil), "tenant_a")
+		rec := httptest.NewRecorder()
+		GetRecentActivity(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200", rec.Code)
+		}
+		if bytes.Contains(rec.Body.Bytes(), []byte("Tenant B activity")) {
+			t.Error("Tenant A activity report leaked Tenant B activity")
+		}
+	})
 }

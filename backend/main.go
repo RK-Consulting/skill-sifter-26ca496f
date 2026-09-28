@@ -79,9 +79,13 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/candidates/{id}", handlers.GetCandidateByID).Methods("GET", "OPTIONS")
 	api.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidate)).ServeHTTP).Methods("PUT", "OPTIONS")
 	api.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager")(http.HandlerFunc(handlers.DeleteCandidate)).ServeHTTP).Methods("DELETE", "OPTIONS")
-	api.HandleFunc("/candidates/{id}/resume", handlers.UploadCandidateResume).Methods("POST", "OPTIONS")
+	api.HandleFunc("/candidates/{id}/resume", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UploadCandidateResume)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
-	setupResourceRoutes(api, "/daily-jobs", handlers.GetDailyJobs, handlers.AddDailyJob, handlers.GetDailyJobByID, handlers.UpdateDailyJob, handlers.DeleteDailyJob)
+	api.HandleFunc("/daily-jobs", handlers.GetDailyJobs).Methods("GET", "OPTIONS")
+	api.HandleFunc("/daily-jobs", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddDailyJob)).ServeHTTP).Methods("POST", "OPTIONS")
+	api.HandleFunc("/daily-jobs/{id}", handlers.GetDailyJobByID).Methods("GET", "OPTIONS")
+	api.HandleFunc("/daily-jobs/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateDailyJob)).ServeHTTP).Methods("PUT", "OPTIONS")
+	api.HandleFunc("/daily-jobs/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.DeleteDailyJob)).ServeHTTP).Methods("DELETE", "OPTIONS")
 
 	// Client and Requirement are the authoritative V1 recruitment-demand domain.
 	// Requirements replace the legacy Jobs resource.
@@ -131,8 +135,16 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/resume-ai/resumes/{id}/retry", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.RetryResume)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/resume-ai/health", handlers.GetResumeHealth).Methods("GET", "OPTIONS")
 
-	setupResourceRoutes(apiV1, "/clients", handlers.GetClients, managerOnly(handlers.AddClient), handlers.GetClientByID, managerOnly(handlers.UpdateClient), managerOnly(handlers.DeleteClient))
-	setupResourceRoutes(apiV1, "/requirements", handlers.GetRequirements, managerOnly(handlers.AddRequirement), handlers.GetRequirementByID, managerOnly(handlers.UpdateRequirement), managerOnly(handlers.DeleteRequirement))
+	apiV1.HandleFunc("/clients", handlers.GetClients).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/clients", auth.RoleMiddleware("admin", "manager", "team_leader", "recruiter")(http.HandlerFunc(handlers.AddClient)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/clients/{id}", handlers.GetClientByID).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/clients/{id}", auth.RoleMiddleware("admin", "manager", "team_leader", "recruiter")(http.HandlerFunc(handlers.UpdateClient)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/clients/{id}", managerOnly(handlers.DeleteClient)).Methods("DELETE", "OPTIONS")
+	apiV1.HandleFunc("/requirements", handlers.GetRequirements).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/requirements", auth.RoleMiddleware("admin", "manager", "team_leader", "recruiter")(http.HandlerFunc(handlers.AddRequirement)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/requirements/{id}", handlers.GetRequirementByID).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/requirements/{id}", auth.RoleMiddleware("admin", "manager", "team_leader", "recruiter")(http.HandlerFunc(handlers.UpdateRequirement)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/requirements/{id}", managerOnly(handlers.DeleteRequirement)).Methods("DELETE", "OPTIONS")
 	apiV1.HandleFunc("/requirements/{id}/matches", handlers.GetRequirementMatches).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/requirements/{id}/matches/{candidateId}", handlers.GetRequirementCandidateMatch).Methods("GET", "OPTIONS")
 
