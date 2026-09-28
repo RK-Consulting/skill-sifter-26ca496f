@@ -74,7 +74,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		CandidateID: input.CandidateID,
 		RequirementID: input.RequirementID,
 		OfferID: offerID,
-		Status: StatusPending,
+		Status: StatusScheduled,
 		ExpectedJoiningDate: input.ExpectedJoiningDate,
 		
 		Notes: strings.TrimSpace(input.Notes),
@@ -119,7 +119,7 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 
 func validStatus(v string) bool {
 	switch v {
-	case StatusPending, StatusJoined, StatusNotJoined, StatusWithdrawn:
+	case StatusScheduled, StatusJoined, StatusNoShow, StatusCancelled:
 		return true
 	default:
 		return false
@@ -131,8 +131,8 @@ func validTransition(from, to string) bool {
 		return false
 	}
 	switch from {
-	case StatusPending:
-		return to == StatusJoined || to == StatusNotJoined || to == StatusWithdrawn
+	case StatusScheduled:
+		return to == StatusJoined || to == StatusNoShow || to == StatusCancelled
 	case StatusJoined:
 		return false
 	default:
