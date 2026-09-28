@@ -181,7 +181,7 @@ describe('authentication UI behavior', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
-      expect(localStorage.getItem('token')).toBe('dummy-token-123456');
+      expect(localStorage.getItem('token')).toBe('jwt-token');
       expect(JSON.parse(localStorage.getItem('user') || '{}').username).toBe('Admin User');
     });
     expect(mocks.toast.success).toHaveBeenCalledWith('Login successful');
