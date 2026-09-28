@@ -25,6 +25,7 @@ const billingSelect = `id, tenant_id, candidate_id, requirement_id, client_id, j
 
 func scanBilling(row *sql.Row) (*Billing, error) {
 	b := &Billing{}
+	var invoiceReference sql.NullString
 	if err := row.Scan(
 		&b.ID,
 		&b.TenantID,
@@ -35,7 +36,7 @@ func scanBilling(row *sql.Row) (*Billing, error) {
 		&b.BillingDate,
 		&b.Amount,
 		&b.Currency,
-		&b.InvoiceReference,
+		&invoiceReference,
 		&b.CreatedAt,
 		&b.LastModified,
 	); err != nil {
@@ -44,6 +45,7 @@ func scanBilling(row *sql.Row) (*Billing, error) {
 		}
 		return nil, err
 	}
+	b.InvoiceReference = invoiceReference.String
 	return b, nil
 }
 
