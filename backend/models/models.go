@@ -189,6 +189,21 @@ type Offer struct {
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	LastModified time.Time `json:"lastModified" db:"last_modified"`
 }
+// Joining records the actual recruitment outcome for a Candidate × Requirement.
+// It is intentionally not an employee or HRMS record.
+type Joining struct {
+	ID int `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID string `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID int `json:"candidateId" db:"candidate_id,notnull"`
+	RequirementID int `json:"requirementId" db:"requirement_id,notnull"`
+	OfferID int `json:"offerId" db:"offer_id,notnull"`
+	Status string `json:"status" db:"status,notnull"`
+	ExpectedJoiningDate *time.Time `json:"expectedJoiningDate,omitempty" db:"expected_joining_date"`
+	ActualJoiningDate *time.Time `json:"actualJoiningDate,omitempty" db:"actual_joining_date"`
+	Notes string `json:"notes,omitempty" db:"notes"`
+	CreatedAt time.Time `json:"createdAt" db:"created_at"`
+	LastModified time.Time `json:"lastModified" db:"last_modified"`
+}
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
