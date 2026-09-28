@@ -10,8 +10,8 @@ import (
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
-	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/RK-Consulting/skill-sifter/domain/platformaccess"
+	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
