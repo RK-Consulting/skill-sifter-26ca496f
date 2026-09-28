@@ -53,11 +53,18 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if company already exists
+	// Registration creates a new SkillSifter tenant. Existing tenants must
+	// create additional users through their tenant admin rather than public
+	// registration, so a public caller cannot join another tenant or choose
+	// an elevated role.
 	var exists bool
 	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+	if exists {
+		respondWithError(w, http.StatusConflict, "Company already has a SkillSifter account; ask its administrator to create your user")
 		return
 	}
 
@@ -66,49 +73,19 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	// companies — an existing company's id was never looked up, so a
 	// second user joining an existing company had no way to be linked to
 	// its tenant identity. Both branches now resolve companyID explicitly.
-	var companyID string
-	var isFirstUser bool
-
-	if !exists {
-		// Create new company with generated ID
-		companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
-		_, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
-			companyID, creds.CompanyName, time.Now())
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Could not create company")
-			return
-		}
-		isFirstUser = true
-	} else {
-		err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.CompanyName).Scan(&companyID)
-		if err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Could not resolve existing company")
-			return
-		}
-	}
-
-	// Determine role
-	var role string
-	if creds.Role != "" {
-		role = creds.Role
-	} else if isFirstUser {
-		role = "admin"
-	} else {
-		role = "recruiter" // Default role if none provided
-	}
-
-	// Validate role
-	validRoles := map[string]bool{
-		"admin":       true,
-		"manager":     true,
-		"recruiter":   true,
-		"team_leader": true,
-	}
-
-	if !validRoles[role] {
-		respondWithError(w, http.StatusBadRequest, "Invalid role")
+	// Create the new tenant with an immutable platform identity.
+	companyID := fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
+	_, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+		companyID, creds.CompanyName, time.Now())
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create company")
 		return
 	}
+
+	// The first account created through public registration is always the
+	// tenant administrator. Role assignment for existing tenants belongs to
+	// the authenticated tenant-admin workflow.
+	role := "admin"
 
 	// Insert user with tenant_id (authoritative) and company_name
 	// (display/compatibility). tenant_id is always server-resolved above,
