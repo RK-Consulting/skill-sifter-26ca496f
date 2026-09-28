@@ -64,10 +64,29 @@ Offer.accepted = true
         ↓
 Joining.joined = true
         ↓
-Billing eligible
+Billing record
 ```
 
-Billing date is the Joining date.
+A Billing record means a recruitment-firm billing event has been raised for the joined Candidate × Requirement.
+
+Authoritative fields:
+- tenant_id
+- candidate_id
+- requirement_id
+- client_id
+- joining_id
+- billing_date
+- amount
+- currency
+- optional invoice_reference
+- audit timestamps
+
+Rules:
+1. Billing requires a joined Joining record for the same Candidate × Requirement.
+2. One Billing record is permitted per Candidate × Requirement.
+3. Billing date is the Joining date.
+4. Billing amount is supplied as a commercial billing value; Requirement budget and candidate compensation are not used automatically.
+5. Billing does not track payment reconciliation or accounting state.
 
 Billing remains recruitment-firm commercial functionality, not a general accounting, payroll, or HRMS system.
 
