@@ -20,7 +20,6 @@ var DB *sql.DB
 
 var tenantDBs sync.Map
 
-
 // WithTenantDB stores the authenticated tenant database in the request context.
 func WithTenantDB(ctx context.Context, tenantDB *sql.DB) context.Context {
 	return context.WithValue(ctx, tenantDBKey{}, tenantDB)
@@ -79,7 +78,6 @@ func CloseTenantDatabases() {
 	})
 	tenantDBs = sync.Map{}
 }
-
 
 // OpenDatabase opens a PostgreSQL connection using the application's database credentials.
 func OpenDatabase(dbname string) (*sql.DB, error) {
