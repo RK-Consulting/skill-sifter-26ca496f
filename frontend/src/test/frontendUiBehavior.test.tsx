@@ -288,22 +288,23 @@ describe('Admin user management UI behavior', () => {
   it('shows tenant users, seat usage, and protects the admin account', async () => {
     setLoggedIn();
 
-    mocks.authService.getCurrentAccount.mockResolvedValueOnce({
+    mocks.authService.getCurrentAccount.mockImplementation(async () => ({
       data: { data: { role: 'admin', userCount: 2, userLimit: 5, companyName: 'Demo Company' } },
-    });
-    mocks.userService.getAllUsers.mockResolvedValueOnce({
+    }));
+    mocks.userService.getAllUsers.mockImplementation(async () => ({
       data: {
         data: [
           { id: 1, username: 'Admin User', email: 'admin@example.com', role: 'admin' },
           { id: 2, username: 'Recruiter One', email: 'recruiter@example.com', role: 'recruiter' },
         ],
       },
-    });
+    }));
 
     renderPage(<AdminUsers />, ['/admin/users']);
 
     expect(await screen.findByText('2 of 5 users in use')).toBeInTheDocument();
-    expect(screen.getByText('Admin User')).toBeInTheDocument();
+    await waitFor(() => expect(mocks.userService.getAllUsers).toHaveBeenCalled());
+    expect(await screen.findByText('Admin User')).toBeInTheDocument();
     expect(screen.getByText('Tenant administrator')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add User' })).toBeEnabled();
   });
