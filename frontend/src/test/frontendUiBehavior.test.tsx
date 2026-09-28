@@ -83,7 +83,7 @@ describe('frontend UI smoke coverage', () => {
     ['Dashboard', <Index />, 'SkillSifter ATS'],
     ['Candidates', <Candidates />, 'Candidates'],
     ['Add Candidate', <AddCandidate />, 'Add New Candidate'],
-    ['Candidate Profile', <CandidateProfile />, '—', '/candidates/1'],
+    ['Candidate Profile', <CandidateProfile />, 'Resume AI source', '/candidates/1'],
     ['Daily Tasks', <DailyJobs />, 'Daily Job Assignments'],
     ['Add Daily Task', <AddDailyJob />, 'Add Daily Job Assignment'],
     ['Interviews', <Interviews />, 'Interviews'],
