@@ -291,7 +291,7 @@ func upsertResumeCandidate(
 
 	var existing models.Candidate
 
-	err := db.DB.QueryRow(`
+	err := db.RequestDB(r.Context()).QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
 		       status, created_at, tenant_id, company_name
@@ -325,7 +325,7 @@ func upsertResumeCandidate(
 	)
 
 	if err == nil {
-		_, err = db.DB.Exec(`
+		_, err = db.RequestDB(r.Context()).Exec(`
 			UPDATE candidates
 			SET name = COALESCE(NULLIF($1, ''), name),
 			    email = COALESCE(NULLIF($2, ''), email),
@@ -352,7 +352,7 @@ func upsertResumeCandidate(
 		return nil, err
 	}
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r.Context()).QueryRow(`
 		INSERT INTO candidates (
 			name,
 			email,
@@ -406,7 +406,7 @@ func saveCandidateTechnicalExpertise(
 			continue
 		}
 
-		_, err := db.DB.Exec(`
+		_, err := db.RequestDB(r.Context()).Exec(`
 			INSERT INTO candidate_expertise (
 				tenant_id,
 				candidate_id,
@@ -525,7 +525,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 		var duplicateID int
 
-		err = db.DB.QueryRow(`
+		err = db.RequestDB(r.Context()).QueryRow(`
 			SELECT id
 			FROM resumes
 			WHERE tenant_id = $1
@@ -566,7 +566,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 		var resumeID int
 
-		err = db.DB.QueryRow(`
+		err = db.RequestDB(r.Context()).QueryRow(`
 			INSERT INTO resumes (
 				tenant_id,
 				company_name,
@@ -604,7 +604,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		res.ResumeID = resumeID
 
 		if strings.TrimSpace(text) == "" {
-			_, _ = db.DB.Exec(`
+			_, _ = db.RequestDB(r.Context()).Exec(`
 				UPDATE resumes
 				SET parsing_status = 'failed',
 				    parse_error = $1
@@ -621,7 +621,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		ai, parseErr := callOllama(text)
 
 		if parseErr != "" {
-			_, _ = db.DB.Exec(`
+			_, _ = db.RequestDB(r.Context()).Exec(`
 				UPDATE resumes
 				SET parsing_status = 'failed',
 				    parse_error = $1
@@ -642,7 +642,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		)
 
 		if err != nil {
-			_, _ = db.DB.Exec(`
+			_, _ = db.RequestDB(r.Context()).Exec(`
 				UPDATE resumes
 				SET parsing_status = 'failed',
 				    parse_error = $1
@@ -663,7 +663,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 				tenantID,
 				ai,
 			); err != nil {
-				_, _ = db.DB.Exec(`
+				_, _ = db.RequestDB(r.Context()).Exec(`
 					UPDATE resumes
 					SET parsing_status = 'failed',
 					    parse_error = $1
@@ -677,7 +677,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			_, _ = db.DB.Exec(`
+			_, _ = db.RequestDB(r.Context()).Exec(`
 				UPDATE resumes
 				SET candidate_id = $1,
 				    parsing_status = 'completed',
@@ -690,7 +690,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 			res.Candidate = candidate
 		} else {
-			_, _ = db.DB.Exec(`
+			_, _ = db.RequestDB(r.Context()).Exec(`
 				UPDATE resumes
 				SET parsing_status = 'completed',
 				    parsed_at = NOW(),
@@ -738,7 +738,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 	started := time.Now()
 	pattern := "%" + strings.ToLower(q) + "%"
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r.Context()).Query(`
 		SELECT
 			c.id,
 			c.name,
@@ -841,7 +841,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 
 	duration := time.Since(started).Milliseconds()
 
-	_, _ = db.DB.Exec(`
+	_, _ = db.RequestDB(r.Context()).Exec(`
 		INSERT INTO resume_search_logs (
 			company_name,
 			actor_user_id,
@@ -866,7 +866,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		duration,
 	)
 
-	_, _ = db.DB.Exec(`
+	_, _ = db.RequestDB(r.Context()).Exec(`
 		INSERT INTO activity_logs (
 			company_name,
 			actor_user_id,
@@ -905,7 +905,7 @@ func ListResumes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r.Context()).Query(`
 		SELECT
 			r.id,
 			r.file_name,
