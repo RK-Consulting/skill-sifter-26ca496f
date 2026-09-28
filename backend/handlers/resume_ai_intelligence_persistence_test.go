@@ -126,7 +126,7 @@ func TestPersistResumeIntelligence(t *testing.T) {
 		Projects:            []resumeProject{{ProjectName: "Project Atlas", Role: "Lead", Technologies: []string{"golang", "Postgres"}, StartDate: "2023", EndYear: 2024}},
 	}
 
-	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
+	if err := persistResumeIntelligence(db.DB, fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
 		t.Fatalf("persistResumeIntelligence failed: %v", err)
 	}
 
