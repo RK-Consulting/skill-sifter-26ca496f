@@ -2,8 +2,8 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -261,7 +261,6 @@ func applySchemaDefinition(f schemaDefinition) error {
 
 	return nil
 }
-
 
 // InitializeTenantSchema applies only tenant-owned schema definitions.
 // Control-plane definitions (035+) intentionally remain in the control-plane database.
