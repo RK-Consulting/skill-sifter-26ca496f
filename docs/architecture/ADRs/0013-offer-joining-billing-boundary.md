@@ -1,6 +1,6 @@
 # ADR 0013 — Offer, Joining, and Billing Boundary
 
-**Status:** Proposed
+**Status:** Accepted
 **Scope:** Core SkillSifter recruitment workflow
 **Runtime context:** Candidate × Requirement
 
