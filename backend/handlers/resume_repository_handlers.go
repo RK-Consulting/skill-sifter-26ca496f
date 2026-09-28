@@ -156,7 +156,7 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 
 	var candidate *models.Candidate
 	if candidateID.Valid {
-		candidate, err = resumeExistingCandidate(int(candidateID.Int64), tenantID, ai)
+		candidate, err = resumeExistingCandidate(r, int(candidateID.Int64), tenantID, ai)
 	} else {
 		company, _ := r.Context().Value("companyName").(string)
 		candidate, err = upsertResumeCandidate(company, tenantID, ai)
@@ -179,7 +179,7 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Resume reprocessed successfully", Data: map[string]interface{}{"resumeId": id, "status": "completed"}})
 }
 
-func resumeExistingCandidate(candidateID int, tenantID string, ai resumeAIResult) (*models.Candidate, error) {
+func resumeExistingCandidate(r *http.Request, candidateID int, tenantID string, ai resumeAIResult) (*models.Candidate, error) {
 	var c models.Candidate
 	err := db.RequestDB(r.Context()).QueryRow("SELECT id,name,email,phone,position,location,experience,currentctc,expectedctc,noticeperiod,jobdescription,status,created_at,tenant_id,company_name FROM candidates WHERE id=$1 AND tenant_id=$2", candidateID, tenantID).
 		Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location, &c.Experience, &c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JobDescription, &c.Status, &c.CreatedAt, &c.TenantID, &c.CompanyName)
