@@ -53,7 +53,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
 	}
-	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE tenant_id=$1 AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
+	query := fmt.Sprintf(`SELECT date_trunc('%s',created_at) period,COUNT(*) activities,COUNT(*) FILTER(WHERE action='CANDIDATES_INSERT') candidates,COUNT(*) FILTER(WHERE action='RESUMES_INSERT') resumes,COUNT(*) FILTER(WHERE action='RESUME_SEARCHED') resume_searches,COUNT(*) FILTER(WHERE action='REQUIREMENTS_INSERT') requirements,COUNT(*) FILTER(WHERE action='INTERVIEWS_INSERT') interviews,COUNT(*) FILTER(WHERE action='INTERVIEWS_UPDATE' AND metadata->'after'->>'status' IN('hired','selected','offer_accepted')) hires,COUNT(*) FILTER(WHERE action='BUSINESS_DEV_INSERT') business_dev FROM activity_logs WHERE company_name=(SELECT company_name FROM platform_tenants WHERE tenant_id=$1) AND created_at>=NOW()-INTERVAL '%s' GROUP BY period ORDER BY period DESC`, trunc, since)
 	rows, err := db.DB.Query(query, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Failed to build report")
@@ -87,7 +87,7 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	action := r.URL.Query().Get("action")
-	query := `SELECT id,action,entity_type,COALESCE(entity_id,''),COALESCE(description,''),actor_user_id,created_at FROM activity_logs WHERE tenant_id=$1`
+	query := `SELECT id,action,entity_type,COALESCE(entity_id,''),COALESCE(description,''),actor_user_id,created_at FROM activity_logs WHERE company_name=(SELECT company_name FROM platform_tenants WHERE tenant_id=$1)`
 	args := []interface{}{tenantID}
 	if action != "" {
 		query += ` AND action=$2`
@@ -114,7 +114,7 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 
 func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
-	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 10`, tenantID)
+	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE company_name=(SELECT company_name FROM platform_tenants WHERE tenant_id=$1) ORDER BY created_at DESC LIMIT 10`, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching recent activity")
 		return
