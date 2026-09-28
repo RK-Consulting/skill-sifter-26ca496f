@@ -2,7 +2,8 @@
 import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => {
   const service = () =>
@@ -60,8 +61,25 @@ import Billing from '@/pages/Billing';
 import NotFound from '@/pages/NotFound';
 import Navbar from '@/components/layout/Navbar';
 
-const renderPage = (ui: React.ReactElement, initialEntries = ['/']) =>
-  render(<MemoryRouter initialEntries={initialEntries}>{ui}</MemoryRouter>);
+const renderPage = (ui: React.ReactElement, initialEntries = ['/']) => {
+  const route = initialEntries[0];
+  const path = route.startsWith('/candidates/') ? '/candidates/:id'
+    : route.startsWith('/interviews/') ? '/interviews/:id'
+    : route;
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={initialEntries}>
+        <Routes>
+          <Route path={path} element={ui} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+};
 
 const setLoggedIn = () => {
   localStorage.setItem('token', 'test-token');
@@ -93,7 +111,7 @@ describe('frontend UI smoke coverage', () => {
     ['Add Client', <AddClient />, 'Add Client'],
     ['Requirements', <Requirements />, 'Requirements'],
     ['Add Requirement', <AddRequirement />, 'Add Requirement'],
-    ['Reports', <Reports />, 'Reports'],
+    ['Reports', <Reports />, 'Reports & Activity'],
     ['Resume AI', <ResumeAI />, 'Resume AI'],
     ['Recruitment Lifecycle', <RecruitmentLifecycle />, 'Recruitment Lifecycle'],
     ['Billing', <Billing />, 'Billing'],
@@ -183,7 +201,11 @@ describe('navigation UI behavior', () => {
     setLoggedIn();
     renderPage(<Navbar />);
 
-    fireEvent.click(screen.getByRole('button', { name: '' }));
+    const userMenuButton = screen.getAllByRole('button').find(
+      (button) => button.getAttribute('aria-haspopup') === 'menu',
+    );
+    expect(userMenuButton).toBeDefined();
+    fireEvent.click(userMenuButton!);
     expect(await screen.findByText('Logout', { exact: true })).toBeInTheDocument();
 
     fireEvent.click(screen.getByText('Logout'));
@@ -232,11 +254,10 @@ describe('Billing UI behavior', () => {
 
     expect(await screen.findByText('Billing')).toBeInTheDocument();
 
-    const candidateTrigger = screen.getByRole('combobox', { name: 'Candidate' });
+    const [candidateTrigger, requirementTrigger] = screen.getAllByRole('combobox');
     fireEvent.click(candidateTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Alice Candidate' }));
 
-    const requirementTrigger = screen.getByRole('combobox', { name: 'Requirement' });
     fireEvent.click(requirementTrigger);
     fireEvent.click(await screen.findByRole('option', { name: /Senior Go Developer/ }));
 
