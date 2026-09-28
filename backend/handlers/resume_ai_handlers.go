@@ -280,7 +280,8 @@ Resume text:
 	return parsed, ""
 }
 
-func upsertResumeCandidate(
+func upsertResumeCandidate(r, 
+	r *http.Request,
 	company string,
 	tenantID string,
 	ai resumeAIResult,
@@ -635,7 +636,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		candidate, err := upsertResumeCandidate(
+		candidate, err := upsertResumeCandidate(r, 
 			company,
 			tenantID,
 			ai,
