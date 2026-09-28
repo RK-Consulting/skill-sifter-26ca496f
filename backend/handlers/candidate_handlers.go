@@ -63,7 +63,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := loadCandidateExpertise(&c, tenantID); err != nil {
+		if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 			return
 		}
@@ -134,7 +134,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := loadCandidateExpertise(&c, tenantID); err != nil {
+	if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 		return
 	}
@@ -351,7 +351,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := loadCandidateExpertise(&c, tenantID); err != nil {
+	if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 		return
 	}
@@ -401,7 +401,7 @@ func DeleteCandidate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func loadCandidateExpertise(c *models.Candidate, tenantID string) error {
+func loadCandidateExpertise(r *http.Request, c *models.Candidate, tenantID string) error {
 	c.LanguageExpertise = make([]models.CandidateLanguageExpertise, 0)
 	c.TechnicalExpertise = make([]models.CandidateExpertise, 0)
 
