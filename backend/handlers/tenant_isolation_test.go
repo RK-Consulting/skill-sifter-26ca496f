@@ -96,7 +96,6 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 		)`,
 		`CREATE TABLE IF NOT EXISTS activity_logs (
 			id BIGSERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) REFERENCES companies(id),
 			company_name VARCHAR(255) NOT NULL,
 			actor_user_id INTEGER,
 			action VARCHAR(80) NOT NULL,
@@ -127,6 +126,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	for _, t := range []string{"interviews", "daily_jobs", "candidates", "users", "business_dev", "activity_logs"} {
 		testDB.Exec("DELETE FROM " + t + " WHERE tenant_id IN ('tenant_a', 'tenant_b')")
 	}
+	testDB.Exec("DELETE FROM activity_logs WHERE company_name IN ('Tenant A Co', 'Tenant B Co')")
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_a', 'Tenant A Co') ON CONFLICT (id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_b', 'Tenant B Co') ON CONFLICT (id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_a', 'Tenant A Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
@@ -396,8 +396,8 @@ func TestTenantIsolation_DailyJobsAndReports(t *testing.T) {
 	}
 
 	if _, err := testDB.Exec(
-		`INSERT INTO activity_logs (tenant_id, company_name, action, entity_type, description)
-		 VALUES ('tenant_b', 'Tenant B Co', 'TEST', 'test', 'Tenant B activity')`,
+		`INSERT INTO activity_logs (company_name, action, entity_type, description)
+		 VALUES ('Tenant B Co', 'TEST', 'test', 'Tenant B activity')`,
 	); err != nil {
 		t.Fatalf("seed activity log failed: %v", err)
 	}
