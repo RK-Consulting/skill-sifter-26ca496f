@@ -343,6 +343,28 @@ describe('Admin user management UI behavior', () => {
   });
 });
 
+describe('Account subscription UI behavior', () => {
+  it('shows account details and configured subscription plans', async () => {
+    setLoggedIn();
+    mocks.authService.getCurrentAccount.mockResolvedValueOnce({
+      data: { data: { role: 'admin', companyName: 'Demo Company', userCount: 1, userLimit: 5, accountStatus: 'ACTIVE' } },
+    });
+    mocks.subscriptionService.getSubscription.mockResolvedValueOnce({
+      data: { data: { planCode: 'starter', planName: 'Starter', status: 'ACTIVE', provider: 'razorpay', userLimit: 5 } },
+    });
+    mocks.subscriptionService.getPlans.mockResolvedValueOnce({
+      data: { data: [{ code: 'starter', name: 'Starter', amountMinor: 99900, currency: 'INR', billingInterval: 1, billingPeriod: 'month', userLimit: 5 }] },
+    });
+
+    renderPage(<Account />, ['/account']);
+
+    expect(await screen.findByRole('heading', { name: 'Account & Subscription' })).toBeInTheDocument();
+    expect(await screen.findByText('Demo Company')).toBeInTheDocument();
+    expect(await screen.findByText('Starter')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Choose Plan' })).toBeInTheDocument();
+  });
+});
+
 describe('Billing UI behavior', () => {
   const prepareBillingWorklist = async (billing: unknown = null) => {
     mocks.candidateRecruitmentService.getBillingWorklist.mockResolvedValueOnce({
