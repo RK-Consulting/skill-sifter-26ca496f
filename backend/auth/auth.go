@@ -116,6 +116,42 @@ func AuthMiddleware(next http.Handler) http.Handler {
 }
 
 // RoleMiddleware restricts access based on user role
+func TenantDBMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/admin/tenant/provision" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		tenantID, ok := r.Context().Value("tenantID").(string)
+		if !ok || tenantID == "" {
+			http.Error(w, "Tenant context missing", http.StatusUnauthorized)
+			return
+		}
+
+		var databaseName string
+		if err := db.DB.QueryRow(
+			`SELECT tenant_database
+			 FROM platform_tenants
+			 WHERE tenant_id=$1 AND provisioning_status='READY'`,
+			tenantID,
+		).Scan(&databaseName); err != nil {
+			http.Error(w, "Tenant database is not ready", http.StatusServiceUnavailable)
+			return
+		}
+
+		tenantDB, err := db.OpenDatabase(databaseName)
+		if err != nil {
+			http.Error(w, "Tenant database unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		defer tenantDB.Close()
+
+		ctx := db.WithRequestDB(r.Context(), tenantDB)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
 func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
