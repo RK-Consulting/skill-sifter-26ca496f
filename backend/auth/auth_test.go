@@ -2,11 +2,13 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -145,5 +147,16 @@ func TestJwtKeyIsNotTheKnownInsecureDefault(t *testing.T) {
 			t.Errorf("JwtKey is set to a known hardcoded insecure value (%q) — "+
 				"JWT_SECRET env var is not being read correctly", bad)
 		}
+	}
+}
+
+
+func TestRequestDBUsesTenantDatabaseFromContext(t *testing.T) {
+	control := &sql.DB{}
+	tenant := &sql.DB{}
+	_ = control
+	ctx := db.WithRequestDB(context.Background(), tenant)
+	if got := db.RequestDB(ctx); got != tenant {
+		t.Fatal("RequestDB did not return the request-scoped tenant database")
 	}
 }
