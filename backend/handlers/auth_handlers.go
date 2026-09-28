@@ -11,6 +11,7 @@ import (
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
+	"github.com/RK-Consulting/skill-sifter/domain/platformaccess"
 	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -127,6 +128,38 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Bridge the newly registered account into the platform/control-plane layer.
+	// "legacy" is a compatibility subscription until the real external
+	// subscription checkout flow is introduced in Phase 9E.
+	_, err = tx.Exec(`
+        INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
+        VALUES($1, $2, 'ACTIVE', 'READY')
+        ON CONFLICT (tenant_id) DO NOTHING`, companyID, creds.CompanyName)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
+		return
+	}
+
+	_, err = tx.Exec(`
+        INSERT INTO platform_subscriptions(tenant_id, plan_code, status)
+        VALUES($1, 'legacy', 'ACTIVE')
+        ON CONFLICT DO NOTHING`, companyID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform subscription")
+		return
+	}
+
+	_, err = tx.Exec(`
+        INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
+        VALUES($1, $2, $3, $4)
+        ON CONFLICT (user_id) DO UPDATE
+        SET tenant_id = EXCLUDED.tenant_id, email = EXCLUDED.email, role = EXCLUDED.role, updated_at = NOW()`,
+		userID, companyID, creds.Email, role)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
+		return
+	}
+
 	// Commit transaction
 	if err = tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
@@ -156,8 +189,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "User registered successfully",
 		Data: models.TokenResponse{
-			Token: tokenString,
-			User:  user,
+			Token:              tokenString,
+			User:               user,
+			SubscriptionStatus: access.SubscriptionStatus,
+			PlanCode:           access.PlanCode,
 		},
 	})
 }
@@ -200,6 +235,16 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user.Password = "" // Don't return the password
+
+	// Resolve tenant, subscription and RBAC from the trusted platform layer.
+	// The client cannot supply or override any of these values.
+	access, err := platformaccess.ResolveLoginAccess(db.DB, user.ID, user.TenantID)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+		return
+	}
+	user.Role = access.Role
+	user.TenantID = access.TenantID
 
 	// Create JWT token
 	tokenString, err := auth.GenerateToken(user, user.Role)
