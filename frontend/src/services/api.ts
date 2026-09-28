@@ -74,6 +74,10 @@ export const authService = {
   },
 
   // Logout
+  getCurrentAccount: async () => {
+    return api.get('/account');
+  },
+
   logout: async () => {
     return api.post('/auth/logout');
   },
