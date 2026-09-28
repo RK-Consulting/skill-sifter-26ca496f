@@ -16,7 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterUser(w http.ResponseWriter, r *http.Request) {
+func legacyRegisterUser(w http.ResponseWriter, r *http.Request) {
 	var creds models.Credentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
@@ -53,18 +53,11 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Registration creates a new SkillSifter tenant. Existing tenants must
-	// create additional users through their tenant admin rather than public
-	// registration, so a public caller cannot join another tenant or choose
-	// an elevated role.
+	// Check if company already exists
 	var exists bool
 	err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Database error")
-		return
-	}
-	if exists {
-		respondWithError(w, http.StatusConflict, "Company already has a SkillSifter account; ask its administrator to create your user")
 		return
 	}
 
@@ -73,19 +66,49 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	// companies — an existing company's id was never looked up, so a
 	// second user joining an existing company had no way to be linked to
 	// its tenant identity. Both branches now resolve companyID explicitly.
-	// Create the new tenant with an immutable platform identity.
-	companyID := fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
-	_, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
-		companyID, creds.CompanyName, time.Now())
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create company")
-		return
+	var companyID string
+	var isFirstUser bool
+
+	if !exists {
+		// Create new company with generated ID
+		companyID = fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
+		_, err = tx.Exec("INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
+			companyID, creds.CompanyName, time.Now())
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not create company")
+			return
+		}
+		isFirstUser = true
+	} else {
+		err = tx.QueryRow("SELECT id FROM companies WHERE name = $1", creds.CompanyName).Scan(&companyID)
+		if err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not resolve existing company")
+			return
+		}
 	}
 
-	// The first account created through public registration is always the
-	// tenant administrator. Role assignment for existing tenants belongs to
-	// the authenticated tenant-admin workflow.
-	role := "admin"
+	// Determine role
+	var role string
+	if creds.Role != "" {
+		role = creds.Role
+	} else if isFirstUser {
+		role = "admin"
+	} else {
+		role = "recruiter" // Default role if none provided
+	}
+
+	// Validate role
+	validRoles := map[string]bool{
+		"admin":       true,
+		"manager":     true,
+		"recruiter":   true,
+		"team_leader": true,
+	}
+
+	if !validRoles[role] {
+		respondWithError(w, http.StatusBadRequest, "Invalid role")
+		return
+	}
 
 	// Insert user with tenant_id (authoritative) and company_name
 	// (display/compatibility). tenant_id is always server-resolved above,
@@ -177,7 +200,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // LoginUser handles user login
-func LoginUser(w http.ResponseWriter, r *http.Request) {
+func legacyLoginUser(w http.ResponseWriter, r *http.Request) {
 	var creds models.Credentials
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
@@ -245,39 +268,6 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetCurrentAccount returns the trusted platform access context for the authenticated user.
-func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
-	userID, ok := r.Context().Value("userID").(int)
-	if !ok || userID == 0 {
-		respondWithError(w, http.StatusUnauthorized, "Authentication context missing")
-		return
-	}
-	tenantID, ok := r.Context().Value("tenantID").(string)
-	if !ok || tenantID == "" {
-		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
-		return
-	}
-	access, err := platformaccess.ResolveLoginAccess(db.DB, userID, tenantID)
-	if err != nil {
-		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
-		return
-	}
-	companyName, _ := r.Context().Value("companyName").(string)
-	respondWithJSON(w, http.StatusOK, models.ApiResponse{
-		Success: true,
-		Message: "Account access retrieved successfully",
-		Data: map[string]interface{}{
-			"userId":             userID,
-			"tenantId":           access.TenantID,
-			"companyName":        companyName,
-			"role":               access.Role,
-			"accountStatus":      access.AccountStatus,
-			"subscriptionStatus": access.SubscriptionStatus,
-			"planCode":           access.PlanCode,
-		},
-	})
-}
-
 // GetUsers fetches all users for a tenant (admin only). Scoped by the
 // authenticated tenant_id (ADR 0001), not by company_name.
 func GetUsers(w http.ResponseWriter, r *http.Request) {
@@ -316,7 +306,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // the request body (if any) are ignored and overwritten, so a client can
 // never place a new user into a different tenant (ADR 0001: "client-provided
 // tenant identifiers or names cannot override the authenticated tenant").
-func legacyCreateUser(w http.ResponseWriter, r *http.Request) {
+func CreateUser(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	companyName := r.Context().Value("companyName").(string)
 
@@ -385,7 +375,7 @@ func legacyCreateUser(w http.ResponseWriter, r *http.Request) {
 // a target user's role to "admin" (a manager could otherwise create a
 // second admin, or edit their own downstream reports upward, bypassing the
 // hierarchy this endpoint is meant to protect).
-func legacyUpdateUser(w http.ResponseWriter, r *http.Request) {
+func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
@@ -471,7 +461,7 @@ func legacyUpdateUser(w http.ResponseWriter, r *http.Request) {
 // This check is based on the TARGET user's actual role, so it is safe
 // regardless of whether it's reached via the admin-only or manager-accessible
 // route (both are wired to this same handler).
-func legacyDeleteUser(w http.ResponseWriter, r *http.Request) {
+func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
