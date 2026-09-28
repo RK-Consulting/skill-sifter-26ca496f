@@ -257,7 +257,7 @@ func resumeYearFromPartialDate(value string, explicitYear int) *int {
 	return nil
 }
 
-func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai resumeAIResult) error {
+func persistResumeIntelligence(r, r *http.Request, resumeID, candidateID int, tenantID string, ai resumeAIResult) error {
 	if err := normalizeResumeAI(&ai); err != nil {
 		return err
 	}
@@ -265,7 +265,7 @@ func persistResumeIntelligence(resumeID, candidateID int, tenantID string, ai re
 		return fmt.Errorf("candidate and tenant are required for resume intelligence")
 	}
 
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
 		return err
 	}
