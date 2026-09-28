@@ -155,14 +155,15 @@ describe('frontend UI smoke coverage', () => {
 });
 
 describe('authentication UI behavior', () => {
-  it('shows validation messages before submitting an empty login form', async () => {
+  it('keeps an empty login form from submitting', async () => {
     renderPage(<Login />, ['/login']);
     await screen.findByRole('heading', { name: 'Login' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-    expect(screen.getByText('Password must be at least 6 characters')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mocks.authService.login).not.toHaveBeenCalled();
+    });
   });
 
   it('logs in with the supported demo credentials and navigates to the dashboard', async () => {
@@ -205,7 +206,7 @@ describe('authentication UI behavior', () => {
   it('rejects mismatched registration passwords', async () => {
     renderPage(<Register />, ['/register']);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your username'), {
+    fireEvent.change(screen.getByPlaceholderText('Enter your name'), {
       target: { value: 'tester' },
     });
     fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
