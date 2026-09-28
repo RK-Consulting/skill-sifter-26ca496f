@@ -20,7 +20,7 @@ type requirementMatchCandidate struct {
 	Certs      []string
 }
 
-func loadRequirementForMatching(tenantID string, id int) (models.Requirement, error) {
+func loadRequirementForMatching(r, r *http.Request, tenantID string, id int) (models.Requirement, error) {
 	var req models.Requirement
 	err := db.RequestDB(r.Context()).QueryRow(`
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
@@ -41,7 +41,7 @@ func loadRequirementForMatching(tenantID string, id int) (models.Requirement, er
 	return req, err
 }
 
-func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatchCandidate, error) {
+func loadCandidateForMatching(r, r *http.Request, tenantID string, candidateID int) (requirementMatchCandidate, error) {
 	candidate := requirementMatchCandidate{ID: candidateID, Skills: []string{}, Languages: []matching.LanguageEvidence{}, Certs: []string{}}
 
 	var profileExperience string
@@ -174,12 +174,12 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid candidate ID")
 		return
 	}
-	req, err := loadRequirementForMatching(tenantID, requirementID)
+	req, err := loadRequirementForMatching(r, tenantID, requirementID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 		return
 	}
-	candidate, err := loadCandidateForMatching(tenantID, candidateID)
+	candidate, err := loadCandidateForMatching(r, tenantID, candidateID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
 		return
@@ -208,7 +208,7 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid requirement ID")
 		return
 	}
-	req, err := loadRequirementForMatching(tenantID, requirementID)
+	req, err := loadRequirementForMatching(r, tenantID, requirementID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 		return
@@ -228,7 +228,7 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, "Failed to scan candidate")
 			return
 		}
-		candidate, err := loadCandidateForMatching(tenantID, candidateID)
+		candidate, err := loadCandidateForMatching(r, tenantID, candidateID)
 		if err != nil {
 			continue
 		}
