@@ -9,7 +9,7 @@ import (
 var (
 	ErrCandidateRequirementNotFound = errors.New("candidate or requirement not found")
 	ErrOfferNotFound                = errors.New("accepted offer not found")
-	ErrJoiningExists               = errors.New("joining record already exists for candidate and requirement")
+	ErrJoiningExists                = errors.New("joining record already exists for candidate and requirement")
 	ErrJoiningDateRequired          = errors.New("joining date is required when joined is true")
 )
 
