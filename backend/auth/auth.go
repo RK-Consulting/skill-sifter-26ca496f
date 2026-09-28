@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/domain/platformaccess"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -89,16 +90,25 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Store claims in context for further use. TenantID is the
-		// authoritative tenant-scoping value (ADR 0001); companyName is
-		// carried for display/compatibility only and must not be used to
-		// scope or authorize any tenant-owned data access.
+		// Re-resolve the control-plane access context on every protected
+		// request. This prevents a suspended/expired subscription from
+		// remaining usable until JWT expiry and makes the platform layer
+		// authoritative for tenant + RBAC.
+		access, err := platformaccess.ResolveLoginAccess(db.DB, claims.UserID, claims.TenantID)
+		if err != nil {
+			http.Error(w, "Tenant subscription or access is not active", http.StatusForbidden)
+			return
+		}
+
+		// Store trusted control-plane context for downstream handlers.
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "email", claims.Email)
-		ctx = context.WithValue(ctx, "role", claims.Role)
-		ctx = context.WithValue(ctx, "tenantID", claims.TenantID)
+		ctx = context.WithValue(ctx, "role", access.Role)
+		ctx = context.WithValue(ctx, "tenantID", access.TenantID)
 		ctx = context.WithValue(ctx, "companyName", claims.CompanyName)
+		ctx = context.WithValue(ctx, "subscriptionStatus", access.SubscriptionStatus)
+		ctx = context.WithValue(ctx, "planCode", access.PlanCode)
 
 		// Call the next handler with the updated context
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -109,8 +119,12 @@ func AuthMiddleware(next http.Handler) http.Handler {
 func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Get role from context (set by authMiddleware)
-			role := r.Context().Value("role").(string)
+			// Get the role resolved from the trusted control-plane context.
+			role, ok := r.Context().Value("role").(string)
+			if !ok || role == "" {
+				http.Error(w, "Missing authorization context", http.StatusForbidden)
+				return
+			}
 
 			// Check if the role is allowed
 			allowed := false
