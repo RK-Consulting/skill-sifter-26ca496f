@@ -762,7 +762,6 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN resumes r
 			ON r.candidate_id = c.id
 		   AND r.tenant_id = c.tenant_id
-		   AND r.company_name = c.company_name
 		WHERE c.tenant_id = $1
 		  AND (
 			   lower(c.name) LIKE $2
@@ -851,20 +850,12 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 			results_count,
 			duration_ms
 		)
-		SELECT
-			$1,
-			$2,
-			$3,
-			$4,
-			COUNT(*),
-			$4,
-			$5
-		FROM resumes
-		WHERE tenant_id = $1`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7)`,
 		tenantID,
 		r.Context().Value("companyName"),
 		actor,
 		q,
+		len(out),
 		len(out),
 		duration,
 	)
@@ -885,8 +876,8 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 			$3,
 			'RESUME_SEARCHED',
 			'resume_search',
-			$3,
-			$4
+			$4,
+			$5
 		)`,
 		tenantID,
 		r.Context().Value("companyName"),
