@@ -236,8 +236,7 @@ describe('navigation UI behavior', () => {
       (button) => button.getAttribute('aria-haspopup') === 'menu',
     );
     expect(userMenuButton).toBeDefined();
-    fireEvent.pointerDown(userMenuButton!);
-    fireEvent.pointerUp(userMenuButton!);
+    fireEvent.keyDown(userMenuButton!, { key: 'Enter', code: 'Enter' });
     const logoutItem = await screen.findByRole('menuitem', { name: 'Logout', exact: true });
     expect(logoutItem).toBeInTheDocument();
 
