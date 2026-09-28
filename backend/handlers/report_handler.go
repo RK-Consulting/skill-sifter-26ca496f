@@ -79,7 +79,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetActivityLog(w http.ResponseWriter, r *http.Request) {
-	company := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 	limit := 100
 	if raw := r.URL.Query().Get("limit"); raw != "" {
 		if n, e := strconv.Atoi(raw); e == nil && n > 0 && n <= 500 {
@@ -113,8 +113,8 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
-	company := r.Context().Value("companyName").(string)
-	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 10`, company)
+	tenantID := r.Context().Value("tenantID").(string)
+	rows, err := db.DB.Query(`SELECT action,description,created_at FROM activity_logs WHERE tenant_id=$1 ORDER BY created_at DESC LIMIT 10`, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching recent activity")
 		return
@@ -134,7 +134,7 @@ func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetHiringReport(w http.ResponseWriter, r *http.Request) {
-	company := r.Context().Value("companyName").(string)
+	tenantID := r.Context().Value("tenantID").(string)
 	rows, err := db.DB.Query(`SELECT TO_CHAR(DATE_TRUNC('month',interview_date),'YYYY-MM'),COUNT(*) FROM interviews WHERE tenant_id=$1 GROUP BY 1 ORDER BY 1`, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Failed to fetch hiring report")
