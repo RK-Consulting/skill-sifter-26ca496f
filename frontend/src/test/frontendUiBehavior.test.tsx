@@ -3,6 +3,30 @@ import '@testing-library/jest-dom/vitest';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: vi.fn().mockImplementation((query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })),
+});
+
+class ResizeObserverMock {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+
+window.ResizeObserver = ResizeObserverMock as unknown as typeof ResizeObserver;
+Element.prototype.scrollIntoView = vi.fn();
+
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => {
@@ -117,7 +141,7 @@ describe('frontend UI smoke coverage', () => {
     ['Billing', <Billing />, 'Billing'],
     ['Not Found', <NotFound />, '404'],
   ])('%s renders its primary UI', async (_name, page, heading, route = '/') => {
-    setLoggedIn();
+    if (_name !== 'Login') setLoggedIn();
     renderPage(page, [route]);
     expect(await screen.findByRole('heading', { name: heading, exact: false })).toBeInTheDocument();
   });
@@ -206,9 +230,10 @@ describe('navigation UI behavior', () => {
     );
     expect(userMenuButton).toBeDefined();
     fireEvent.click(userMenuButton!);
-    expect(await screen.findByText('Logout', { exact: true })).toBeInTheDocument();
+    const logoutItem = await screen.findByRole('menuitem', { name: 'Logout', exact: true });
+    expect(logoutItem).toBeInTheDocument();
 
-    fireEvent.click(screen.getByText('Logout'));
+    fireEvent.click(logoutItem);
 
     expect(localStorage.getItem('token')).toBeNull();
     expect(localStorage.getItem('user')).toBeNull();
