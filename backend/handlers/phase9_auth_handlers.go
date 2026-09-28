@@ -12,7 +12,6 @@ import (
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/domain/platformaccess"
 	"github.com/RK-Consulting/skill-sifter/models"
-	"github.com/gorilla/mux"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -67,10 +66,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	role := "admin"
 	var userID int
-	if err = tx.QueryRow(\`
+	if err = tx.QueryRow(`
 		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
 		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
-	\`, creds.Username, creds.Email, hashedPassword, role, companyID, creds.CompanyName, time.Now()).Scan(&userID); err != nil {
+	`, creds.Username, creds.Email, hashedPassword, role, companyID, creds.CompanyName, time.Now()).Scan(&userID); err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
 			respondWithError(w, http.StatusConflict, "Email already exists")
 			return
@@ -79,28 +78,28 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err = tx.Exec(\`
+	if _, err = tx.Exec(`
 		INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
 		VALUES($1, $2, 'ACTIVE', 'READY')
 		ON CONFLICT (tenant_id) DO NOTHING
-	\`, companyID, creds.CompanyName); err != nil {
+	`, companyID, creds.CompanyName); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
 		return
 	}
 
-	if _, err = tx.Exec(\`
+	if _, err = tx.Exec(`
 		INSERT INTO platform_subscriptions(tenant_id, plan_code, status, user_limit)
 		SELECT $1, 'legacy', 'ACTIVE', 1
 		WHERE NOT EXISTS (
 			SELECT 1 FROM platform_subscriptions
 			WHERE tenant_id = $1 AND status IN ('TRIAL', 'ACTIVE')
 		)
-	\`, companyID); err != nil {
+	`, companyID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform subscription")
 		return
 	}
 
-	if _, err = tx.Exec(\`
+	if _, err = tx.Exec(`
 		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
 		VALUES($1, $2, $3, $4)
 		ON CONFLICT (user_id) DO UPDATE
@@ -108,7 +107,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		    email = EXCLUDED.email,
 		    role = EXCLUDED.role,
 		    updated_at = NOW()
-	\`, userID, companyID, creds.Email, role); err != nil {
+	`, userID, companyID, creds.Email, role); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
 		return
 	}
@@ -153,11 +152,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	var user models.User
 	var hashedPassword string
-	err := db.DB.QueryRow(\`
+	err := db.DB.QueryRow(`
 		SELECT u.id, u.username, u.email, u.password, u.role, u.tenant_id, u.company_name, u.created_at
 		FROM users u
 		WHERE u.email = $1
-	\`, creds.Email).Scan(
+	`, creds.Email).Scan(
 		&user.ID, &user.Username, &user.Email, &hashedPassword,
 		&user.Role, &user.TenantID, &user.CompanyName, &user.CreatedAt,
 	)
