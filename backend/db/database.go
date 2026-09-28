@@ -1,15 +1,16 @@
 package db
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"fmt"
-	"log"\n\t"net/http"
+	"log"
+	"net/http"
 	"strings"
-	"time"\n\t"context"\n\t"sync"
-
-	"github.com/joho/godotenv"
+	"sync"
+	"time"
 )
 
 // Database connection
