@@ -18,7 +18,7 @@ var (
 
 var (
 	currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}$`)
-	amountPattern   = regexp.MustCompile(`^[0-9]+(\.[0-9]{1,2})?$`)
+	amountPattern   = regexp.MustCompile(`^[0-9]+(\\.[0-9]{1,2})?$`)
 )
 
 type Service struct {
@@ -103,7 +103,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 		RequirementID:    input.RequirementID,
 		ClientID:         clientID,
 		JoiningID:        joiningID,
-		BillingDate:     joiningDate.Time,
+		BillingDate:      joiningDate.Time,
 		Amount:           input.Amount,
 		Currency:         input.Currency,
 		InvoiceReference: strings.TrimSpace(input.InvoiceReference),
