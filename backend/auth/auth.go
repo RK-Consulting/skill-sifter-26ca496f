@@ -45,6 +45,33 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+
+// TenantDBMiddleware resolves the authenticated tenant to its READY database.
+// Control-plane authentication remains on db.DB; tenant-owned handlers use
+// db.RequestDB(r) to access this request-scoped connection pool.
+func TenantDBMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/account" || r.URL.Path == "/api/admin/tenant/provision" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		tenantID, ok := r.Context().Value("tenantID").(string)
+		if !ok || tenantID == "" {
+			http.Error(w, "Tenant context missing", http.StatusUnauthorized)
+			return
+		}
+
+		tenantDB, err := db.TenantDB(db.DB, tenantID)
+		if err != nil {
+			http.Error(w, "Tenant database is not ready", http.StatusServiceUnavailable)
+			return
+		}
+
+		next.ServeHTTP(w, r.WithContext(db.WithTenantDB(r.Context(), tenantDB)))
+	})
+}
+
 // AuthMiddleware authenticates JWT tokens
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
