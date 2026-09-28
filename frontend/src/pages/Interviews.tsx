@@ -82,7 +82,7 @@ const Interviews = () => {
       toast.error('This interview is missing Candidate × Requirement context');
       return;
     }
-    navigate(`/recruitment-lifecycle?candidateId=${interview.candidateId}&requirementId=${interview.requirementId}`);
+    navigate(`/recruitment/lifecycle?candidateId=${interview.candidateId}&requirementId=${interview.requirementId}`);
   };
 
   // Render loading skeletons
