@@ -20,6 +20,7 @@ func TestGenerateTokenAndParse(t *testing.T) {
 		Email:       "test@example.com",
 		Role:        "recruiter",
 		CompanyName: "Acme Corp",
+		TenantID:    "tenant_acme",
 	}
 
 	tokenString, err := GenerateToken(user, user.Role)
@@ -49,6 +50,9 @@ func TestGenerateTokenAndParse(t *testing.T) {
 	}
 	if claims.CompanyName != user.CompanyName {
 		t.Errorf("CompanyName = %q, want %q", claims.CompanyName, user.CompanyName)
+	}
+	if claims.TenantID != user.TenantID {
+		t.Errorf("TenantID = %q, want %q", claims.TenantID, user.TenantID)
 	}
 }
 

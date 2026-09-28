@@ -117,6 +117,10 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	}
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_a', 'Tenant A Co') ON CONFLICT (id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_b', 'Tenant B Co') ON CONFLICT (id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_a', 'Tenant A Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_subscriptions (tenant_id, plan_code, status, user_limit) VALUES ('tenant_a', 'test', 'ACTIVE', 10) ON CONFLICT DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_b', 'Tenant B Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_subscriptions (tenant_id, plan_code, status, user_limit) VALUES ('tenant_b', 'test', 'ACTIVE', 10) ON CONFLICT DO NOTHING`)
 
 	return testDB
 }

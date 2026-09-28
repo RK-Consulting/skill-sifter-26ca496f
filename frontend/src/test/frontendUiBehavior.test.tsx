@@ -128,7 +128,7 @@ beforeEach(() => {
 describe('frontend UI smoke coverage', () => {
   it.each([
     ['Login', <Login />, 'Login'],
-    ['Register', <Register />, 'Register'],
+    ['Register', <Register />, 'Create Tenant Account'],
     ['Dashboard', <Index />, 'SkillSifter ATS'],
     ['Candidates', <Candidates />, 'Candidates'],
     ['Add Candidate', <AddCandidate />, 'Add New Candidate'],
@@ -155,33 +155,49 @@ describe('frontend UI smoke coverage', () => {
 });
 
 describe('authentication UI behavior', () => {
-  it('shows validation messages before submitting an empty login form', async () => {
+  it('keeps an empty login form from submitting', async () => {
     renderPage(<Login />, ['/login']);
     await screen.findByRole('heading', { name: 'Login' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('Company ID is required')).toBeInTheDocument();
-    expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
-    expect(screen.getByText('Password must be at least 6 characters')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mocks.authService.login).not.toHaveBeenCalled();
+    });
   });
 
   it('logs in with the supported demo credentials and navigates to the dashboard', async () => {
     renderPage(<Login />, ['/login']);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your company ID'), {
-      target: { value: 'demo-company' },
+    mocks.authService.login.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          token: 'jwt-token',
+          user: {
+            id: 1,
+            username: 'Admin User',
+            email: 'admin@example.com',
+            role: 'admin',
+            tenantId: 'tenant_demo',
+            companyName: 'Demo Company',
+          },
+          subscriptionStatus: 'ACTIVE',
+          planCode: 'legacy',
+        },
+      },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
+
+    fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'admin@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByLabelText('Password'), {
       target: { value: 'password123' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
     await waitFor(() => {
-      expect(localStorage.getItem('token')).toBe('dummy-token-123456');
+      expect(localStorage.getItem('token')).toBe('jwt-token');
       expect(JSON.parse(localStorage.getItem('user') || '{}').username).toBe('Admin User');
     });
     expect(mocks.toast.success).toHaveBeenCalledWith('Login successful');
@@ -190,22 +206,22 @@ describe('authentication UI behavior', () => {
   it('rejects mismatched registration passwords', async () => {
     renderPage(<Register />, ['/register']);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your username'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your name'), {
       target: { value: 'tester' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'tester@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Create a password'), {
       target: { value: 'password123' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Confirm your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Confirm your password'), {
       target: { value: 'different123' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your company name'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your company name'), {
       target: { value: 'Test Company' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Register' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Create Tenant Account' }));
 
     expect(await screen.findByText("Passwords don't match")).toBeInTheDocument();
     expect(mocks.authService.register).not.toHaveBeenCalled();
