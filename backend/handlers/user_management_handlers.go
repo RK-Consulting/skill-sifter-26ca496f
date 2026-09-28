@@ -49,7 +49,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var userLimit, userCount int
-	err = tx.QueryRow(\`
+	err = tx.QueryRow(`
 		SELECT s.user_limit, COUNT(u.id)
 		FROM platform_subscriptions s
 		LEFT JOIN users u ON u.tenant_id = s.tenant_id
@@ -59,7 +59,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		GROUP BY s.id, s.user_limit
 		ORDER BY s.starts_at DESC
 		LIMIT 1
-	\`, tenantID).Scan(&userLimit, &userCount)
+	`, tenantID).Scan(&userLimit, &userCount)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusForbidden, "No active subscription for this tenant")
 		return
@@ -80,10 +80,10 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var userID int
-	err = tx.QueryRow(\`
+	err = tx.QueryRow(`
 		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
 		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
-	\`, input.Username, input.Email, hashedPassword, input.Role, tenantID, companyName, time.Now()).Scan(&userID)
+	`, input.Username, input.Email, hashedPassword, input.Role, tenantID, companyName, time.Now()).Scan(&userID)
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
 			respondWithError(w, http.StatusConflict, "Email already exists")
@@ -93,7 +93,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec(\`
+	_, err = tx.Exec(`
 		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
 		VALUES($1, $2, $3, $4)
 		ON CONFLICT (user_id) DO UPDATE
@@ -101,7 +101,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		    email = EXCLUDED.email,
 		    role = EXCLUDED.role,
 		    updated_at = NOW()
-	\`, userID, tenantID, input.Email, input.Role)
+	`, userID, tenantID, input.Email, input.Role)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
 		return
@@ -134,7 +134,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	var currentRole string
 	err := db.DB.QueryRow(
-		\`SELECT role FROM users WHERE id = $1 AND tenant_id = $2\`,
+		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	).Scan(&currentRole)
 	if err == sql.ErrNoRows {
@@ -171,11 +171,11 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.DB.Exec(
-		\`UPDATE users SET
+		`UPDATE users SET
 			username = COALESCE(NULLIF($1, ''), username),
 			email = COALESCE(NULLIF($2, ''), email),
 			role = COALESCE(NULLIF($3, ''), role)
-		WHERE id = $4 AND tenant_id = $5\`,
+		WHERE id = $4 AND tenant_id = $5`,
 		update.Username, update.Email, update.Role, targetID, tenantID,
 	)
 	if err != nil {
@@ -184,11 +184,11 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.DB.Exec(
-		\`UPDATE platform_user_accounts
+		`UPDATE platform_user_accounts
 		SET email = COALESCE(NULLIF($1, ''), email),
 		    role = COALESCE(NULLIF($2, ''), role),
 		    updated_at = NOW()
-		WHERE user_id = $3 AND tenant_id = $4\`,
+		WHERE user_id = $3 AND tenant_id = $4`,
 		update.Email, update.Role, targetID, tenantID,
 	)
 	if err != nil {
@@ -209,7 +209,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 	var targetRole string
 	err := db.DB.QueryRow(
-		\`SELECT role FROM users WHERE id = $1 AND tenant_id = $2\`,
+		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	).Scan(&targetRole)
 	if err == sql.ErrNoRows {
@@ -226,7 +226,7 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, err = db.DB.Exec(
-		\`DELETE FROM users WHERE id = $1 AND tenant_id = $2\`,
+		`DELETE FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	)
 	if err != nil {
