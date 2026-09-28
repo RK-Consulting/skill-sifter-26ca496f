@@ -1,24 +1,31 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
 import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { candidateRecruitmentService, candidateService, requirementService } from '@/services/api';
+import { candidateRecruitmentService } from '@/services/api';
 
-type Candidate = { id: number; name: string };
-type Requirement = { id: number; jobId?: string; title?: string; status?: string };
-type Joining = { joined: boolean; joiningDate?: string | null };
-type Billing = {
-  id: number;
-  amount: string;
-  currency: string;
-  invoiceReference?: string;
+type BillingItem = {
+  candidateId: number;
+  candidateName: string;
+  requirementId: number;
+  requirementJobId?: string;
+  requirementTitle: string;
+  clientId: number;
+  clientName: string;
+  joiningId: number;
+  joiningDate: string;
+  billingId?: number;
   billingDate?: string;
+  amount?: string;
+  currency?: string;
+  invoiceReference?: string;
+  billed: boolean;
 };
 
 const getData = <T,>(response: { data?: { data?: T } }) => response.data?.data;
@@ -29,68 +36,66 @@ const errorMessage = (error: unknown, fallback: string) => {
 };
 
 const Billing = () => {
-  const [candidates, setCandidates] = useState<Candidate[]>([]);
-  const [requirements, setRequirements] = useState<Requirement[]>([]);
-  const [candidateId, setCandidateId] = useState('');
-  const [requirementId, setRequirementId] = useState('');
-  const [joining, setJoining] = useState<Joining | null>(null);
-  const [billing, setBilling] = useState<Billing | null>(null);
-  const [amount, setAmount] = useState('');
-  const [currency, setCurrency] = useState('INR');
-  const [invoiceReference, setInvoiceReference] = useState('');
-  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const [items, setItems] = useState<BillingItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('');
+  const [creatingKey, setCreatingKey] = useState<string | null>(null);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
+  const [invoiceReferences, setInvoiceReferences] = useState<Record<string, string>>({});
 
-  useEffect(() => {
-    Promise.all([candidateService.getAllCandidates(), requirementService.getAllRequirements()])
-      .then(([candidateResponse, requirementResponse]) => {
-        setCandidates((candidateResponse.data?.data || []) as Candidate[]);
-        setRequirements((requirementResponse.data?.data || []) as Requirement[]);
-      })
-      .catch(() => toast.error('Failed to load candidates and requirements'));
-  }, []);
-
-  useEffect(() => {
-    if (!candidateId || !requirementId) {
-      setJoining(null);
-      setBilling(null);
-      return;
-    }
-
+  const loadWorklist = async () => {
     setLoading(true);
-    const candidate = Number(candidateId);
-    const requirement = Number(requirementId);
-
-    Promise.all([
-      candidateRecruitmentService.getJoining(candidate, requirement).catch(() => null),
-      candidateRecruitmentService.getBilling(candidate, requirement).catch(() => null),
-    ])
-      .then(([joiningResponse, billingResponse]) => {
-        setJoining(joiningResponse ? getData<Joining>(joiningResponse) || null : null);
-        setBilling(billingResponse ? getData<Billing>(billingResponse) || null : null);
-      })
-      .finally(() => setLoading(false));
-  }, [candidateId, requirementId]);
-
-  const createBilling = async () => {
-    if (!candidateId || !requirementId || !amount || currency.length !== 3) return;
-
     try {
-      await candidateRecruitmentService.createBilling(Number(candidateId), Number(requirementId), {
-        amount,
-        currency,
-        invoiceReference: invoiceReference || undefined,
-      });
-
-      const response = await candidateRecruitmentService.getBilling(Number(candidateId), Number(requirementId));
-      setBilling(getData<Billing>(response) || null);
-      toast.success('Billing record created');
+      const response = await candidateRecruitmentService.getBillingWorklist();
+      setItems(getData<BillingItem[]>(response) || []);
     } catch (error) {
-      toast.error(errorMessage(error, 'Unable to create billing record'));
+      toast.error(errorMessage(error, 'Failed to load billing worklist'));
+    } finally {
+      setLoading(false);
     }
   };
 
-  const selectedCandidate = candidates.find((candidate) => candidate.id === Number(candidateId));
-  const selectedRequirement = requirements.find((requirement) => requirement.id === Number(requirementId));
+  useEffect(() => {
+    void loadWorklist();
+  }, []);
+
+  const filteredItems = useMemo(() => {
+    const query = filter.trim().toLowerCase();
+    if (!query) return items;
+    return items.filter((item) =>
+      [item.candidateName, item.requirementTitle, item.requirementJobId, item.clientName]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query)),
+    );
+  }, [filter, items]);
+
+  const createBilling = async (item: BillingItem) => {
+    const key = `${item.candidateId}-${item.requirementId}`;
+    const amount = amounts[key]?.trim() || '';
+    if (!amount) {
+      toast.error('Billing amount is required');
+      return;
+    }
+
+    setCreatingKey(key);
+    try {
+      await candidateRecruitmentService.createBilling(item.candidateId, item.requirementId, {
+        amount,
+        currency: 'INR',
+        invoiceReference: invoiceReferences[key]?.trim() || undefined,
+      });
+      toast.success('Billing record created');
+      await loadWorklist();
+    } catch (error) {
+      toast.error(errorMessage(error, 'Unable to create billing record'));
+    } finally {
+      setCreatingKey(null);
+    }
+  };
+
+  const billedCount = items.filter((item) => item.billed).length;
+  const pendingCount = items.length - billedCount;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -100,111 +105,119 @@ const Billing = () => {
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-3">Billing</h1>
             <p className="text-ats-gray-500">
-              Record and view the commercial billing event for a joined Candidate × Requirement.
+              Worklist of every joined Candidate × Requirement, showing billing recorded or still pending.
             </p>
           </div>
 
-          <Card className="mb-6">
-            <CardHeader><CardTitle>Billing Context</CardTitle></CardHeader>
-            <CardContent className="grid md:grid-cols-2 gap-4">
-              <div>
-                <Label>Candidate</Label>
-                <Select value={candidateId} onValueChange={setCandidateId}>
-                  <SelectTrigger><SelectValue placeholder="Select candidate" /></SelectTrigger>
-                  <SelectContent>
-                    {candidates.map((candidate) => (
-                      <SelectItem key={candidate.id} value={String(candidate.id)}>
-                        {candidate.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Requirement</Label>
-                <Select value={requirementId} onValueChange={setRequirementId}>
-                  <SelectTrigger><SelectValue placeholder="Select requirement" /></SelectTrigger>
-                  <SelectContent>
-                    {requirements.filter((item) => item.status !== 'cancelled').map((requirement) => (
-                      <SelectItem key={requirement.id} value={String(requirement.id)}>
-                        {requirement.jobId
-                          ? `${requirement.jobId} — ${requirement.title || 'Requirement'}`
-                          : requirement.title || `Requirement #${requirement.id}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <div className="grid md:grid-cols-3 gap-4 mb-6">
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Joined candidates</p><p className="text-2xl font-semibold">{items.length}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Billed</p><p className="text-2xl font-semibold">{billedCount}</p></CardContent></Card>
+            <Card><CardContent className="pt-6"><p className="text-sm text-muted-foreground">Billing pending</p><p className="text-2xl font-semibold">{pendingCount}</p></CardContent></Card>
+          </div>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between gap-4">
+              <CardTitle>Candidate Billing Worklist</CardTitle>
+              <Input
+                className="max-w-sm"
+                placeholder="Search candidate, client, requirement…"
+                value={filter}
+                onChange={(event) => setFilter(event.target.value)}
+              />
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-sm text-muted-foreground">Loading billing worklist…</p>
+              ) : filteredItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  {items.length === 0 ? 'No joined candidates are ready for billing.' : 'No billing records match the search.'}
+                </p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="p-3">Candidate</th>
+                        <th className="p-3">Client</th>
+                        <th className="p-3">Requirement</th>
+                        <th className="p-3">Joining date</th>
+                        <th className="p-3">Billing</th>
+                        <th className="p-3">Amount</th>
+                        <th className="p-3">Invoice reference</th>
+                        <th className="p-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredItems.map((item) => {
+                        const key = `${item.candidateId}-${item.requirementId}`;
+                        return (
+                          <tr key={key} className="border-b align-top">
+                            <td className="p-3 font-medium">
+                              <button
+                                className="text-left hover:underline"
+                                onClick={() => navigate(`/recruitment/lifecycle?candidateId=${item.candidateId}&requirementId=${item.requirementId}`)}
+                              >
+                                {item.candidateName}
+                              </button>
+                            </td>
+                            <td className="p-3">{item.clientName}</td>
+                            <td className="p-3">
+                              {item.requirementJobId ? `${item.requirementJobId} — ${item.requirementTitle}` : item.requirementTitle}
+                            </td>
+                            <td className="p-3">{new Date(item.joiningDate).toLocaleDateString()}</td>
+                            <td className="p-3">
+                              {item.billed ? (
+                                <span className="font-medium">Billed</span>
+                              ) : (
+                                <span className="text-muted-foreground">Pending</span>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              {item.billed ? (
+                                <span>{item.currency} {item.amount}</span>
+                              ) : (
+                                <div className="flex gap-2 min-w-[180px]">
+                                  <Label htmlFor={`amount-${key}`} className="sr-only">Amount</Label>
+                                  <Input
+                                    id={`amount-${key}`}
+                                    placeholder="Amount"
+                                    value={amounts[key] || ''}
+                                    onChange={(event) => setAmounts((current) => ({ ...current, [key]: event.target.value }))}
+                                  />
+                                </div>
+                              )}
+                            </td>
+                            <td className="p-3">
+                              {item.billed ? (
+                                item.invoiceReference || '—'
+                              ) : (
+                                <Input
+                                  placeholder="Optional"
+                                  value={invoiceReferences[key] || ''}
+                                  onChange={(event) => setInvoiceReferences((current) => ({ ...current, [key]: event.target.value }))}
+                                />
+                              )}
+                            </td>
+                            <td className="p-3">
+                              {item.billed ? (
+                                <Button variant="outline" size="sm" onClick={() => navigate(`/recruitment/lifecycle?candidateId=${item.candidateId}&requirementId=${item.requirementId}`)}>
+                                  Lifecycle
+                                </Button>
+                              ) : (
+                                <Button size="sm" disabled={creatingKey === key} onClick={() => void createBilling(item)}>
+                                  {creatingKey === key ? 'Saving…' : 'Create Billing'}
+                                </Button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </CardContent>
           </Card>
-
-          {candidateId && requirementId && (
-            <Card>
-              <CardHeader>
-                <CardTitle>
-                  {selectedCandidate?.name} × {selectedRequirement?.title || `Requirement #${requirementId}`}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-sm text-muted-foreground">Loading billing state…</p>
-                ) : !joining?.joined ? (
-                  <p className="text-sm text-muted-foreground">
-                    Billing can be recorded only after the Candidate × Requirement is marked as joined.
-                  </p>
-                ) : billing ? (
-                  <div className="grid md:grid-cols-3 gap-6">
-                    <div>
-                      <span className="text-sm text-muted-foreground">Amount</span>
-                      <p className="font-medium">{billing.currency} {billing.amount}</p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Billing date</span>
-                      <p className="font-medium">
-                        {billing.billingDate ? new Date(billing.billingDate).toLocaleDateString() : '—'}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-sm text-muted-foreground">Invoice reference</span>
-                      <p className="font-medium">{billing.invoiceReference || '—'}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid md:grid-cols-4 gap-3 items-end">
-                    <div>
-                      <Label htmlFor="billing-amount">Amount</Label>
-                      <Input
-                        id="billing-amount"
-                        value={amount}
-                        onChange={(event) => setAmount(event.target.value)}
-                        placeholder="e.g. 50000"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="billing-currency">Currency</Label>
-                      <Input
-                        id="billing-currency"
-                        maxLength={3}
-                        value={currency}
-                        onChange={(event) => setCurrency(event.target.value.toUpperCase())}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="invoice-reference">Invoice reference</Label>
-                      <Input
-                        id="invoice-reference"
-                        value={invoiceReference}
-                        onChange={(event) => setInvoiceReference(event.target.value)}
-                      />
-                    </div>
-                    <Button onClick={createBilling} disabled={!amount || currency.length !== 3}>
-                      Create Billing
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
         </Container>
       </main>
       <Footer />
