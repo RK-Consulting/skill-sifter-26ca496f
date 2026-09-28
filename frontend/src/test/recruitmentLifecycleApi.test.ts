@@ -55,6 +55,14 @@ describe('candidateRecruitmentService lifecycle APIs', () => {
     );
   });
 
+  it('uses the tenant billing worklist endpoint', async () => {
+    const { candidateRecruitmentService } = await import('@/services/api');
+
+    await candidateRecruitmentService.getBillingWorklist();
+
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/billing');
+  });
+
   it('uses the Candidate × Requirement billing GET endpoint', async () => {
     const { candidateRecruitmentService } = await import('@/services/api');
 
