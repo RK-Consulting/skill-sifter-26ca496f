@@ -123,7 +123,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	}
 
 	// Clean slate.
-	for _, t := range []string{"interviews", "daily_jobs", "candidates", "users", "business_dev", "activity_logs"} {
+	for _, t := range []string{"interviews", "daily_jobs", "candidates", "users", "business_dev"} {
 		testDB.Exec("DELETE FROM " + t + " WHERE tenant_id IN ('tenant_a', 'tenant_b')")
 	}
 	testDB.Exec("DELETE FROM activity_logs WHERE company_name IN ('Tenant A Co', 'Tenant B Co')")
