@@ -13,10 +13,174 @@ import (
 	_ "github.com/lib/pq"
 )
 
-func testDB(t *testing.T)*sql.DB{t.Helper();_,file,_,_:=runtime.Caller(0);root:=filepath.Clean(filepath.Join(filepath.Dir(file),"../.."));old,_:=os.Getwd();if err:=os.Chdir(root);err!=nil{t.Fatal(err)};defer os.Chdir(old);dsn:=fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",env("TEST_DB_HOST","localhost"),env("TEST_DB_PORT","5432"),env("TEST_DB_USER","postgres"),env("TEST_DB_PASSWORD","postgres"),env("TEST_DB_NAME","skillsifter_test"));d,err:=sql.Open("postgres",dsn);if err!=nil{t.Skip(err)};if err:=d.Ping();err!=nil{d.Close();t.Skip(err)};appdb.DB=d;if err:=appdb.InitializeSchema();err!=nil{d.Close();t.Fatal(err)};return d}
-func env(k,f string)string{if v:=os.Getenv(k);v!=""{return v};return f}
-func fixture(t *testing.T,d *sql.DB)(string,int,int,func()){t.Helper();tenant:=fmt.Sprintf("joining_test_%d",os.Getpid());must:=func(err error){if err!=nil{t.Fatal(err)}};exec:=func(q string,a ...interface{}){_,err:=d.Exec(q,a...);must(err)};exec("INSERT INTO companies(id,name) VALUES($1,$2)",tenant,tenant);var cid,client,rid,sid int;must(d.QueryRow("INSERT INTO candidates(name,email,tenant_id,company_name) VALUES($1,$2,$3,$4) RETURNING id","Candidate",tenant+"@c",tenant,tenant).Scan(&cid));must(d.QueryRow("INSERT INTO clients(name,status,tenant_id) VALUES($1,$2,$3) RETURNING id","Client","active",tenant).Scan(&client));must(d.QueryRow("INSERT INTO requirements(client_id,title,status,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",client,"Requirement","open",tenant).Scan(&rid));must(d.QueryRow("INSERT INTO recruitment_selections(tenant_id,candidate_id,requirement_id,decision) VALUES($1,$2,$3,'selected') RETURNING id",tenant,cid,rid).Scan(&sid));must(d.QueryRow("INSERT INTO recruitment_offers(tenant_id,candidate_id,requirement_id,selection_id,accepted) VALUES($1,$2,$3,$4,true) RETURNING id",tenant,cid,rid,sid).Scan(new(int)));clean:=func(){d.Exec("DELETE FROM recruitment_joinings WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM recruitment_offers WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM recruitment_selections WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM requirements WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM clients WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM candidates WHERE tenant_id=$1",tenant);d.Exec("DELETE FROM companies WHERE id=$1",tenant)};return tenant,cid,rid,clean}
-func TestService_CreateJoiningRequiresAcceptedOffer(t *testing.T){d:=testDB(t);defer d.Close();tenant,cid,rid,clean:=fixture(t,d);defer clean();if _,err:=d.Exec("UPDATE recruitment_offers SET accepted=false WHERE tenant_id=$1 AND candidate_id=$2 AND requirement_id=$3",tenant,cid,rid);err!=nil{t.Fatal(err)};_,err:=NewService(NewPostgresRepository(d),d).Create(tenant,CreateInput{CandidateID:cid,RequirementID:rid});if err!=ErrOfferNotFound{t.Fatalf("got %v, want ErrOfferNotFound",err)}}
-func TestService_CreateJoining(t *testing.T){d:=testDB(t);defer d.Close();tenant,cid,rid,clean:=fixture(t,d);defer clean();date:=time.Now();got,err:=NewService(NewPostgresRepository(d),d).Create(tenant,CreateInput{CandidateID:cid,RequirementID:rid,JoiningDate:&date});if err!=nil{t.Fatal(err)};if got.ID==0||got.Joined{t.Fatalf("unexpected joining: %+v",got)}}
-func TestService_JoinedRequiresDate(t *testing.T){d:=testDB(t);defer d.Close();tenant,cid,rid,clean:=fixture(t,d);defer clean();s:=NewService(NewPostgresRepository(d),d);if _,err:=s.Create(tenant,CreateInput{CandidateID:cid,RequirementID:rid});err!=nil{t.Fatal(err)};if _,err:=s.Update(tenant,cid,rid,UpdateInput{Joined:true});err!=ErrJoiningDateRequired{t.Fatalf("got %v, want ErrJoiningDateRequired",err)};date:=time.Now();got,err:=s.Update(tenant,cid,rid,UpdateInput{JoiningDate:&date,Joined:true});if err!=nil{t.Fatal(err)};if !got.Joined||got.JoiningDate==nil{t.Fatalf("unexpected joined record: %+v",got)}}
-func TestService_TenantIsolation(t *testing.T){d:=testDB(t);defer d.Close();tenant,cid,rid,clean:=fixture(t,d);defer clean();other:=tenant+"_other";if _,err:=d.Exec("INSERT INTO companies(id,name) VALUES($1,$2)",other,other);err!=nil{t.Fatal(err)};defer d.Exec("DELETE FROM companies WHERE id=$1",other);if _,err:=NewService(NewPostgresRepository(d),d).Get(other,cid,rid);err!=ErrNotFound{t.Fatalf("got %v, want ErrNotFound",err)}}
+func testDB(t *testing.T) *sql.DB {
+	t.Helper()
+	_, file, _, _ := runtime.Caller(0)
+	root := filepath.Clean(filepath.Join(filepath.Dir(file), "../.."))
+	old, _ := os.Getwd()
+	if err := os.Chdir(root); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(old)
+
+	dsn := fmt.Sprintf(
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		env("TEST_DB_HOST", "localhost"),
+		env("TEST_DB_PORT", "5432"),
+		env("TEST_DB_USER", "postgres"),
+		env("TEST_DB_PASSWORD", "postgres"),
+		env("TEST_DB_NAME", "skillsifter_test"),
+	)
+	d, err := sql.Open("postgres", dsn)
+	if err != nil {
+		t.Skip(err)
+	}
+	if err := d.Ping(); err != nil {
+		d.Close()
+		t.Skip(err)
+	}
+	appdb.DB = d
+	if err := appdb.InitializeSchema(); err != nil {
+		d.Close()
+		t.Fatal(err)
+	}
+	return d
+}
+
+func env(k, fallback string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return fallback
+}
+
+func fixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
+	t.Helper()
+	tenant := fmt.Sprintf("joining_test_%d", os.Getpid())
+	must := func(err error) {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	mustExec := func(q string, args ...interface{}) {
+		_, err := d.Exec(q, args...)
+		must(err)
+	}
+
+	mustExec("INSERT INTO companies(id,name) VALUES($1,$2)", tenant, tenant)
+
+	var candidateID, clientID, requirementID, selectionID int
+	must(d.QueryRow(
+		"INSERT INTO candidates(name,email,tenant_id,company_name) VALUES($1,$2,$3,$4) RETURNING id",
+		"Candidate", tenant+"@candidate", tenant, tenant,
+	).Scan(&candidateID))
+	must(d.QueryRow(
+		"INSERT INTO clients(name,status,tenant_id) VALUES($1,$2,$3) RETURNING id",
+		"Client", "active", tenant,
+	).Scan(&clientID))
+	must(d.QueryRow(
+		"INSERT INTO requirements(client_id,title,status,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",
+		clientID, "Requirement", "open", tenant,
+	).Scan(&requirementID))
+	must(d.QueryRow(
+		"INSERT INTO recruitment_selections(tenant_id,candidate_id,requirement_id,decision) VALUES($1,$2,$3,'selected') RETURNING id",
+		tenant, candidateID, requirementID,
+	).Scan(&selectionID))
+	must(d.QueryRow(
+		"INSERT INTO recruitment_offers(tenant_id,candidate_id,requirement_id,selection_id,accepted) VALUES($1,$2,$3,$4,true) RETURNING id",
+		tenant, candidateID, requirementID, selectionID,
+	).Scan(new(int)))
+
+	cleanup := func() {
+		d.Exec("DELETE FROM recruitment_joinings WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM recruitment_offers WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM recruitment_selections WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM requirements WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
+		d.Exec("DELETE FROM companies WHERE id=$1", tenant)
+	}
+	return tenant, candidateID, requirementID, cleanup
+}
+
+func TestService_CreateJoiningRequiresAcceptedOffer(t *testing.T) {
+	d := testDB(t)
+	defer d.Close()
+	tenant, candidateID, requirementID, cleanup := fixture(t, d)
+	defer cleanup()
+
+	if _, err := d.Exec(
+		"UPDATE recruitment_offers SET accepted=false WHERE tenant_id=$1 AND candidate_id=$2 AND requirement_id=$3",
+		tenant, candidateID, requirementID,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := NewService(NewPostgresRepository(d), d).Create(tenant, CreateInput{
+		CandidateID: candidateID, RequirementID: requirementID,
+	})
+	if err != ErrOfferNotFound {
+		t.Fatalf("got %v, want ErrOfferNotFound", err)
+	}
+}
+
+func TestService_CreateJoining(t *testing.T) {
+	d := testDB(t)
+	defer d.Close()
+	tenant, candidateID, requirementID, cleanup := fixture(t, d)
+	defer cleanup()
+
+	date := time.Now()
+	got, err := NewService(NewPostgresRepository(d), d).Create(tenant, CreateInput{
+		CandidateID: candidateID, RequirementID: requirementID, JoiningDate: &date,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.ID == 0 || got.Joined {
+		t.Fatalf("unexpected joining: %+v", got)
+	}
+}
+
+func TestService_JoinedRequiresDate(t *testing.T) {
+	d := testDB(t)
+	defer d.Close()
+	tenant, candidateID, requirementID, cleanup := fixture(t, d)
+	defer cleanup()
+
+	s := NewService(NewPostgresRepository(d), d)
+	if _, err := s.Create(tenant, CreateInput{CandidateID: candidateID, RequirementID: requirementID}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.Update(tenant, candidateID, requirementID, UpdateInput{Joined: true}); err != ErrJoiningDateRequired {
+		t.Fatalf("got %v, want ErrJoiningDateRequired", err)
+	}
+
+	date := time.Now()
+	got, err := s.Update(tenant, candidateID, requirementID, UpdateInput{
+		JoiningDate: &date, Joined: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !got.Joined || got.JoiningDate == nil {
+		t.Fatalf("unexpected joined record: %+v", got)
+	}
+}
+
+func TestService_TenantIsolation(t *testing.T) {
+	d := testDB(t)
+	defer d.Close()
+	tenant, candidateID, requirementID, cleanup := fixture(t, d)
+	defer cleanup()
+
+	other := tenant + "_other"
+	if _, err := d.Exec("INSERT INTO companies(id,name) VALUES($1,$2)", other, other); err != nil {
+		t.Fatal(err)
+	}
+	defer d.Exec("DELETE FROM companies WHERE id=$1", other)
+
+	if _, err := NewService(NewPostgresRepository(d), d).Get(other, candidateID, requirementID); err != ErrNotFound {
+		t.Fatalf("got %v, want ErrNotFound", err)
+	}
+}
