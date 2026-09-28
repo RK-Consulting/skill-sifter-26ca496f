@@ -55,7 +55,7 @@ func UploadCandidateResume(w http.ResponseWriter, r *http.Request) {
 	// accepting a file for it — the same tenant-membership check every
 	// other candidate-scoped write in this codebase performs.
 	var exists bool
-	if err := db.DB.QueryRow(`SELECT EXISTS(SELECT 1 FROM candidates WHERE id = $1 AND tenant_id = $2)`, candidateID, tenantID).Scan(&exists); err != nil {
+	if err := db.RequestDB(r.Context()).QueryRow(`SELECT EXISTS(SELECT 1 FROM candidates WHERE id = $1 AND tenant_id = $2)`, candidateID, tenantID).Scan(&exists); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error verifying candidate")
 		return
 	}
@@ -104,7 +104,7 @@ func UploadCandidateResume(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var resumeID int
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r.Context()).QueryRow(`
 		INSERT INTO resumes (
 			company_name, candidate_id, file_name, file_path, file_hash,
 			mime_type, parsing_status, uploaded_by
@@ -147,7 +147,7 @@ func GetCandidateResume(w http.ResponseWriter, r *http.Request) {
 	var resp candidateResumeResponse
 	var uploadedAt time.Time
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r.Context()).QueryRow(`
 		SELECT r.id, r.file_name, r.uploaded_at
 		FROM resumes r
 		JOIN candidates c ON c.id = r.candidate_id
