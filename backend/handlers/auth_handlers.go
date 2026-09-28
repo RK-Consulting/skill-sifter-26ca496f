@@ -515,9 +515,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 //   - Manager can only be deleted by Admin.
 //   - Recruiter/Team Leader can be deleted by Admin or Manager.
 //
-// This check is based on the TARGET user's actual role, so it is safe
-// regardless of whether it's reached via the admin-only or manager-accessible
-// rout// DeleteUser removes a non-admin tenant user.
+// DeleteUser removes a non-admin tenant user.
 // Admin is the only role allowed to manage tenant users in V1.
 // The admin account itself can never be deleted through this endpoint.
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
