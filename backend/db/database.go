@@ -11,10 +11,75 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/joho/godotenv"
 )
 
 // Database connection
 var DB *sql.DB
+
+var tenantDBs sync.Map
+
+
+// WithTenantDB stores the authenticated tenant database in the request context.
+func WithTenantDB(ctx context.Context, tenantDB *sql.DB) context.Context {
+	return context.WithValue(ctx, tenantDBKey{}, tenantDB)
+}
+
+type tenantDBKey struct{}
+
+// RequestDB returns the request-scoped tenant database. Protected HTTP routes
+// install tenant routing before tenant-owned handlers execute; the control DB
+// fallback preserves direct handler tests and non-routed control-plane handlers.
+func RequestDB(r *http.Request) *sql.DB {
+	if tenantDB, ok := r.Context().Value(tenantDBKey{}).(*sql.DB); ok && tenantDB != nil {
+		return tenantDB
+	}
+	return DB
+}
+
+// TenantDB resolves a READY tenant database from the control plane and caches
+// its connection pool for reuse across requests.
+func TenantDB(controlDB *sql.DB, tenantID string) (*sql.DB, error) {
+	if tenantID == "" {
+		return nil, fmt.Errorf("tenant id is required")
+	}
+	if cached, ok := tenantDBs.Load(tenantID); ok {
+		return cached.(*sql.DB), nil
+	}
+
+	var databaseName, status string
+	if err := controlDB.QueryRow(
+		`SELECT COALESCE(tenant_database,''), provisioning_status
+		 FROM platform_tenants WHERE tenant_id=$1`, tenantID,
+	).Scan(&databaseName, &status); err != nil {
+		return nil, fmt.Errorf("resolve tenant database: %w", err)
+	}
+	if status != "READY" || databaseName == "" {
+		return nil, fmt.Errorf("tenant database is not ready")
+	}
+
+	conn, err := OpenDatabase(databaseName)
+	if err != nil {
+		return nil, fmt.Errorf("open tenant database: %w", err)
+	}
+	actual, loaded := tenantDBs.LoadOrStore(tenantID, conn)
+	if loaded {
+		conn.Close()
+		return actual.(*sql.DB), nil
+	}
+	return conn, nil
+}
+
+// CloseTenantDatabases closes all cached tenant pools during shutdown.
+func CloseTenantDatabases() {
+	tenantDBs.Range(func(_, value interface{}) bool {
+		value.(*sql.DB).Close()
+		return true
+	})
+	tenantDBs = sync.Map{}
+}
+
 
 // OpenDatabase opens a PostgreSQL connection using the application's database credentials.
 func OpenDatabase(dbname string) (*sql.DB, error) {
