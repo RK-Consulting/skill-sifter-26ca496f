@@ -20,9 +20,9 @@ type requirementMatchCandidate struct {
 	Certs      []string
 }
 
-func loadRequirementForMatching(tenantID string, id int) (models.Requirement, error) {
+func loadRequirementForMatching(r *http.Request, tenantID string, id int) (models.Requirement, error) {
 	var req models.Requirement
-	err := db.DB.QueryRow(`
+	err := db.RequestDB(r).QueryRow(`
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
@@ -41,11 +41,11 @@ func loadRequirementForMatching(tenantID string, id int) (models.Requirement, er
 	return req, err
 }
 
-func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatchCandidate, error) {
+func loadCandidateForMatching(r *http.Request, tenantID string, candidateID int) (requirementMatchCandidate, error) {
 	candidate := requirementMatchCandidate{ID: candidateID, Skills: []string{}, Languages: []matching.LanguageEvidence{}, Certs: []string{}}
 
 	var profileExperience string
-	err := db.DB.QueryRow(`
+	err := db.RequestDB(r).QueryRow(`
 		SELECT COALESCE(c.location, ''), COALESCE(c.experience, ''), COALESCE(c.noticeperiod, ''),
 		       COALESCE(p.total_experience, '')
 		FROM candidates c
@@ -61,7 +61,7 @@ func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatc
 		candidate.Experience = profileExperience
 	}
 
-	rows, err := db.DB.Query(`SELECT skill FROM candidate_expertise WHERE tenant_id = $1 AND candidate_id = $2 ORDER BY id`, tenantID, candidateID)
+	rows, err := db.RequestDB(r).Query(`SELECT skill FROM candidate_expertise WHERE tenant_id = $1 AND candidate_id = $2 ORDER BY id`, tenantID, candidateID)
 	if err != nil {
 		return candidate, err
 	}
@@ -80,7 +80,7 @@ func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatc
 	rows.Close()
 
 	var sourceResumeID int
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		SELECT id FROM resumes
 		WHERE tenant_id = $1 AND candidate_id = $2
 		  AND parsing_status = 'completed' AND parsed_at IS NOT NULL
@@ -88,7 +88,7 @@ func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatc
 		tenantID, candidateID,
 	).Scan(&sourceResumeID)
 	if err == nil {
-		rows, err = db.DB.Query(`
+		rows, err = db.RequestDB(r).Query(`
 			SELECT language, proficiency_level
 			FROM candidate_language_expertise
 			WHERE tenant_id = $1 AND candidate_id = $2 AND source_resume_id = $3
@@ -110,7 +110,7 @@ func loadCandidateForMatching(tenantID string, candidateID int) (requirementMatc
 		}
 		rows.Close()
 
-		rows, err = db.DB.Query(`
+		rows, err = db.RequestDB(r).Query(`
 			SELECT name FROM candidate_certifications
 			WHERE tenant_id = $1 AND candidate_id = $2 AND source_resume_id = $3
 			ORDER BY id`, tenantID, candidateID, sourceResumeID)
@@ -174,12 +174,12 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid candidate ID")
 		return
 	}
-	req, err := loadRequirementForMatching(tenantID, requirementID)
+	req, err := loadRequirementForMatching(r, tenantID, requirementID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 		return
 	}
-	candidate, err := loadCandidateForMatching(tenantID, candidateID)
+	candidate, err := loadCandidateForMatching(r, tenantID, candidateID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Candidate not found")
 		return
@@ -208,13 +208,13 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Invalid requirement ID")
 		return
 	}
-	req, err := loadRequirementForMatching(tenantID, requirementID)
+	req, err := loadRequirementForMatching(r, tenantID, requirementID)
 	if err != nil {
 		respondWithError(w, http.StatusNotFound, "Requirement not found")
 		return
 	}
 
-	rows, err := db.DB.Query(`SELECT id FROM candidates WHERE tenant_id = $1 ORDER BY id`, tenantID)
+	rows, err := db.RequestDB(r).Query(`SELECT id FROM candidates WHERE tenant_id = $1 ORDER BY id`, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to retrieve candidates")
 		return
@@ -228,7 +228,7 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 			respondWithError(w, http.StatusInternalServerError, "Failed to scan candidate")
 			return
 		}
-		candidate, err := loadCandidateForMatching(tenantID, candidateID)
+		candidate, err := loadCandidateForMatching(r, tenantID, candidateID)
 		if err != nil {
 			continue
 		}
