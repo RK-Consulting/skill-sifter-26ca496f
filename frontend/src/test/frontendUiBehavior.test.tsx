@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
     companyService: service(),
     roleService: service(),
     userService: service(),
+    subscriptionService: service(),
     toast: {
       success: vi.fn(),
       error: vi.fn(),
@@ -90,6 +91,7 @@ import ResumeAI from '@/pages/ResumeAI';
 import RecruitmentLifecycle from '@/pages/RecruitmentLifecycle';
 import Billing from '@/pages/Billing';
 import AdminUsers from '@/pages/AdminUsers';
+import Account from '@/pages/Account';
 import NotFound from '@/pages/NotFound';
 import Navbar from '@/components/layout/Navbar';
 
