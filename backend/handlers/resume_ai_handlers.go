@@ -326,7 +326,7 @@ func upsertResumeCandidate(
 	)
 
 	if err == nil {
-		_, err = db.RequestDB(r).Exec(`
+		_, err = database.Exec(`
 			UPDATE candidates
 			SET name = COALESCE(NULLIF($1, ''), name),
 			    email = COALESCE(NULLIF($2, ''), email),
