@@ -170,6 +170,18 @@ type Requirement struct {
 	TenantID               string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:companies(id)"`
 }
 
+// Offer represents an offer made for a selected Candidate × Requirement.
+type Offer struct {
+	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID   int       `json:"candidateId" db:"candidate_id,notnull"`
+	RequirementID int       `json:"requirementId" db:"requirement_id,notnull"`
+	SelectionID   int       `json:"selectionId" db:"selection_id,notnull"`
+	Accepted      bool      `json:"accepted" db:"accepted,notnull"`
+	CreatedAt     time.Time `json:"createdAt" db:"created_at"`
+	LastModified  time.Time `json:"lastModified" db:"last_modified"`
+}
+
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
