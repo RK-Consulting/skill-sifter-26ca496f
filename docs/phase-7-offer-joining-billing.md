@@ -60,12 +60,25 @@ Offer.accepted = true
         ↓
 Joining.joined = true
         ↓
-Billing eligible
+Billing record
 ```
 
-Billing date = joining_date.
+Billing is a single recruitment-firm commercial event for the Candidate × Requirement.
 
-Billing remains recruitment-firm commercial functionality. It does not introduce accounting, payroll, GST/tax, or HRMS functionality.
+Fields:
+- Client reference derived from Requirement
+- Joining reference
+- Billing date = joining_date
+- Amount
+- Currency
+- Optional invoice reference
+- Audit timestamps
+
+Rules:
+1. Joining must be `joined=true`.
+2. One Billing record per Candidate × Requirement.
+3. Billing amount is supplied explicitly; Requirement budget and candidate compensation are not copied automatically.
+4. Payment reconciliation, accounting, GST/tax, payroll, and employee records remain outside the platform boundary.
 
 ## API
 
