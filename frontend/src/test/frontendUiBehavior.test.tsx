@@ -82,12 +82,12 @@ describe('frontend UI smoke coverage', () => {
     ['Register', <Register />, 'Register'],
     ['Dashboard', <Index />, 'SkillSifter ATS'],
     ['Candidates', <Candidates />, 'Candidates'],
-    ['Add Candidate', <AddCandidate />, 'Add Candidate'],
-    ['Candidate Profile', <CandidateProfile />, 'Candidate'],
-    ['Daily Tasks', <DailyJobs />, 'Daily Jobs'],
-    ['Add Daily Task', <AddDailyJob />, 'Add Daily Job'],
+    ['Add Candidate', <AddCandidate />, 'Add New Candidate'],
+    ['Candidate Profile', <CandidateProfile />, '—', '/candidates/1'],
+    ['Daily Tasks', <DailyJobs />, 'Daily Job Assignments'],
+    ['Add Daily Task', <AddDailyJob />, 'Add Daily Job Assignment'],
     ['Interviews', <Interviews />, 'Interviews'],
-    ['Interview Details', <InterviewDetails />, 'Interview'],
+    ['Interview Details', <InterviewDetails />, 'Interview Details', '/interviews/1'],
     ['Schedule Interview', <ScheduleInterview />, 'Schedule Interview'],
     ['Clients', <Clients />, 'Clients'],
     ['Add Client', <AddClient />, 'Add Client'],
@@ -98,9 +98,9 @@ describe('frontend UI smoke coverage', () => {
     ['Recruitment Lifecycle', <RecruitmentLifecycle />, 'Recruitment Lifecycle'],
     ['Billing', <Billing />, 'Billing'],
     ['Not Found', <NotFound />, '404'],
-  ])('%s renders its primary UI', async (_name, page, heading) => {
+  ])('%s renders its primary UI', async (_name, page, heading, route = '/') => {
     setLoggedIn();
-    renderPage(page);
+    renderPage(page, [route]);
     expect(await screen.findByText(heading, { exact: false })).toBeInTheDocument();
   });
 });
