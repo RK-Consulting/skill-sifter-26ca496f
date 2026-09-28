@@ -2,37 +2,26 @@ package joining
 
 import "time"
 
-const (
-	StatusScheduled = "scheduled"
-	StatusJoined    = "joined"
-	StatusNoShow    = "no_show"
-	StatusCancelled = "cancelled"
-)
-
 type Joining struct {
-	ID                   int
-	TenantID             string
-	CandidateID          int
-	RequirementID        int
-	OfferID              int
-	Status               string
-	ExpectedJoiningDate  *time.Time
-	ActualJoiningDate    *time.Time
-	Notes                string
-	CreatedAt            time.Time
-	LastModified         time.Time
+	ID int
+	TenantID string
+	CandidateID int
+	RequirementID int
+	OfferID int
+	JoiningDate *time.Time
+	Joined bool
+	CreatedAt time.Time
+	LastModified time.Time
 }
 
 type CreateInput struct {
-	CandidateID         int
-	RequirementID       int
-	ExpectedJoiningDate *time.Time
-	Notes               string
+	CandidateID int
+	RequirementID int
+	JoiningDate *time.Time
+	Joined bool
 }
 
 type UpdateInput struct {
-	Status              string
-	ExpectedJoiningDate *time.Time
-	ActualJoiningDate   *time.Time
-	Notes               string
+	JoiningDate *time.Time
+	Joined bool
 }
