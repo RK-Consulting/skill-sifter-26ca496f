@@ -245,6 +245,39 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetCurrentAccount returns the trusted platform access context for the authenticated user.
+func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(int)
+	if !ok || userID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication context missing")
+		return
+	}
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
+	access, err := platformaccess.ResolveLoginAccess(db.DB, userID, tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+		return
+	}
+	companyName, _ := r.Context().Value("companyName").(string)
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Account access retrieved successfully",
+		Data: map[string]interface{}{
+			"userId": userID,
+			"tenantId": access.TenantID,
+			"companyName": companyName,
+			"role": access.Role,
+			"accountStatus": access.AccountStatus,
+			"subscriptionStatus": access.SubscriptionStatus,
+			"planCode": access.PlanCode,
+		},
+	})
+}
+
 // GetUsers fetches all users for a tenant (admin only). Scoped by the
 // authenticated tenant_id (ADR 0001), not by company_name.
 func GetUsers(w http.ResponseWriter, r *http.Request) {
