@@ -24,7 +24,7 @@ func GetCandidateResumeIntelligence(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var candidateExists bool
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM candidates WHERE id=$1 AND tenant_id=$2)", candidateID, tenantID).Scan(&candidateExists); err != nil {
+	if err := db.RequestDB(r.Context()).QueryRow("SELECT EXISTS(SELECT 1 FROM candidates WHERE id=$1 AND tenant_id=$2)", candidateID, tenantID).Scan(&candidateExists); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to verify candidate")
 		return
 	}
@@ -37,7 +37,7 @@ func GetCandidateResumeIntelligence(w http.ResponseWriter, r *http.Request) {
 	var fileName string
 	var parsedAt time.Time
 	var parserModel sql.NullString
-	err = db.DB.QueryRow("SELECT id, file_name, parsed_at, parser_model FROM resumes WHERE id=(SELECT id FROM resumes WHERE tenant_id=$1 AND candidate_id=$2 AND parsing_status='completed' AND parsed_at IS NOT NULL ORDER BY parsed_at DESC, id DESC LIMIT 1)", tenantID, candidateID).Scan(&resumeID, &fileName, &parsedAt, &parserModel)
+	err = db.RequestDB(r.Context()).QueryRow("SELECT id, file_name, parsed_at, parser_model FROM resumes WHERE id=(SELECT id FROM resumes WHERE tenant_id=$1 AND candidate_id=$2 AND parsing_status='completed' AND parsed_at IS NOT NULL ORDER BY parsed_at DESC, id DESC LIMIT 1)", tenantID, candidateID).Scan(&resumeID, &fileName, &parsedAt, &parserModel)
 	if err == sql.ErrNoRows {
 		respondWithJSON(w, http.StatusOK, models.ApiResponse{
 			Success: true,
@@ -129,7 +129,7 @@ func queryCandidateResumeRows(query, tenantID string, candidateID, sourceResumeI
 	if sourceResumeID != nil {
 		args = append(args, sourceResumeID)
 	}
-	rows, err := db.DB.Query(query, args...)
+	rows, err := db.RequestDB(r.Context()).Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
