@@ -55,7 +55,17 @@ describe('candidateRecruitmentService lifecycle APIs', () => {
     );
   });
 
-  it('uses the Candidate × Requirement billing endpoint with explicit commercial fields', async () => {
+  it('uses the Candidate × Requirement billing GET endpoint', async () => {
+    const { candidateRecruitmentService } = await import('@/services/api');
+
+    await candidateRecruitmentService.getBilling(12, 34);
+
+    expect(mockGet).toHaveBeenCalledWith(
+      '/api/v1/candidates/12/requirements/34/billing',
+    );
+  });
+
+  it('uses the Candidate × Requirement billing POST endpoint with explicit commercial fields', async () => {
     const { candidateRecruitmentService } = await import('@/services/api');
     const billing = {
       amount: '50000',
