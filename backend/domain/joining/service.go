@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 )
 
 var (
@@ -47,11 +46,12 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 	}
 
 	var offerID int
+	var offerExpectedDate *time.Time
 	if err := s.db.QueryRow(`
-		SELECT id FROM recruitment_offers
+		SELECT id, expected_joining_date FROM recruitment_offers
 		WHERE tenant_id=$1 AND candidate_id=$2 AND requirement_id=$3
 		  AND status='accepted'
-	`, tenantID, input.CandidateID, input.RequirementID).Scan(&offerID); err != nil {
+	`, tenantID, input.CandidateID, input.RequirementID).Scan(&offerID, &offerExpectedDate); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrOfferNotFound
 		}
@@ -64,6 +64,10 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		return nil, err
 	}
 
+	if input.ExpectedJoiningDate == nil {
+		input.ExpectedJoiningDate = offerExpectedDate
+	}
+
 	j := &Joining{
 		TenantID: tenantID,
 		CandidateID: input.CandidateID,
@@ -71,6 +75,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		OfferID: offerID,
 		Status: StatusPending,
 		ExpectedJoiningDate: input.ExpectedJoiningDate,
+		
 		Notes: strings.TrimSpace(input.Notes),
 	}
 	if err := s.repo.Create(j); err != nil {
@@ -134,4 +139,3 @@ func validTransition(from, to string) bool {
 	}
 }
 
-var _ = time.Time{}
