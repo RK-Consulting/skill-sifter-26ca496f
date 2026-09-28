@@ -193,10 +193,8 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "User registered successfully",
 		Data: models.TokenResponse{
-			Token:              tokenString,
-			User:               user,
-			SubscriptionStatus: access.SubscriptionStatus,
-			PlanCode:           access.PlanCode,
+			Token: tokenString,
+			User:  user,
 		},
 	})
 }
@@ -262,8 +260,10 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Login successful",
 		Data: models.TokenResponse{
-			Token: tokenString,
-			User:  user,
+			Token:              tokenString,
+			User:               user,
+			SubscriptionStatus: access.SubscriptionStatus,
+			PlanCode:           access.PlanCode,
 		},
 	})
 }
