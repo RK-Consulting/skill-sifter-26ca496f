@@ -259,7 +259,6 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 	tenantID, ok := r.Context().Value("tenantID").(string)
 	if !ok || tenantID == "" {
