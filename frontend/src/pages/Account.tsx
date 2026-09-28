@@ -118,7 +118,7 @@ const Account = () => {
                 <div className="text-red-600">Could not load plans.</div>
               ) : plansQuery.data?.length ? (
                 <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {plansQuery.data.map((plan: any) => (
+                  {plansQuery.data.map((plan: { code: string; name: string; amountMinor: number; currency: string; billingInterval: number; billingPeriod: string; userLimit: number }) => (
                     <div key={plan.code} className="border rounded-lg p-5 space-y-3">
                       <div className="font-semibold text-lg">{plan.name}</div>
                       <div>{plan.currency} {(plan.amountMinor / 100).toFixed(2)}</div>
