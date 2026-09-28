@@ -306,7 +306,7 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // the request body (if any) are ignored and overwritten, so a client can
 // never place a new user into a different tenant (ADR 0001: "client-provided
 // tenant identifiers or names cannot override the authenticated tenant").
-func CreateUser(w http.ResponseWriter, r *http.Request) {
+func legacyCreateUser(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	companyName := r.Context().Value("companyName").(string)
 
@@ -375,7 +375,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 // a target user's role to "admin" (a manager could otherwise create a
 // second admin, or edit their own downstream reports upward, bypassing the
 // hierarchy this endpoint is meant to protect).
-func UpdateUser(w http.ResponseWriter, r *http.Request) {
+func legacyUpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
@@ -461,7 +461,7 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 // This check is based on the TARGET user's actual role, so it is safe
 // regardless of whether it's reached via the admin-only or manager-accessible
 // route (both are wired to this same handler).
-func DeleteUser(w http.ResponseWriter, r *http.Request) {
+func legacyDeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
 
