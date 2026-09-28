@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Navbar from '@/components/layout/Navbar';
 import Container from '@/components/layout/Container';
@@ -45,11 +46,14 @@ const currentUserId = () => {
 };
 
 const RecruitmentLifecycle = () => {
+  const [searchParams] = useSearchParams();
+  const initialCandidateId = searchParams.get('candidateId') || '';
+  const initialRequirementId = searchParams.get('requirementId') || '';
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [requirements, setRequirements] = useState<Requirement[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
-  const [candidateId, setCandidateId] = useState('');
-  const [requirementId, setRequirementId] = useState('');
+  const [candidateId, setCandidateId] = useState(initialCandidateId);
+  const [requirementId, setRequirementId] = useState(initialRequirementId);
 
   const [screening, setScreening] = useState<Screening | null>(null);
   const [submission, setSubmission] = useState<Submission | null>(null);
