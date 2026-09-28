@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@/services/api', () => mocks);
+vi.mock('@/services/resumeAIService', () => ({ resumeAIService: mocks.resumeAIService }));
 vi.mock('sonner', () => ({ toast: mocks.toast, Toaster: () => null }));
 
 import Login from '@/pages/Login';
