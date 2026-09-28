@@ -20,7 +20,7 @@ type requirementMatchCandidate struct {
 	Certs      []string
 }
 
-func loadRequirementForMatching(r, r *http.Request, tenantID string, id int) (models.Requirement, error) {
+func loadRequirementForMatching(r *http.Request, tenantID string, id int) (models.Requirement, error) {
 	var req models.Requirement
 	err := db.RequestDB(r.Context()).QueryRow(`
 		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
