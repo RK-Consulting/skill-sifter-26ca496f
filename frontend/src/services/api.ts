@@ -312,14 +312,20 @@ export const roleService = {
 };
 
 export const userService = {
-  // Fix company-users endpoint - removed /list which was causing issues
   getAllUsers: async () => {
-    try {
-      return await api.get('/company-users');
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      throw error;
-    }
+    return api.get('/admin/users');
+  },
+
+  createUser: async (user: { username: string; email: string; password: string; role: string }) => {
+    return api.post('/admin/users', user);
+  },
+
+  updateUser: async (id: number, user: { username?: string; email?: string; role?: string }) => {
+    return api.put(`/admin/users/${id}`, user);
+  },
+
+  deleteUser: async (id: number) => {
+    return api.delete(`/admin/users/${id}`);
   },
 };
 

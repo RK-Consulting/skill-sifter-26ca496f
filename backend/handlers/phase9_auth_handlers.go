@@ -220,6 +220,22 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	companyName, _ := r.Context().Value("companyName").(string)
+
+	var userCount, userLimit int
+	if err := db.DB.QueryRow(`
+		SELECT COUNT(*), s.user_limit
+		FROM users u
+		JOIN platform_subscriptions s ON s.tenant_id = u.tenant_id
+		WHERE u.tenant_id = $1
+		  AND s.status IN ('TRIAL', 'ACTIVE')
+		  AND (s.ends_at IS NULL OR s.ends_at >= NOW())
+		GROUP BY s.id, s.user_limit
+		ORDER BY s.starts_at DESC
+		LIMIT 1
+	`, tenantID).Scan(&userCount, &userLimit); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not read subscription user limit")
+		return
+	}
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Account access retrieved successfully",
@@ -231,6 +247,8 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 			"accountStatus":      access.AccountStatus,
 			"subscriptionStatus": access.SubscriptionStatus,
 			"planCode":           access.PlanCode,
+			"userCount":          userCount,
+			"userLimit":          userLimit,
 		},
 	})
 }

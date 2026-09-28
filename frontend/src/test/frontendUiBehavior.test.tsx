@@ -89,6 +89,7 @@ import Reports from '@/pages/Reports';
 import ResumeAI from '@/pages/ResumeAI';
 import RecruitmentLifecycle from '@/pages/RecruitmentLifecycle';
 import Billing from '@/pages/Billing';
+import AdminUsers from '@/pages/AdminUsers';
 import NotFound from '@/pages/NotFound';
 import Navbar from '@/components/layout/Navbar';
 
@@ -280,6 +281,63 @@ describe('recruitment lifecycle UI behavior', () => {
     expect(screen.getByText('Select candidate')).toBeInTheDocument();
     expect(screen.getByText('Select candidate')).toBeInTheDocument();
     expect(screen.getByText('Select requirement')).toBeInTheDocument();
+  });
+});
+
+describe('Admin user management UI behavior', () => {
+  it('shows tenant users, seat usage, and protects the admin account', async () => {
+    setLoggedIn();
+
+    mocks.authService.getCurrentAccount.mockImplementation(async () => ({
+      data: { data: { role: 'admin', userCount: 2, userLimit: 5, companyName: 'Demo Company' } },
+    }));
+    mocks.userService.getAllUsers.mockImplementation(async () => ({
+      data: {
+        data: [
+          { id: 1, username: 'Admin User', email: 'admin@example.com', role: 'admin' },
+          { id: 2, username: 'Recruiter One', email: 'recruiter@example.com', role: 'recruiter' },
+        ],
+      },
+    }));
+
+    renderPage(<AdminUsers />, ['/admin/users']);
+
+    expect(await screen.findByText('2 of 5 users in use')).toBeInTheDocument();
+    await waitFor(() => expect(mocks.userService.getAllUsers).toHaveBeenCalled());
+    expect(await screen.findByText('Admin User')).toBeInTheDocument();
+    expect(screen.getByText('Tenant administrator')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add User' })).toBeEnabled();
+  });
+
+  it('creates an additional tenant user with a fixed operational role', async () => {
+    setLoggedIn();
+
+    mocks.authService.getCurrentAccount.mockResolvedValueOnce({
+      data: { data: { role: 'admin', userCount: 1, userLimit: 3 } },
+    });
+    mocks.userService.getAllUsers.mockResolvedValueOnce({
+      data: { data: [{ id: 1, username: 'Admin User', email: 'admin@example.com', role: 'admin' }] },
+    });
+    mocks.userService.createUser.mockResolvedValueOnce({
+      data: { success: true, data: { id: 2 } },
+    });
+
+    renderPage(<AdminUsers />, ['/admin/users']);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Add User' }));
+    fireEvent.change(screen.getByPlaceholderText('User name'), { target: { value: 'New Recruiter' } });
+    fireEvent.change(screen.getByPlaceholderText('user@example.com'), { target: { value: 'new@example.com' } });
+    fireEvent.change(screen.getByPlaceholderText('Initial password'), { target: { value: 'password123' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create User' }));
+
+    await waitFor(() =>
+      expect(mocks.userService.createUser).toHaveBeenCalledWith({
+        username: 'New Recruiter',
+        email: 'new@example.com',
+        password: 'password123',
+        role: 'recruiter',
+      }),
+    );
   });
 });
 
