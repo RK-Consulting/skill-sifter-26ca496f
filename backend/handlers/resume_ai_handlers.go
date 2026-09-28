@@ -660,7 +660,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 
 		if candidate != nil {
 			if err := persistResumeIntelligence(
-					r, resumeID,
+				r, resumeID,
 				candidate.ID,
 				tenantID,
 				ai,
