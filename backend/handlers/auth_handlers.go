@@ -142,8 +142,12 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	_, err = tx.Exec(`
         INSERT INTO platform_subscriptions(tenant_id, plan_code, status)
-        VALUES($1, 'legacy', 'ACTIVE')
-        ON CONFLICT DO NOTHING`, companyID)
+        SELECT $1, 'legacy', 'ACTIVE'
+        WHERE NOT EXISTS (
+            SELECT 1 FROM platform_subscriptions
+            WHERE tenant_id = $1
+              AND status IN ('TRIAL', 'ACTIVE')
+        )`, companyID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform subscription")
 		return
