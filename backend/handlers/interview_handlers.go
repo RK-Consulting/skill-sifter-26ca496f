@@ -21,7 +21,7 @@ type errMissingJobID struct{}
 
 func (errMissingJobID) Error() string { return "selected requirement does not have a Job ID" }
 
-func validateInterviewReferences(r, r *http.Request, candidateID, requirementID int, tenantID string) (string, string, string, error) {
+func validateInterviewReferences(r *http.Request, candidateID, requirementID int, tenantID string) (string, string, string, error) {
 	var candidateName, jobID, requirementTitle string
 	err := db.RequestDB(r.Context()).QueryRow(`SELECT c.name,r.job_id,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
 		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, candidateID, requirementID, tenantID).Scan(&candidateName, &jobID, &requirementTitle)
