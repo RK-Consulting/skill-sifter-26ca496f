@@ -63,6 +63,7 @@ func managerOnly(h http.HandlerFunc) http.HandlerFunc {
 func setupProtectedRoutes(r *mux.Router) {
 	api := r.PathPrefix("/api").Subrouter()
 	api.Use(auth.AuthMiddleware)
+	api.Use(auth.TenantDBMiddleware)
 	admin := api.PathPrefix("/admin").Subrouter()
 	admin.Use(auth.RoleMiddleware("admin"))
 	admin.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
