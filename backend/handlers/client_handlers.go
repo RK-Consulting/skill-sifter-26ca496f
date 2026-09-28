@@ -35,9 +35,9 @@ func GetClients(w http.ResponseWriter, r *http.Request) {
 
 	var total int
 	if status == "" {
-		err = db.DB.QueryRow(`SELECT COUNT(*) FROM clients WHERE tenant_id = $1`, tenantID).Scan(&total)
+		err = db.RequestDB(r.Context()).QueryRow(`SELECT COUNT(*) FROM clients WHERE tenant_id = $1`, tenantID).Scan(&total)
 	} else {
-		err = db.DB.QueryRow(`SELECT COUNT(*) FROM clients WHERE tenant_id = $1 AND status = $2`, tenantID, status).Scan(&total)
+		err = db.RequestDB(r.Context()).QueryRow(`SELECT COUNT(*) FROM clients WHERE tenant_id = $1 AND status = $2`, tenantID, status).Scan(&total)
 	}
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error counting clients")
@@ -56,7 +56,7 @@ func GetClients(w http.ResponseWriter, r *http.Request) {
 		rowsArgs = []interface{}{tenantID, status, pagination.Limit, paginationOffset(pagination)}
 	}
 
-	rows, err := db.DB.Query(rowsQuery, rowsArgs...)
+	rows, err := db.RequestDB(r.Context()).Query(rowsQuery, rowsArgs...)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching clients")
 		return
@@ -99,7 +99,7 @@ func GetClientByID(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value("tenantID").(string)
 	var c models.Client
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r.Context()).QueryRow(`
 		SELECT id, name, status, COALESCE(contact_email, ''), COALESCE(contact_phone, ''), COALESCE(partner_name, ''), COALESCE(contact_person, ''), created_at, updated_at, tenant_id
 		FROM clients WHERE id = $1 AND tenant_id = $2`, id, tenantID,
 	).Scan(&c.ID, &c.Name, &c.Status, &c.ContactEmail, &c.ContactPhone, &c.PartnerName, &c.ContactPerson, &c.CreatedAt, &c.UpdatedAt, &c.TenantID)
@@ -128,7 +128,7 @@ func AddClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c.TenantID = r.Context().Value("tenantID").(string)
-	err := db.DB.QueryRow(`
+	err := db.RequestDB(r.Context()).QueryRow(`
 		INSERT INTO clients (name, status, contact_email, contact_phone, partner_name, contact_person, tenant_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id, created_at, updated_at`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.PartnerName, c.ContactPerson, c.TenantID).Scan(&c.ID, &c.CreatedAt, &c.UpdatedAt)
@@ -162,7 +162,7 @@ func UpdateClient(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value("tenantID").(string)
 	c.ID, c.TenantID = id, tenantID
-	result, err := db.DB.Exec(`
+	result, err := db.RequestDB(r.Context()).Exec(`
 		UPDATE clients SET name = $1, status = $2, contact_email = $3, contact_phone = $4, partner_name = $5, contact_person = $6, updated_at = NOW()
 		WHERE id = $7 AND tenant_id = $8`, c.Name, c.Status, c.ContactEmail, c.ContactPhone, c.PartnerName, c.ContactPerson, c.ID, tenantID)
 	if err != nil {
@@ -185,7 +185,7 @@ func DeleteClient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
-	result, err := db.DB.Exec(`DELETE FROM clients WHERE id = $1 AND tenant_id = $2`, id, tenantID)
+	result, err := db.RequestDB(r.Context()).Exec(`DELETE FROM clients WHERE id = $1 AND tenant_id = $2`, id, tenantID)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23503" {
 			respondWithError(w, http.StatusConflict, "Cannot delete client: it has existing requirements. Remove or reassign them first.")
