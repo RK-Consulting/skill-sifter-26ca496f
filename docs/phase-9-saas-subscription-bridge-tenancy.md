@@ -1,8 +1,10 @@
 # Phase 9 — SaaS Subscription, Bridge Tenancy, and Login Context
 
-**Status:** Architecture approved; implementation follows in staged PRs  
+**Status:** Architecture approved; Phase 9 foundation implemented, platform completion pending  
 **Related issue:** #79  
-**ADR:** ADR 0014
+**ADR:** ADR 0014  
+**Current implementation status:** See [Phase 9 Implementation Status](phase-9-implementation-status.md)  
+**Authorization contract:** See [V1 Privilege Matrix](authorization/v1-privilege-matrix.md)
 
 ## Purpose
 
