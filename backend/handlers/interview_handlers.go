@@ -21,7 +21,7 @@ type errMissingJobID struct{}
 
 func (errMissingJobID) Error() string { return "selected requirement does not have a Job ID" }
 
-func validateInterviewReferences(candidateID, requirementID int, tenantID string) (string, string, string, error) {
+func validateInterviewReferences(r, r *http.Request, candidateID, requirementID int, tenantID string) (string, string, string, error) {
 	var candidateName, jobID, requirementTitle string
 	err := db.RequestDB(r.Context()).QueryRow(`SELECT c.name,r.job_id,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
 		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, candidateID, requirementID, tenantID).Scan(&candidateName, &jobID, &requirementTitle)
@@ -126,7 +126,7 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "Invalid interview status")
 		return
 	}
-	candidateName, jobID, title, err := validateInterviewReferences(i.CandidateID, *i.RequirementID, tenantID)
+	candidateName, jobID, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
 	if err != nil {
 		if _, ok := err.(errMissingJobID); ok {
 			respondWithError(w, 422, "Selected requirement does not have a Job ID")
@@ -236,7 +236,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	name, jobID, title, err := validateInterviewReferences(i.CandidateID, *i.RequirementID, tenantID)
+	name, jobID, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
 	if err != nil {
 		respondWithError(w, 404, "Candidate or requirement not found")
 		return
