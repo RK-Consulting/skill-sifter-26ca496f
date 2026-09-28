@@ -121,7 +121,7 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 	if !hmac.Equal([]byte(strings.ToLower(r.Header.Get("X-Razorpay-Signature"))),[]byte(hex.EncodeToString(mac.Sum(nil)))) { respondWithError(w,401,"Invalid webhook signature"); return }
 	var event razorpayWebhookPayload; if json.Unmarshal(body,&event)!=nil { respondWithError(w,400,"Invalid webhook payload"); return }
 	sub:=event.Payload.Subscription.Entity; if sub.ID=="" { respondWithJSON(w,200,models.ApiResponse{Success:true,Message:"Webhook ignored"}); return }
-	eventRef:=r.Header.Get("X-Razorpay-Event-Id"); if eventRef=="" { eventRef:=sha256.Sum256(body); eventRef=hex.EncodeToString(eventRef[:]) }
+	eventRef:=r.Header.Get("X-Razorpay-Event-Id"); if eventRef=="" { sum:=sha256.Sum256(body); eventRef=hex.EncodeToString(sum[:]) }
 	var tenantID,planCode string
 	if err:=db.DB.QueryRow("SELECT tenant_id,plan_code FROM platform_subscriptions WHERE provider='razorpay' AND provider_subscription_ref=$1 ORDER BY id DESC LIMIT 1",sub.ID).Scan(&tenantID,&planCode); err!=nil {
 		if err:=db.DB.QueryRow("SELECT tenant_id,plan_code FROM platform_subscription_checkouts WHERE provider='razorpay' AND provider_subscription_ref=$1 ORDER BY id DESC LIMIT 1",sub.ID).Scan(&tenantID,&planCode); err!=nil { respondWithError(w,404,"Subscription checkout not found"); return }
