@@ -267,13 +267,13 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Account access retrieved successfully",
 		Data: map[string]interface{}{
-			"userId": userID,
-			"tenantId": access.TenantID,
-			"companyName": companyName,
-			"role": access.Role,
-			"accountStatus": access.AccountStatus,
+			"userId":             userID,
+			"tenantId":           access.TenantID,
+			"companyName":        companyName,
+			"role":               access.Role,
+			"accountStatus":      access.AccountStatus,
 			"subscriptionStatus": access.SubscriptionStatus,
-			"planCode": access.PlanCode,
+			"planCode":           access.PlanCode,
 		},
 	})
 }
