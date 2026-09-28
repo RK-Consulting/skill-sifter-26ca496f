@@ -20,6 +20,7 @@ func TestGenerateTokenAndParse(t *testing.T) {
 		Email:       "test@example.com",
 		Role:        "recruiter",
 		CompanyName: "Acme Corp",
+		TenantID:    "tenant_acme",
 		TenantID: "tenant_acme",
 	}
 
