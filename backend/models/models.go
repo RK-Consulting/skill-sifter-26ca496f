@@ -171,36 +171,26 @@ type Requirement struct {
 }
 
 // Offer represents an offer made for a selected Candidate × Requirement.
-// It is a recruitment transaction record, not an employee/HRMS contract.
 type Offer struct {
 	ID int `json:"id" db:"id,primarykey,autoincrement"`
 	TenantID string `json:"tenantId" db:"tenant_id,notnull"`
 	CandidateID int `json:"candidateId" db:"candidate_id,notnull"`
 	RequirementID int `json:"requirementId" db:"requirement_id,notnull"`
 	SelectionID int `json:"selectionId" db:"selection_id,notnull"`
-	OfferReference string `json:"offerReference,omitempty" db:"offer_reference"`
-	Status string `json:"status" db:"status,notnull"`
-	OfferedDate time.Time `json:"offeredDate" db:"offered_date,notnull"`
-	ExpectedJoiningDate *time.Time `json:"expectedJoiningDate,omitempty" db:"expected_joining_date"`
-	Compensation string `json:"compensation,omitempty" db:"compensation"`
-	Terms string `json:"terms,omitempty" db:"terms"`
-	Notes string `json:"notes,omitempty" db:"notes"`
-	DecisionAt *time.Time `json:"decisionAt,omitempty" db:"decision_at"`
+	Accepted bool `json:"accepted" db:"accepted,notnull"`
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	LastModified time.Time `json:"lastModified" db:"last_modified"`
 }
-// Joining records the actual recruitment outcome for a Candidate × Requirement.
-// It is intentionally not an employee or HRMS record.
+
+// Joining records the joining date and whether the Candidate × Requirement actually joined.
 type Joining struct {
 	ID int `json:"id" db:"id,primarykey,autoincrement"`
 	TenantID string `json:"tenantId" db:"tenant_id,notnull"`
 	CandidateID int `json:"candidateId" db:"candidate_id,notnull"`
 	RequirementID int `json:"requirementId" db:"requirement_id,notnull"`
 	OfferID int `json:"offerId" db:"offer_id,notnull"`
-	Status string `json:"status" db:"status,notnull"`
-	ExpectedJoiningDate *time.Time `json:"expectedJoiningDate,omitempty" db:"expected_joining_date"`
-	ActualJoiningDate *time.Time `json:"actualJoiningDate,omitempty" db:"actual_joining_date"`
-	Notes string `json:"notes,omitempty" db:"notes"`
+	JoiningDate *time.Time `json:"joiningDate,omitempty" db:"joining_date"`
+	Joined bool `json:"joined" db:"joined,notnull"`
 	CreatedAt time.Time `json:"createdAt" db:"created_at"`
 	LastModified time.Time `json:"lastModified" db:"last_modified"`
 }
