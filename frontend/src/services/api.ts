@@ -200,6 +200,54 @@ export const candidateRecruitmentService = {
       selection,
     );
   },
+  getOffer: async (candidateId: number, requirementId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`);
+  },
+  createOffer: async (candidateId: number, requirementId: number) => {
+    return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`);
+  },
+  updateOffer: async (candidateId: number, requirementId: number, accepted: boolean) => {
+    return api.put(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`,
+      { accepted },
+    );
+  },
+  getJoining: async (candidateId: number, requirementId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`);
+  },
+  createJoining: async (
+    candidateId: number,
+    requirementId: number,
+    joining: { joiningDate?: string; joined: boolean },
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`,
+      joining,
+    );
+  },
+  updateJoining: async (
+    candidateId: number,
+    requirementId: number,
+    joining: { joiningDate?: string; joined: boolean },
+  ) => {
+    return api.put(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`,
+      joining,
+    );
+  },
+  getBilling: async (candidateId: number, requirementId: number) => {
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`);
+  },
+  createBilling: async (
+    candidateId: number,
+    requirementId: number,
+    billing: { amount: string; currency: string; invoiceReference?: string },
+  ) => {
+    return api.post(
+      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`,
+      billing,
+    );
+  },
 };
 
 export const businessDevService = {
