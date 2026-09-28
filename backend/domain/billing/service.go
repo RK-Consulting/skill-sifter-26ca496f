@@ -16,7 +16,46 @@ var (
 	ErrInvalidCurrency              = errors.New("billing currency must be a three-letter code")
 )
 
-var currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}$`)
+var (
+	currencyPattern = regexp.MustCompile(`^[A-Za-z]{3}package billing
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var (
+	ErrCandidateRequirementNotFound = errors.New("candidate or requirement not found")
+	ErrJoiningNotFound              = errors.New("joined recruitment record not found")
+	ErrBillingExists                = errors.New("billing record already exists for candidate and requirement")
+	ErrInvalidAmount                = errors.New("billing amount is required")
+	ErrInvalidCurrency              = errors.New("billing currency must be a three-letter code")
+)
+
+)
+	amountPattern   = regexp.MustCompile(`^[0-9]+(\\.[0-9]{1,2})?package billing
+
+import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+var (
+	ErrCandidateRequirementNotFound = errors.New("candidate or requirement not found")
+	ErrJoiningNotFound              = errors.New("joined recruitment record not found")
+	ErrBillingExists                = errors.New("billing record already exists for candidate and requirement")
+	ErrInvalidAmount                = errors.New("billing amount is required")
+	ErrInvalidCurrency              = errors.New("billing currency must be a three-letter code")
+)
+
+)
+)
 
 type Service struct {
 	repo Repository
@@ -31,7 +70,8 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 	if input.CandidateID == 0 || input.RequirementID == 0 {
 		return nil, fmt.Errorf("candidateId and requirementId are required")
 	}
-	if strings.TrimSpace(input.Amount) == "" {
+	input.Amount = strings.TrimSpace(input.Amount)
+	if !amountPattern.MatchString(input.Amount) || strings.TrimLeft(strings.ReplaceAll(input.Amount, ".", ""), "0") == "" {
 		return nil, ErrInvalidAmount
 	}
 	input.Currency = strings.ToUpper(strings.TrimSpace(input.Currency))
