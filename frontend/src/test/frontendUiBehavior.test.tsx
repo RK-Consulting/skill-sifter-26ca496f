@@ -188,10 +188,10 @@ describe('authentication UI behavior', () => {
       },
     });
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'admin@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your password'), {
       target: { value: 'password123' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
@@ -206,19 +206,19 @@ describe('authentication UI behavior', () => {
   it('rejects mismatched registration passwords', async () => {
     renderPage(<Register />, ['/register']);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your name'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your name'), {
       target: { value: 'tester' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your email'), {
       target: { value: 'tester@example.com' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your password'), {
       target: { value: 'password123' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Confirm your password'), {
+    fireEvent.change(await screen.findByPlaceholderText('Confirm your password'), {
       target: { value: 'different123' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Enter your company name'), {
+    fireEvent.change(await screen.findByPlaceholderText('Enter your company name'), {
       target: { value: 'Test Company' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Register' }));
