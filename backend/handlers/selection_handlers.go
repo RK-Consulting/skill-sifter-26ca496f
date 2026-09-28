@@ -55,7 +55,7 @@ func GetCandidateRequirementSelection(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
 	var selection selectionResponse
-	err = db.DB.QueryRow(
+	err = db.RequestDB(r).QueryRow(
 		`SELECT id, tenant_id, candidate_id, requirement_id, decision,
 		        decision_notes, next_action, decided_at, last_modified
 		FROM recruitment_selections
@@ -103,7 +103,7 @@ func CreateCandidateRequirementSelection(w http.ResponseWriter, r *http.Request)
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting selection transaction")
 		return

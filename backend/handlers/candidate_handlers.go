@@ -21,7 +21,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r).Query(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
 		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id, company_name
@@ -63,7 +63,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := loadCandidateExpertise(&c, tenantID); err != nil {
+		if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 			return
 		}
@@ -100,7 +100,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 
 	var c models.Candidate
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
 		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id, company_name
@@ -134,7 +134,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := loadCandidateExpertise(&c, tenantID); err != nil {
+	if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 		return
 	}
@@ -176,7 +176,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	c.TenantID = tenantID
 	c.CompanyName = companyName
 
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting transaction")
 		return
@@ -256,7 +256,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 
 	var existingStatus, existingPipelineStage string
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		SELECT status, pipeline_stage
 		FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
@@ -288,7 +288,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting transaction")
 		return
@@ -351,7 +351,7 @@ func UpdateCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := loadCandidateExpertise(&c, tenantID); err != nil {
+	if err := loadCandidateExpertise(r, &c, tenantID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error loading candidate expertise")
 		return
 	}
@@ -377,7 +377,7 @@ func DeleteCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	result, err := db.DB.Exec(`
+	result, err := db.RequestDB(r).Exec(`
 		DELETE FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
 		id,
@@ -401,11 +401,11 @@ func DeleteCandidate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func loadCandidateExpertise(c *models.Candidate, tenantID string) error {
+func loadCandidateExpertise(r *http.Request, c *models.Candidate, tenantID string) error {
 	c.LanguageExpertise = make([]models.CandidateLanguageExpertise, 0)
 	c.TechnicalExpertise = make([]models.CandidateExpertise, 0)
 
-	languageRows, err := db.DB.Query(`
+	languageRows, err := db.RequestDB(r).Query(`
 		SELECT id, tenant_id, candidate_id, language,
 		       proficiency_framework, proficiency_level,
 		       created_at, updated_at
@@ -443,7 +443,7 @@ func loadCandidateExpertise(c *models.Candidate, tenantID string) error {
 		return err
 	}
 
-	expertiseRows, err := db.DB.Query(`
+	expertiseRows, err := db.RequestDB(r).Query(`
 		SELECT id, tenant_id, candidate_id, skill, category,
 		       proficiency_level, created_at, updated_at
 		FROM candidate_expertise

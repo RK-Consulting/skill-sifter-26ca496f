@@ -16,7 +16,7 @@ func GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
 	users := []models.User{}
-	rows, err := db.DB.Query("SELECT id, username FROM users WHERE tenant_id = $1", tenantID)
+	rows, err := db.RequestDB(r).Query("SELECT id, username FROM users WHERE tenant_id = $1", tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching company users")
 		return
@@ -48,7 +48,7 @@ func GetCompanyUsers(w http.ResponseWriter, r *http.Request) {
 func GetDailyJobs(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r).Query(`
 		SELECT dj.id, dj.jd_no, dj.instructions, dj.assigned_user, 
 			u.username as assigned_username, dj.assigned_date, dj.last_modified, dj.tenant_id, dj.company_name
 		FROM daily_jobs dj
@@ -105,7 +105,7 @@ func GetDailyJobByID(w http.ResponseWriter, r *http.Request) {
 	var dailyJob models.DailyJob
 	var username *string
 
-	err = db.DB.QueryRow(`
+	err = db.RequestDB(r).QueryRow(`
 		SELECT dj.id, dj.jd_no, dj.instructions, dj.assigned_user, 
 			u.username as assigned_username, dj.assigned_date, dj.last_modified, dj.tenant_id, dj.company_name
 		FROM daily_jobs dj
@@ -146,7 +146,7 @@ func AddDailyJob(w http.ResponseWriter, r *http.Request) {
 	dailyJob.CompanyName = r.Context().Value("companyName").(string)
 
 	var id int
-	err = db.DB.QueryRow(
+	err = db.RequestDB(r).QueryRow(
 		`INSERT INTO daily_jobs (jd_no, instructions, assigned_user, tenant_id, company_name) 
 		VALUES ($1, $2, $3, $4, $5) 
 		RETURNING id`,
@@ -164,7 +164,7 @@ func AddDailyJob(w http.ResponseWriter, r *http.Request) {
 	// cross-tenant assigned_user id can never leak another tenant's
 	// username into this response.
 	var username string
-	err = db.DB.QueryRow(
+	err = db.RequestDB(r).QueryRow(
 		"SELECT username FROM users WHERE id = $1 AND tenant_id = $2",
 		dailyJob.AssignedUser, dailyJob.TenantID,
 	).Scan(&username)
@@ -202,7 +202,7 @@ func UpdateDailyJob(w http.ResponseWriter, r *http.Request) {
 	dailyJob.TenantID = tenantID
 	dailyJob.ID = id
 
-	result, err := db.DB.Exec(
+	result, err := db.RequestDB(r).Exec(
 		`UPDATE daily_jobs 
 		SET jd_no = $1, instructions = $2, assigned_user = $3, last_modified = NOW() 
 		WHERE id = $4 AND tenant_id = $5`,
@@ -222,7 +222,7 @@ func UpdateDailyJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var username string
-	err = db.DB.QueryRow(
+	err = db.RequestDB(r).QueryRow(
 		"SELECT username FROM users WHERE id = $1 AND tenant_id = $2",
 		dailyJob.AssignedUser, tenantID,
 	).Scan(&username)
@@ -249,7 +249,7 @@ func DeleteDailyJob(w http.ResponseWriter, r *http.Request) {
 
 	tenantID := r.Context().Value("tenantID").(string)
 
-	result, err := db.DB.Exec(
+	result, err := db.RequestDB(r).Exec(
 		"DELETE FROM daily_jobs WHERE id = $1 AND tenant_id = $2",
 		id, tenantID,
 	)
