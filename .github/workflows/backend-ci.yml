@@ -51,12 +51,8 @@ jobs:
       - name: Check formatting
         shell: bash
         run: |
-          files=$(gofmt -l .)
-          if [ -n "$files" ]; then
-            echo "The following Go files are not formatted:"
-            echo "$files"
-            exit 1
-          fi
+          gofmt -d handlers/subscription_handlers.go
+          exit 1
 
   build:
     name: Go Build
