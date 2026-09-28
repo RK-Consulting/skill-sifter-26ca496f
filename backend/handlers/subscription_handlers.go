@@ -15,6 +15,7 @@ import (
 	"github.com/RK-Consulting/skill-sifter/models"
 )
 
+// Razorpay remains the external payment system; SkillSifter stores only subscription state and opaque references.
 type razorpaySubscriptionPayload struct {
 	ID           string            `json:"id"`
 	Status       string            `json:"status"`
