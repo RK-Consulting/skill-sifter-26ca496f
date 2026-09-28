@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS recruitment_joinings (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     last_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT recruitment_joining_status_valid
-        CHECK (status IN ('pending','joined','not_joined','withdrawn')),
+        CHECK (status IN ('scheduled','joined','no_show','cancelled')),
     CONSTRAINT recruitment_joining_actual_date_valid
         CHECK ((status = 'joined') = (actual_joining_date IS NOT NULL))
 );
