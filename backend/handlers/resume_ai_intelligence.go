@@ -257,7 +257,7 @@ func resumeYearFromPartialDate(value string, explicitYear int) *int {
 	return nil
 }
 
-func persistResumeIntelligence(r, r *http.Request, resumeID, candidateID int, tenantID string, ai resumeAIResult) error {
+func persistResumeIntelligence(r *http.Request, resumeID, candidateID int, tenantID string, ai resumeAIResult) error {
 	if err := normalizeResumeAI(&ai); err != nil {
 		return err
 	}
