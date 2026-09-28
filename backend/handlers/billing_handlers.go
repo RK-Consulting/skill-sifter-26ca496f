@@ -19,8 +19,8 @@ type billingRequest struct {
 	InvoiceReference string `json:"invoiceReference,omitempty"`
 }
 
-func billingService() *billing.Service {
-	return billing.NewService(billing.NewPostgresRepository(db.DB), db.DB)
+func billingService(r *http.Request) *billing.Service {
+	return billing.NewService(billing.NewPostgresRepository(db.RequestDB(r.Context())), db.RequestDB(r.Context()))
 }
 
 func GetBillingWorklist(w http.ResponseWriter, r *http.Request) {
@@ -30,7 +30,7 @@ func GetBillingWorklist(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	items, err := billingService().ListWorklist(tenantID)
+	items, err := billingService(r).ListWorklist(tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching billing worklist")
 		return
@@ -62,7 +62,7 @@ func GetCandidateRequirementBilling(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
-	b, err := billingService().Get(tenantID, candidateID, requirementID)
+	b, err := billingService(r).Get(tenantID, candidateID, requirementID)
 	if errors.Is(err, billing.ErrNotFound) {
 		respondWithError(w, http.StatusNotFound, "Billing record not found")
 		return
@@ -92,7 +92,7 @@ func CreateCandidateRequirementBilling(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
-	b, err := billingService().Create(tenantID, billing.CreateInput{
+	b, err := billingService(r).Create(tenantID, billing.CreateInput{
 		CandidateID:      candidateID,
 		RequirementID:    requirementID,
 		Amount:           req.Amount,
