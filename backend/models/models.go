@@ -182,6 +182,19 @@ type Offer struct {
 	LastModified  time.Time `json:"lastModified" db:"last_modified"`
 }
 
+// Joining records the joining date and whether the Candidate × Requirement actually joined.
+type Joining struct {
+	ID            int        `json:"id" db:"id,primarykey,autoincrement"`
+	TenantID      string     `json:"tenantId" db:"tenant_id,notnull"`
+	CandidateID   int        `json:"candidateId" db:"candidate_id,notnull"`
+	RequirementID int        `json:"requirementId" db:"requirement_id,notnull"`
+	OfferID       int        `json:"offerId" db:"offer_id,notnull"`
+	JoiningDate   *time.Time `json:"joiningDate,omitempty" db:"joining_date"`
+	Joined        bool       `json:"joined" db:"joined,notnull"`
+	CreatedAt     time.Time  `json:"createdAt" db:"created_at"`
+	LastModified  time.Time  `json:"lastModified" db:"last_modified"`
+}
+
 // Company model
 type Company struct {
 	ID        string    `json:"id" db:"id,primarykey"`
