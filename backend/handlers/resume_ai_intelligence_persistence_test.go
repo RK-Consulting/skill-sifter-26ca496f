@@ -256,7 +256,7 @@ func TestPersistResumeIntelligencePartialFailureRollsBack(t *testing.T) {
 		Projects:          []resumeProject{{ProjectName: "Broken Project", StartDate: "not-a-date"}},
 	}
 
-	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err == nil {
+	if err := persistResumeIntelligence(db.DB,fx.resumeID, fx.candidateID, fx.tenantID, ai); err == nil {
 		t.Fatal("expected invalid project date to fail persistence")
 	}
 
@@ -295,7 +295,7 @@ func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
 		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp", JobTitle: "Architect"}},
 		Projects:          []resumeProject{{ProjectName: "Project Atlas"}},
 	}
-	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, first); err != nil {
+	if err := persistResumeIntelligence(db.DB,fx.resumeID, fx.candidateID, fx.tenantID, first); err != nil {
 		t.Fatalf("first persistence failed: %v", err)
 	}
 
@@ -305,7 +305,7 @@ func TestPersistResumeIntelligenceReprocessingIsSourceScoped(t *testing.T) {
 		EmploymentHistory: []resumeEmployment{{Employer: "Example Corp", JobTitle: "Principal Architect"}},
 		Projects:          []resumeProject{{ProjectName: "Project Atlas v2"}},
 	}
-	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, second); err != nil {
+	if err := persistResumeIntelligence(db.DB,fx.resumeID, fx.candidateID, fx.tenantID, second); err != nil {
 		t.Fatalf("second persistence failed: %v", err)
 	}
 
