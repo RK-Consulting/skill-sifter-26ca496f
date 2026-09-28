@@ -24,7 +24,7 @@ var validRequirementStatuses = map[string]bool{
 // authenticated tenant, so a requirement can never be attached to another
 // tenant's client (which would otherwise let a requirement's tenant_id and
 // its client's actual tenant silently diverge).
-func clientBelongsToTenant(r, r *http.Request, clientID int, tenantID string) (bool, error) {
+func clientBelongsToTenant(r *http.Request, clientID int, tenantID string) (bool, error) {
 	var exists bool
 	err := db.RequestDB(r.Context()).QueryRow(`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1 AND tenant_id = $2)`, clientID, tenantID).Scan(&exists)
 	return exists, err
