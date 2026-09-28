@@ -161,7 +161,6 @@ describe('authentication UI behavior', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Login' }));
 
-    expect(await screen.findByText('Company ID is required')).toBeInTheDocument();
     expect(screen.getByText('Please enter a valid email address')).toBeInTheDocument();
     expect(screen.getByText('Password must be at least 6 characters')).toBeInTheDocument();
   });
@@ -169,9 +168,25 @@ describe('authentication UI behavior', () => {
   it('logs in with the supported demo credentials and navigates to the dashboard', async () => {
     renderPage(<Login />, ['/login']);
 
-    fireEvent.change(screen.getByPlaceholderText('Enter your company ID'), {
-      target: { value: 'demo-company' },
+    mocks.authService.login.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: {
+          token: 'jwt-token',
+          user: {
+            id: 1,
+            username: 'Admin User',
+            email: 'admin@example.com',
+            role: 'admin',
+            tenantId: 'tenant_demo',
+            companyName: 'Demo Company',
+          },
+          subscriptionStatus: 'ACTIVE',
+          planCode: 'legacy',
+        },
+      },
     });
+
     fireEvent.change(screen.getByPlaceholderText('Enter your email'), {
       target: { value: 'admin@example.com' },
     });
