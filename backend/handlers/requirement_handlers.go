@@ -24,7 +24,7 @@ var validRequirementStatuses = map[string]bool{
 // authenticated tenant, so a requirement can never be attached to another
 // tenant's client (which would otherwise let a requirement's tenant_id and
 // its client's actual tenant silently diverge).
-func clientBelongsToTenant(clientID int, tenantID string) (bool, error) {
+func clientBelongsToTenant(r, r *http.Request, clientID int, tenantID string) (bool, error) {
 	var exists bool
 	err := db.RequestDB(r.Context()).QueryRow(`SELECT EXISTS(SELECT 1 FROM clients WHERE id = $1 AND tenant_id = $2)`, clientID, tenantID).Scan(&exists)
 	return exists, err
@@ -163,7 +163,7 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 
 	req.TenantID = r.Context().Value("tenantID").(string)
 
-	belongs, err := clientBelongsToTenant(req.ClientID, req.TenantID)
+	belongs, err := clientBelongsToTenant(r, req.ClientID, req.TenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error validating client")
 		return
@@ -260,7 +260,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	belongs, err := clientBelongsToTenant(req.ClientID, tenantID)
+	belongs, err := clientBelongsToTenant(r, req.ClientID, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error validating client")
 		return
