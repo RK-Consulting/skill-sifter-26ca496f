@@ -21,7 +21,6 @@ func TestGenerateTokenAndParse(t *testing.T) {
 		Role:        "recruiter",
 		CompanyName: "Acme Corp",
 		TenantID:    "tenant_acme",
-		TenantID: "tenant_acme",
 	}
 
 	tokenString, err := GenerateToken(user, user.Role)
