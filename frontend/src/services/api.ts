@@ -159,7 +159,6 @@ export const interviewService = {
 };
 
 export const candidateRecruitmentService = {
-  // Persistent candidate state is the control plane for recruitment capacity.
   getScreenings: async (candidateId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/screenings`);
   },
@@ -173,32 +172,25 @@ export const candidateRecruitmentService = {
     return api.get(`/api/v1/candidates/${candidateId}/interviews`);
   },
   getSubmissions: async (candidateId: number, requirementId: number) => {
-    return api.get(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
-    );
+    return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`);
   },
-  createSubmission: async (
-    candidateId: number,
-    requirementId: number,
-    submission: Record<string, unknown>,
+  createSubmission: async (candidateId: number, requirementId: number, submission: Record<string, unknown>) => {
+    return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`, submission);
+  },
+  getSubmissionFeedback: async (submissionId: number) => {
+    return api.get(`/api/v1/submissions/${submissionId}/feedback`);
+  },
+  createSubmissionFeedback: async (
+    submissionId: number,
+    feedback: { outcome: string; reasonCode?: string; comments?: string; nextAction?: string },
   ) => {
-    return api.post(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/submissions`,
-      submission,
-    );
+    return api.post(`/api/v1/submissions/${submissionId}/feedback`, feedback);
   },
   getSelection: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`);
   },
-  createSelection: async (
-    candidateId: number,
-    requirementId: number,
-    selection: { decision: string; decisionNotes?: string; nextAction?: string },
-  ) => {
-    return api.post(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`,
-      selection,
-    );
+  createSelection: async (candidateId: number, requirementId: number, selection: { decision: string; decisionNotes?: string; nextAction?: string }) => {
+    return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/selection`, selection);
   },
   getOffer: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`);
@@ -207,46 +199,22 @@ export const candidateRecruitmentService = {
     return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`);
   },
   updateOffer: async (candidateId: number, requirementId: number, accepted: boolean) => {
-    return api.put(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`,
-      { accepted },
-    );
+    return api.put(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/offer`, { accepted });
   },
   getJoining: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`);
   },
-  createJoining: async (
-    candidateId: number,
-    requirementId: number,
-    joining: { joiningDate?: string; joined: boolean },
-  ) => {
-    return api.post(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`,
-      joining,
-    );
+  createJoining: async (candidateId: number, requirementId: number, joining: { joiningDate?: string; joined: boolean }) => {
+    return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`, joining);
   },
-  updateJoining: async (
-    candidateId: number,
-    requirementId: number,
-    joining: { joiningDate?: string; joined: boolean },
-  ) => {
-    return api.put(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`,
-      joining,
-    );
+  updateJoining: async (candidateId: number, requirementId: number, joining: { joiningDate?: string; joined: boolean }) => {
+    return api.put(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/joining`, joining);
   },
   getBilling: async (candidateId: number, requirementId: number) => {
     return api.get(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`);
   },
-  createBilling: async (
-    candidateId: number,
-    requirementId: number,
-    billing: { amount: string; currency: string; invoiceReference?: string },
-  ) => {
-    return api.post(
-      `/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`,
-      billing,
-    );
+  createBilling: async (candidateId: number, requirementId: number, billing: { amount: string; currency: string; invoiceReference?: string }) => {
+    return api.post(`/api/v1/candidates/${candidateId}/requirements/${requirementId}/billing`, billing);
   },
 };
 
