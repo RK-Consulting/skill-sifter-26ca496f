@@ -12,8 +12,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func submissionService() *submission.Service {
-	return submission.NewService(submission.NewPostgresRepository(db.DB), db.DB)
+func submissionService(r *http.Request) *submission.Service {
+	return submission.NewService(submission.NewPostgresRepository(db.RequestDB(r)), db.RequestDB(r))
 }
 
 type submissionRequest struct {
@@ -78,7 +78,7 @@ func AddCandidateRequirementSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer r.Body.Close()
-	record, err := submissionService().Submit(tenantID, submission.CreateInput{CandidateID: candidateID, RequirementID: requirementID, SubmittedByUserID: actorUserID,
+	record, err := submissionService(r).Submit(tenantID, submission.CreateInput{CandidateID: candidateID, RequirementID: requirementID, SubmittedByUserID: actorUserID,
 		RecipientType: submission.RecipientType(req.RecipientType), RecipientClientID: req.RecipientClientID, RecipientUserID: req.RecipientUserID, RecipientName: req.RecipientName,
 		RecipientEmail: req.RecipientEmail, SubmissionContext: req.SubmissionContext, RecruiterNotes: req.RecruiterNotes})
 	if err != nil {
@@ -115,7 +115,7 @@ func GetCandidateRequirementSubmissions(w http.ResponseWriter, r *http.Request) 
 		respondWithError(w, 401, "Tenant context is required")
 		return
 	}
-	records, err := submissionService().ListByCandidateRequirement(tenantID, candidateID, requirementID)
+	records, err := submissionService(r).ListByCandidateRequirement(tenantID, candidateID, requirementID)
 	if err != nil {
 		if errors.Is(err, submission.ErrCandidateNotFound) {
 			respondWithError(w, 404, "Candidate or requirement not found")
