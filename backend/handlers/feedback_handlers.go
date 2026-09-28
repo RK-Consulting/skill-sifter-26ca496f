@@ -13,8 +13,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func feedbackService() *feedback.Service {
-	return feedback.NewService(feedback.NewPostgresRepository(db.DB), db.DB)
+func feedbackService(r *http.Request) *feedback.Service {
+	return feedback.NewService(feedback.NewPostgresRepository(db.RequestDB(r)), db.RequestDB(r))
 }
 
 type feedbackRequest struct {
@@ -93,7 +93,7 @@ func AddSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	record, err := feedbackService().CreateFeedback(tenantID, feedback.CreateInput{
+	record, err := feedbackService(r).CreateFeedback(tenantID, feedback.CreateInput{
 		SubmissionID:     submissionID,
 		FeedbackByUserID: actorUserID,
 		Outcome:          feedback.Outcome(req.Outcome),
@@ -134,7 +134,7 @@ func GetSubmissionFeedback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	records, err := feedbackService().ListBySubmission(tenantID, submissionID)
+	records, err := feedbackService(r).ListBySubmission(tenantID, submissionID)
 	if err != nil {
 		if errors.Is(err, feedback.ErrSubmissionNotFound) {
 			respondWithError(w, http.StatusNotFound, "Submission not found")
