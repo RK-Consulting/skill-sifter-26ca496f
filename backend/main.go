@@ -62,7 +62,8 @@ func managerOnly(h http.HandlerFunc) http.HandlerFunc {
 }
 func setupProtectedRoutes(r *mux.Router) {
 	api := r.PathPrefix("/api").Subrouter()
-	api.Use(auth.AuthMiddleware)\n\tapi.Use(auth.TenantDBMiddleware)
+	api.Use(auth.AuthMiddleware)
+	api.Use(auth.TenantDBMiddleware)
 	admin := api.PathPrefix("/admin").Subrouter()
 	admin.Use(auth.RoleMiddleware("admin"))
 	admin.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
@@ -154,7 +155,8 @@ func setupProtectedRoutes(r *mux.Router) {
 }
 func main() {
 	db.InitDB()
-	defer db.DB.Close()\n\tdefer db.CloseTenantDatabases()
+	defer db.DB.Close()
+	defer db.CloseTenantDatabases()
 	if err := db.InitializeSchema(); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
 	}
