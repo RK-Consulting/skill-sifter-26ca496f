@@ -185,7 +185,7 @@ func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 		Certifications:    []resumeCertification{{Name: "Certification"}},
 		Projects:          []resumeProject{{ProjectName: "Project"}},
 	}
-	if err := persistResumeIntelligence(fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
+	if err := persistResumeIntelligence(db.DB, fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
 		t.Fatalf("persistResumeIntelligence failed: %v", err)
 	}
 
