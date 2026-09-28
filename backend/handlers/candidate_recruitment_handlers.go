@@ -101,7 +101,7 @@ func CreateCandidateScreening(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r.Context()).Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting screening transaction")
 		return
@@ -189,7 +189,7 @@ func GetCandidateScreenings(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := r.Context().Value("tenantID").(string)
 
-	rows, err := db.DB.Query(`
+	rows, err := db.RequestDB(r.Context()).Query(`
 		SELECT `+candidateScreeningColumns+`
 		FROM recruitment_screenings
 		WHERE candidate_id = $1 AND tenant_id = $2
@@ -243,7 +243,7 @@ func UpdateCandidateScreening(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	tx, err := db.DB.Begin()
+	tx, err := db.RequestDB(r.Context()).Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error starting screening update")
 		return
