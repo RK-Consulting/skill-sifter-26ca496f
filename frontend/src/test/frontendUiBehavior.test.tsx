@@ -30,13 +30,20 @@ Element.prototype.scrollIntoView = vi.fn();
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
 const mocks = vi.hoisted(() => {
-  const service = () =>
-    new Proxy(
+  const service = () => {
+    const methods = new Map<string | symbol, ReturnType<typeof vi.fn>>();
+    return new Proxy(
       {},
       {
-        get: () => vi.fn().mockResolvedValue({ data: { success: true, data: [] } }),
+        get: (_target, property: string | symbol) => {
+          if (!methods.has(property)) {
+            methods.set(property, vi.fn().mockResolvedValue({ data: { success: true, data: [] } }));
+          }
+          return methods.get(property);
+        },
       },
     );
+  };
 
   return {
     authService: service(),
