@@ -316,76 +316,37 @@ func GetUsers(w http.ResponseWriter, r *http.Request) {
 // the request body (if any) are ignored and overwritten, so a client can
 // never place a new user into a different tenant (ADR 0001: "client-provided
 // tenant identifiers or names cannot override the authenticated tenant").
-func CreateUser(w http.ResponseWriter, r *http.Request) {
+func legacyCreateUser(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	companyName := r.Context().Value("companyName").(string)
 
-	var input struct {
-		Username string `json:"username"`
-		Email    string `json:"email"`
-		Password string `json:"password"`
-		Role     string `json:"role"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+	var user models.User
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
 		return
 	}
 	defer r.Body.Close()
 
-	if input.Username == "" || input.Email == "" || input.Password == "" {
-		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
-		return
-	}
+	// Always derive tenant identity from the authenticated context, never
+	// from the request body.
+	user.TenantID = tenantID
+	user.CompanyName = companyName
 
-	validRoles := map[string]bool{"manager": true, "recruiter": true, "team_leader": true}
-	if !validRoles[input.Role] {
-		respondWithError(w, http.StatusBadRequest, "Additional users must have role manager, recruiter, or team_leader")
-		return
-	}
-
-	tx, err := db.DB.Begin()
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not start transaction")
-		return
-	}
-	defer tx.Rollback()
-
-	var userLimit, userCount int
-	err = tx.QueryRow(`
-		SELECT s.user_limit, COUNT(u.id)
-		FROM platform_subscriptions s
-		LEFT JOIN users u ON u.tenant_id = s.tenant_id
-		WHERE s.tenant_id = $1
-		  AND s.status IN ('TRIAL', 'ACTIVE')
-		  AND (s.ends_at IS NULL OR s.ends_at >= NOW())
-		GROUP BY s.id, s.user_limit
-		ORDER BY s.starts_at DESC
-		LIMIT 1
-	`, tenantID).Scan(&userLimit, &userCount)
-	if err == sql.ErrNoRows {
-		respondWithError(w, http.StatusForbidden, "No active subscription for this tenant")
-		return
-	}
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not read subscription user limit")
-		return
-	}
-	if userCount >= userLimit {
-		respondWithError(w, http.StatusConflict, "Subscription user limit reached")
-		return
-	}
-
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	// Hash the password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not hash password")
 		return
 	}
 
+	// Insert user
 	var userID int
-	err = tx.QueryRow(`
-		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
-		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-		input.Username, input.Email, hashedPassword, input.Role, tenantID, companyName, time.Now()).Scan(&userID)
+	err = db.DB.QueryRow(`
+        INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at) 
+        VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
+		user.Username, user.Email, hashedPassword, user.Role, user.TenantID, user.CompanyName, time.Now()).Scan(&userID)
+
 	if err != nil {
 		if strings.Contains(err.Error(), "unique constraint") {
 			respondWithError(w, http.StatusConflict, "Email already exists")
@@ -395,45 +356,48 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = tx.Exec(`
-		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
-		VALUES($1, $2, $3, $4)
-		ON CONFLICT (user_id) DO UPDATE
-		SET tenant_id = EXCLUDED.tenant_id, email = EXCLUDED.email, role = EXCLUDED.role, updated_at = NOW()`,
-		userID, tenantID, input.Email, input.Role)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
-		return
-	}
-
-	if err = tx.Commit(); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
-		return
+	// Create user object for response (without password)
+	createdUser := models.User{
+		ID:          userID,
+		Username:    user.Username,
+		Email:       user.Email,
+		Role:        user.Role,
+		TenantID:    user.TenantID,
+		CompanyName: user.CompanyName,
+		CreatedAt:   time.Now(),
 	}
 
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
 		Success: true,
 		Message: "User created successfully",
-		Data: models.User{
-			ID: userID, Username: input.Username, Email: input.Email,
-			Role: input.Role, TenantID: tenantID, CompanyName: companyName,
-			CreatedAt: time.Now(),
-		},
+		Data:    createdUser,
 	})
 }
 
-// UpdateUser updates a non-admin user's profile and fixed V1 role.
-// Only the tenant admin may change user roles or user profile data.
-func UpdateUser(w http.ResponseWriter, r *http.Request) {
+// UpdateUser updates an existing user (admin only)
+// UpdateUser updates a user's username, email, and/or role.
+// Reuses the exact same access rule as DeleteUser (docs/architecture.md
+// section 13.3), since both are "can this caller touch this user record"
+// questions: admin's own record can never be edited via this endpoint,
+// manager's record can only be edited by admin, recruiter/team_leader can
+// be edited by admin or manager.
+// Additionally guards against privilege escalation: only an admin may set
+// a target user's role to "admin" (a manager could otherwise create a
+// second admin, or edit their own downstream reports upward, bypassing the
+// hierarchy this endpoint is meant to protect).
+func legacyUpdateUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
+
 	tenantID := r.Context().Value("tenantID").(string)
+	requesterRole := r.Context().Value("role").(string)
 
 	var currentRole string
 	err := db.DB.QueryRow(
 		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	).Scan(&currentRole)
+
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
@@ -442,8 +406,13 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
 		return
 	}
+
 	if currentRole == "admin" {
-		respondWithError(w, http.StatusForbidden, "The tenant admin cannot be edited through this endpoint")
+		respondWithError(w, http.StatusForbidden, "Admin users cannot be edited via this endpoint")
+		return
+	}
+	if currentRole == "manager" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can edit a manager")
 		return
 	}
 
@@ -458,9 +427,14 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	validRoles := map[string]bool{"manager": true, "recruiter": true, "team_leader": true}
+	if update.Role == "admin" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can promote a user to admin")
+		return
+	}
+
+	validRoles := map[string]bool{"admin": true, "manager": true, "recruiter": true, "team_leader": true}
 	if update.Role != "" && !validRoles[update.Role] {
-		respondWithError(w, http.StatusBadRequest, "User role must be manager, recruiter, or team_leader")
+		respondWithError(w, http.StatusBadRequest, "Invalid role")
 		return
 	}
 
@@ -482,38 +456,36 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = db.DB.Exec(
-		`UPDATE platform_user_accounts
-		SET email = COALESCE(NULLIF($1, ''), email),
-		    role = COALESCE(NULLIF($2, ''), role),
-		    updated_at = NOW()
-		WHERE user_id = $3 AND tenant_id = $4`,
-		update.Email, update.Role, targetID, tenantID,
-	)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error updating platform account")
-		return
-	}
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "User updated successfully",
 	})
 }
 
-// DeleteUser removes a non-admin tenant user.
-// Admin is the only role allowed to manage tenant users in V1.
-// The admin account itself can never be deleted through this endpoint.
-func DeleteUser(w http.ResponseWriter, r *http.Request) {
+// DeleteUser deletes a user, enforcing the role hierarchy defined in
+// docs/architecture.md section 13.3:
+//   - Admin can never be deleted, by anyone, under any circumstance.
+//   - Manager can only be deleted by Admin.
+//   - Recruiter/Team Leader can be deleted by Admin or Manager.
+//
+// This check is based on the TARGET user's actual role, so it is safe
+// regardless of whether it's reached via the admin-only or manager-accessible
+// route (both are wired to this same handler).
+func legacyDeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	targetID := vars["id"]
-	tenantID := r.Context().Value("tenantID").(string)
 
+	tenantID := r.Context().Value("tenantID").(string)
+	requesterRole := r.Context().Value("role").(string)
+
+	// Look up the target user's role, scoped to the same company (tenant safety —
+	// never allow deleting a user from a different company via this endpoint).
 	var targetRole string
 	err := db.DB.QueryRow(
 		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	).Scan(&targetRole)
+
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
@@ -522,12 +494,22 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
 		return
 	}
+
 	if targetRole == "admin" {
-		respondWithError(w, http.StatusForbidden, "The tenant admin cannot be deleted")
+		respondWithError(w, http.StatusForbidden, "Admin users cannot be deleted")
 		return
 	}
+	if targetRole == "manager" && requesterRole != "admin" {
+		respondWithError(w, http.StatusForbidden, "Only an admin can delete a manager")
+		return
+	}
+	// Any remaining case (target is recruiter/team_leader, requester is admin or
+	// manager) is allowed, matching the hierarchy table.
 
-	result, err := db.DB.Exec(`DELETE FROM users WHERE id = $1 AND tenant_id = $2`, targetID, tenantID)
+	result, err := db.DB.Exec(
+		`DELETE FROM users WHERE id = $1 AND tenant_id = $2`,
+		targetID, tenantID,
+	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error deleting user")
 		return
