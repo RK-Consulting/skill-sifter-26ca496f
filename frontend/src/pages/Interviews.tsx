@@ -16,6 +16,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 interface Interview {
   id: number;
+  candidateId?: number;
+  requirementId?: number;
   jobId?: string;
   requirementTitle?: string;
   candidateName: string;
@@ -75,6 +77,14 @@ const Interviews = () => {
     navigate(`/interviews/${id}`);
   };
 
+  const openLifecycle = (interview: Interview) => {
+    if (!interview.candidateId || !interview.requirementId) {
+      toast.error('This interview is missing Candidate × Requirement context');
+      return;
+    }
+    navigate(`/recruitment-lifecycle?candidateId=${interview.candidateId}&requirementId=${interview.requirementId}`);
+  };
+
   // Render loading skeletons
   if (isLoading) {
     return (
@@ -84,7 +94,7 @@ const Interviews = () => {
           <Container className="px-4 md:px-6 mx-auto max-w-7xl">
             <div className="mb-8">
               <h1 className="text-3xl font-semibold tracking-tight mb-3">Interviews</h1>
-              <p className="text-ats-gray-500">Manage and track all candidate interviews.</p>
+              <p className="text-ats-gray-500">Manage interviews across Candidate × Requirement recruitment contexts.</p>
             </div>
             <Card className="mb-8">
               <CardContent className="p-6">
