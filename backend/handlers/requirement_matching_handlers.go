@@ -41,7 +41,7 @@ func loadRequirementForMatching(r *http.Request, tenantID string, id int) (model
 	return req, err
 }
 
-func loadCandidateForMatching(r, r *http.Request, tenantID string, candidateID int) (requirementMatchCandidate, error) {
+func loadCandidateForMatching(r *http.Request, tenantID string, candidateID int) (requirementMatchCandidate, error) {
 	candidate := requirementMatchCandidate{ID: candidateID, Skills: []string{}, Languages: []matching.LanguageEvidence{}, Certs: []string{}}
 
 	var profileExperience string
