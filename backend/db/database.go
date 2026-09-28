@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -164,4 +165,20 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID, companyName string) (d
 
 	setTenantProvisioningStatus(controlDB, tenantID, "READY", databaseName)
 	return databaseName, nil
+}
+
+
+type tenantDBContextKey struct{}
+
+func RequestDB(ctx context.Context) *sql.DB {
+	if value := ctx.Value(tenantDBContextKey{}); value != nil {
+		if tenantDB, ok := value.(*sql.DB); ok && tenantDB != nil {
+			return tenantDB
+		}
+	}
+	return DB
+}
+
+func WithRequestDB(ctx context.Context, tenantDB *sql.DB) context.Context {
+	return context.WithValue(ctx, tenantDBContextKey{}, tenantDB)
 }
