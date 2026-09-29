@@ -21,8 +21,10 @@ var JwtKey = loadJwtKey()
 func loadJwtKey() []byte {
 	secret := db.GetEnv("JWT_SECRET", "")
 	if secret == "" {
-		log.Println("⚠️  WARNING: JWT_SECRET is not set. Using an insecure default key. " +
-			"Set JWT_SECRET in the environment before deploying to production.")
+		if db.GetEnv("SKILLSIFTER_ENV", "") == "production" {
+			log.Fatal("JWT_SECRET must be configured in production")
+		}
+		log.Println("⚠️  WARNING: JWT_SECRET is not set. Using an insecure default key for non-production use.")
 		secret = "dev_only_insecure_default_key"
 	}
 	return []byte(secret)
