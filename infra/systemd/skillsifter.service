@@ -7,6 +7,7 @@ Type=simple
 User=root
 WorkingDirectory=__APP_DIR__/backend
 EnvironmentFile=__APP_DIR__/backend/.env
+Environment=SKILLSIFTER_ENV=production
 ExecStart=__APP_DIR__/backend/skillsifter
 Restart=on-failure
 RestartSec=5
