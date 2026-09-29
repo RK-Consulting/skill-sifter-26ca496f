@@ -14,8 +14,8 @@ import (
 const handlerTestDBName = "skillsifter_handler_test"
 
 // TestMain gives the handler integration suite its own PostgreSQL database.
-// This prevents package-level integration tests from racing with the db and
-// assignment packages when `go test ./...` runs packages concurrently.
+// The database is provisioned by infra/scripts/deploy.sh; tests only connect
+// to the pre-provisioned database and reset its public schema.
 func TestMain(m *testing.M) {
 	handlerDBName := getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName)
 	if err := os.Setenv("TEST_DB_NAME", handlerDBName); err != nil {
@@ -50,31 +50,10 @@ func TestMain(m *testing.M) {
 }
 
 func openHandlerTestDB(dbname string) (*sql.DB, error) {
-	host := getenvOr("TEST_DB_HOST", "localhost")
-	port := getenvOr("TEST_DB_PORT", "5432")
-	user := getenvOr("TEST_DB_USER", "postgres")
-	password := getenvOr("TEST_DB_PASSWORD", "postgres")
-
-	adminConn := "host=" + host + " port=" + port + " user=" + user +
-		" password=" + password + " dbname=postgres sslmode=disable"
-	adminDB, err := sql.Open("postgres", adminConn)
-	if err != nil {
-		return nil, err
-	}
-	defer adminDB.Close()
-	if err := adminDB.Ping(); err != nil {
-		return nil, err
-	}
-
-	var exists bool
-	if err := adminDB.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbname).Scan(&exists); err != nil {
-		return nil, err
-	}
-	if !exists {
-		if _, err := adminDB.Exec(`CREATE DATABASE "` + dbname + `"`); err != nil {
-			return nil, err
-		}
-	}
+	host := getenvOr("TEST_DB_HOST", getenvOr("DB_HOST", "localhost"))
+	port := getenvOr("TEST_DB_PORT", getenvOr("DB_PORT", "5432"))
+	user := getenvOr("TEST_DB_USER", getenvOr("DB_USER", "postgres"))
+	password := getenvOr("TEST_DB_PASSWORD", getenvOr("DB_PASSWORD", "postgres"))
 
 	conn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=" + dbname + " sslmode=disable"

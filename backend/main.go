@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
@@ -165,6 +166,9 @@ func main() {
 	defer db.CloseTenantDatabases()
 	if err := db.InitializeSchema(); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
+	}
+	if os.Getenv("SKILLSIFTER_MIGRATE_ONLY") == "1" {
+		return
 	}
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware)

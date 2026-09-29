@@ -1,0 +1,18 @@
+E2E Smoke Candidate
+Email: e2e-candidate@skillsifter.in
+Phone: 9999999998
+Location: Bengaluru
+Current Title: Software Engineer
+Experience: 5 years
+
+Professional Summary:
+Software Engineer with experience building backend systems and APIs.
+
+Technical Skills:
+Go, PostgreSQL, TypeScript, REST APIs
+
+Education:
+Bachelor of Engineering
+
+Certifications:
+None
