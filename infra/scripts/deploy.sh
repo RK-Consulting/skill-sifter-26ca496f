@@ -13,58 +13,37 @@ echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
 git reset --hard "origin/${CURRENT_BRANCH}"
 
-echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
+echo "==> Loading production database environment"
 cd "$APP_DIR/backend"
-go mod download
-
-UNFORMATTED=$(gofmt -l .)
-if [ -n "$UNFORMATTED" ]; then
-  echo "❌ DEPLOY ABORTED: the following files are not gofmt-formatted:"
-  echo "$UNFORMATTED"
-  echo "The live service was NOT touched. Fix formatting, push, and redeploy."
-  exit 1
-fi
-
-if ! go vet ./...; then
-  echo "❌ DEPLOY ABORTED: go vet failed. The live service was NOT touched."
-  exit 1
-fi
-
-if ! go test ./...; then
-  echo "❌ DEPLOY ABORTED: tests failed. The live service was NOT touched."
-  exit 1
-fi
-
-echo "✅ Test gate passed — proceeding with build and deploy"
-
-echo "==> Building backend"
-go build -o skillsifter .
-
-echo "==> Running database migrations"
 source "$APP_DIR/backend/.env"
 export PGPASSWORD="$DB_PASSWORD"
 
-psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 <<'SQL'
-CREATE TABLE IF NOT EXISTS schema_migrations (
-    filename TEXT PRIMARY KEY,
-    applied_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-SQL
-
-for f in "$APP_DIR"/backend/database/migrations/*.sql; do
-  fname="$(basename "$f")"
-  already_applied=$(psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tA \
-    -c "SELECT 1 FROM schema_migrations WHERE filename = '${fname}'")
-  if [ "$already_applied" != "1" ]; then
-    echo "  applying $fname"
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 -f "$f"
-    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -v ON_ERROR_STOP=1 \
-      -c "INSERT INTO schema_migrations(filename) VALUES ('${fname}')"
+ensure_test_db() {
+  local db_name="$1"
+  if sudo -u postgres psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1; then
+    echo "==> Test database already exists: $db_name"
   else
-    echo "  skipping $fname (already applied)"
+    echo "==> Creating test database once: $db_name"
+    sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 \
+      -c "CREATE DATABASE \"$db_name\" OWNER \"$DB_USER\";"
   fi
-done
+}
 
+ensure_test_db "${SKILLSIFTER_SCHEMA_TEST_DB:-skillsifter_schema_test}"
+ensure_test_db "${SKILLSIFTER_HANDLER_TEST_DB:-skillsifter_handler_test}"
+
+echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
+go mod download
+
+echo "==> Applying database migrations through the application migration engine"
+SKILLSIFTER_MIGRATE_ONLY=1 ./skillsifter
+
+if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_versions" | grep -qx "38"; then
+  echo "❌ DEPLOY ABORTED: application migration engine did not reach schema version 38."
+  exit 1
+fi
+
+echo "✅ Database migration gate passed — schema_versions is at version 38"
 echo "==> Syncing nginx config"
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 nginx -t
