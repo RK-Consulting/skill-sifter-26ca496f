@@ -15,6 +15,30 @@ git reset --hard "origin/${CURRENT_BRANCH}"
 
 echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 cd "$APP_DIR/backend"
+
+# Load the production database environment before the test gate so integration
+# tests use the same DB credentials as the application. Explicit TEST_DB_*
+# variables still override these values inside the test bootstrap.
+source "$APP_DIR/backend/.env"
+export DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME
+
+# Provision integration-test databases once. All database lifecycle changes
+# are owned by this deploy script; the application DB role is not granted
+# CREATEDB. Existing databases are left untouched.
+ensure_test_db() {
+  local db_name="$1"
+  if sudo -u postgres psql -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname = '$db_name'" | grep -q 1; then
+    echo "==> Test database already exists: $db_name"
+  else
+    echo "==> Creating test database once: $db_name"
+    sudo -u postgres psql -d postgres -v ON_ERROR_STOP=1 \
+      -c "CREATE DATABASE \"$db_name\" OWNER \"$DB_USER\";"
+  fi
+}
+
+ensure_test_db "${SKILLSIFTER_SCHEMA_TEST_DB:-skillsifter_schema_test}"
+ensure_test_db "${SKILLSIFTER_HANDLER_TEST_DB:-skillsifter_handler_test}"
+
 go mod download
 
 UNFORMATTED=$(gofmt -l .)
