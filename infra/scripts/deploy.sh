@@ -61,8 +61,8 @@ go build -o skillsifter .
 echo "==> Applying database migrations through the application migration engine"
 SKILLSIFTER_MIGRATE_ONLY=1 ./skillsifter
 
-if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_versions" | grep -qx "39"; then
-  echo "❌ DEPLOY ABORTED: application migration engine did not reach schema version 39."
+if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_versions" | grep -qx "40"; then
+  echo "❌ DEPLOY ABORTED: application migration engine did not reach schema version 40."
   exit 1
 fi
 
