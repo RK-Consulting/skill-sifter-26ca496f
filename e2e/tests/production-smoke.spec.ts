@@ -106,6 +106,25 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
 
     await page.goto('/reports');
     await expect(page.getByText('Reports & Activity', { exact: true })).toBeVisible();
+
+    await page.goto('/resume-ai');
+    await expect(page.getByText('e2e-smoke-candidate.txt', { exact: true })).toBeVisible();
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
+    await expect(page.getByText('completed', { exact: true })).toBeVisible();
+
+    const detailsButton = page.getByRole('button', { name: 'Details' }).first();
+    await detailsButton.click();
+    await expect(page.getByText('e2e-smoke-candidate.txt', { exact: true }).last()).toBeVisible();
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true }).last()).toBeVisible();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download' }).first().click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toBe('e2e-smoke-candidate.txt');
+
+    await page.getByPlaceholder('e.g. Java Spring AWS').fill('PostgreSQL');
+    await page.getByRole('button', { name: 'Search', exact: true }).click();
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
   });
 
   test('subscription/account surfaces load without browser errors', async ({ page }) => {
