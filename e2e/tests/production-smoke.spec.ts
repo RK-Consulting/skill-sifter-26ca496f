@@ -100,6 +100,12 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
 
     await page.goto('/billing');
     await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
+
+    await page.goto('/daily-jobs');
+    await expect(page.getByText('E2E smoke: review E2E Smoke Software Engineer requirement.', { exact: true })).toBeVisible();
+
+    await page.goto('/reports');
+    await expect(page.getByText('Reports & Activity', { exact: true })).toBeVisible();
   });
 
   test('subscription/account surfaces load without browser errors', async ({ page }) => {
