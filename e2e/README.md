@@ -22,12 +22,22 @@ npx playwright install chromium
 
 ## Production smoke
 
-The configured administrator account is the **permanent production-smoke account**. It is reused for every production smoke run and must not be deleted or recreated between runs.
+The repository seeds one dedicated **permanent production-smoke account** through the database schema definitions:
 
-Credentials are supplied through GitHub Actions secrets:
+- tenant: `e2e_smoke_tenant`
+- company: `SkillSifter E2E Smoke`
+- administrator: `e2e-admin@skillsifter.in`
+- subscription: `e2e-smoke / ACTIVE / no expiry`
+- tenant routing: `READY`
+
+The account uses the normal login, RBAC, tenant-routing, and subscription checks. It does not bypass authentication or payment/subscription gates.
+
+The smoke credentials are supplied through GitHub Actions secrets:
 
 - `SKILLSIFTER_E2E_ADMIN_EMAIL`
 - `SKILLSIFTER_E2E_ADMIN_PASSWORD`
+
+For the seeded fixture, the email must be `e2e-admin@skillsifter.in`. The password must match the password represented by the bcrypt hash in `038_e2e_smoke_account.sql`.
 
 The normal smoke suite is non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
 
