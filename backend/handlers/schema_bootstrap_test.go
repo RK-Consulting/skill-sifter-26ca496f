@@ -50,10 +50,10 @@ func TestMain(m *testing.M) {
 }
 
 func openHandlerTestDB(dbname string) (*sql.DB, error) {
-	host := getenvOr("TEST_DB_HOST", "localhost")
-	port := getenvOr("TEST_DB_PORT", "5432")
-	user := getenvOr("TEST_DB_USER", "postgres")
-	password := getenvOr("TEST_DB_PASSWORD", "postgres")
+	host := getenvOr("TEST_DB_HOST", getenvOr("DB_HOST", "localhost"))
+	port := getenvOr("TEST_DB_PORT", getenvOr("DB_PORT", "5432"))
+	user := getenvOr("TEST_DB_USER", getenvOr("DB_USER", "postgres"))
+	password := getenvOr("TEST_DB_PASSWORD", getenvOr("DB_PASSWORD", "postgres"))
 
 	adminConn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=postgres sslmode=disable"
