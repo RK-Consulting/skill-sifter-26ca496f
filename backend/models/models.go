@@ -251,6 +251,7 @@ type Credentials struct {
 	Password    string `json:"password"`
 	Username    string `json:"username,omitempty"`
 	CompanyName string `json:"companyName,omitempty"` // Changed from CompanyID
+	PlanCode    string `json:"planCode,omitempty"`
 	Role        string `json:"role,omitempty"`
 }
 
