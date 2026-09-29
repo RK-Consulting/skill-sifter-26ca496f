@@ -150,8 +150,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "User registered successfully",
 		Data: models.TokenResponse{
-			Token: tokenString,
-			User:  user,
+			Token:              tokenString,
+			User:               user,
+			SubscriptionStatus: "TRIAL",
+			PlanCode:           creds.PlanCode,
 		},
 	})
 }
