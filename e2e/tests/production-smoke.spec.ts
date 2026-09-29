@@ -180,7 +180,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     const candidateResponsePromise = page.waitForResponse(
       response => response.url().includes('/api/candidates') && response.request().method() === 'POST',
     );
-    await page.getByRole('button', { name: /Add Candidate|Save Candidate|Create Candidate/i }).click();
+    await page.getByRole('main').getByRole('button', { name: 'Add Candidate', exact: true }).click();
     const candidateResponse = await candidateResponsePromise;
     expect(candidateResponse.ok()).toBeTruthy();
     candidateID = createdID(await candidateResponse.json());
