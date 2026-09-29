@@ -131,7 +131,7 @@ beforeEach(() => {
 describe('frontend UI smoke coverage', () => {
   it.each([
     ['Login', <Login />, 'Login'],
-    ['Register', <Register />, 'Create Tenant Account'],
+    ['Register', <Register />, 'Start Using SkillSifter'],
     ['Dashboard', <Index />, 'SkillSifter ATS'],
     ['Candidates', <Candidates />, 'Candidates'],
     ['Add Candidate', <AddCandidate />, 'Add New Candidate'],
@@ -186,7 +186,7 @@ describe('authentication UI behavior', () => {
             companyName: 'Demo Company',
           },
           subscriptionStatus: 'ACTIVE',
-          planCode: 'legacy',
+          planCode: 'starter',
         },
       },
     });
@@ -224,7 +224,7 @@ describe('authentication UI behavior', () => {
     fireEvent.change(await screen.findByPlaceholderText('Enter your company name'), {
       target: { value: 'Test Company' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Create Tenant Account' }));
+    fireEvent.click(screen.getByRole('button', { name: /Create Account & Continue to Payment/i }));
 
     expect(await screen.findByText("Passwords don't match")).toBeInTheDocument();
     expect(mocks.authService.register).not.toHaveBeenCalled();
@@ -344,7 +344,7 @@ describe('Admin user management UI behavior', () => {
 });
 
 describe('Account subscription UI behavior', () => {
-  it('shows account details and configured subscription plans', async () => {
+  it('shows account details and current subscription', async () => {
     setLoggedIn();
     mocks.authService.getCurrentAccount.mockResolvedValueOnce({
       data: { data: { role: 'admin', companyName: 'Demo Company', userCount: 1, userLimit: 5, accountStatus: 'ACTIVE' } },
@@ -352,17 +352,14 @@ describe('Account subscription UI behavior', () => {
     mocks.subscriptionService.getSubscription.mockResolvedValueOnce({
       data: { data: { planCode: 'starter', planName: 'Starter', status: 'ACTIVE', provider: 'razorpay', userLimit: 5 } },
     });
-    mocks.subscriptionService.getPlans.mockResolvedValueOnce({
-      data: { data: [{ code: 'starter', name: 'Starter', amountMinor: 99900, currency: 'INR', billingInterval: 1, billingPeriod: 'month', userLimit: 5 }] },
-    });
 
     renderPage(<Account />, ['/account']);
 
     expect(await screen.findByRole('heading', { name: 'Account & Subscription' })).toBeInTheDocument();
     expect(await screen.findByText('Demo Company')).toBeInTheDocument();
     expect(await screen.findByText('Plan:')).toBeInTheDocument();
-    expect(screen.getAllByText('Starter')).toHaveLength(2);
-    expect(screen.getByRole('button', { name: 'Choose Plan' })).toBeInTheDocument();
+    expect(screen.getByText('Starter')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose Plan' })).not.toBeInTheDocument();
   });
 });
 
