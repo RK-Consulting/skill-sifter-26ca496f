@@ -55,27 +55,6 @@ func openHandlerTestDB(dbname string) (*sql.DB, error) {
 	user := getenvOr("TEST_DB_USER", getenvOr("DB_USER", "postgres"))
 	password := getenvOr("TEST_DB_PASSWORD", getenvOr("DB_PASSWORD", "postgres"))
 
-	adminConn := "host=" + host + " port=" + port + " user=" + user +
-		" password=" + password + " dbname=postgres sslmode=disable"
-	adminDB, err := sql.Open("postgres", adminConn)
-	if err != nil {
-		return nil, err
-	}
-	defer adminDB.Close()
-	if err := adminDB.Ping(); err != nil {
-		return nil, err
-	}
-
-	var exists bool
-	if err := adminDB.QueryRow(`SELECT EXISTS (SELECT 1 FROM pg_database WHERE datname = $1)`, dbname).Scan(&exists); err != nil {
-		return nil, err
-	}
-	if !exists {
-		if _, err := adminDB.Exec(`CREATE DATABASE "` + dbname + `"`); err != nil {
-			return nil, err
-		}
-	}
-
 	conn := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=" + dbname + " sslmode=disable"
 	testDB, err := sql.Open("postgres", conn)
@@ -84,7 +63,7 @@ func openHandlerTestDB(dbname string) (*sql.DB, error) {
 	}
 	if err := testDB.Ping(); err != nil {
 		testDB.Close()
-		return nil, err
+		return nil, fmt.Errorf("database %q is not available: %w", dbname, err)
 	}
 	return testDB, nil
 }
