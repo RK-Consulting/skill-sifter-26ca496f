@@ -1,0 +1,14 @@
+{
+  "name": "skillsifter-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "smoke": "playwright test tests/production-smoke.spec.ts",
+    "smoke:headed": "playwright test tests/production-smoke.spec.ts --headed",
+    "report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
+}
