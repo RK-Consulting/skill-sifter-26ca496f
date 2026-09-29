@@ -9,7 +9,7 @@ on:
         default: 'https://skillsifter.in'
         type: string
       run_mutations:
-        description: 'Run disposable-data UI mutations (normally false for production)'
+        description: 'Run production-smoke mutations and clean them up after a successful run'
         required: true
         default: false
         type: boolean
