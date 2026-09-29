@@ -1,53 +1,79 @@
-# SkillSifter v0.5.6
+# SkillSifter — Phase 9 Release Notes
 
-## Business Dev Consolidation and Assignments Cleanup
+## Phase 9 — SaaS Foundation, Security Hardening and Go-Live Readiness
 
-SkillSifter v0.5.6 simplifies the recruiter-facing navigation by removing
-two redundant modules. Assignments duplicated candidate-requirement
-matching already handled by Daily Tasks. Business Dev has been folded
-into Client — its two distinguishing fields, partner name and contact
-person, are now simply part of the Client record, removing a separate
-tab and form for data that belongs on the same entity.
+Phase 9 completes the core SaaS architecture required to operate SkillSifter as a multi-tenant recruitment platform.
+
+Implementation is consolidated on main. Final production activation remains subject to GitHub Issue #99.
 
 ## Highlights
 
-**Business Dev merged into Client.**
+### Admin User Management
+- User listing, creation, updates and permitted deletion
+- Seat usage and limits
+- Tenant-admin protection
+- Server-side authorization
 
-- `partner_name` and `contact_person` are now optional fields on
-  `Client`, added via migration `013_client_partner_and_contact_person.sql`.
-- The standalone Business Dev tab, list view, and add-form are removed.
-  All Business Dev data entry now happens through the existing
-  Clients tab.
+### Privilege Enforcement
+- V1 privilege matrix enforced across protected application domains.
+- Frontend visibility is not treated as authorization.
 
-**Assignments removed.**
+### Tenant Isolation
+- Authenticated tenant identity
+- Tenant database routing
+- Tenant ownership checks
+- Control-plane / tenant-data separation
+- Cross-tenant negative-test coverage
 
-- The Assignments tab duplicated recruiter-requirement matching
-  functionality already covered by Daily Tasks. Removed to reduce
-  redundant UI surface as the tab count grows.
+### Tenant Database Provisioning
+- Deterministic tenant database identity
+- Tenant schema migrations
+- Tenant seed data
+- Provisioning status
+- READY gating
+- Administrative retry
 
-**Navbar overflow fix.**
+### Subscription Lifecycle
 
-- The nav-links section now scrolls independently of the logo and
-  right-side action buttons (Add Candidate, Logout), which stay
-  pinned and visible regardless of how many tabs are active.
+Plan → Checkout → Provider Webhook → Activation → Renewal → Payment Failure → Cancellation / Expiry.
 
-## Known limitations
+Implemented: plans, checkout, webhook processing, activation, renewal, payment failure, cancellation, expiry, idempotency and server-side enforcement.
 
-- The backend `BusinessDev` struct and its database table are now
-  unused but not yet removed — left in place for this release and
-  flagged for cleanup alongside future schema housekeeping.
+### Account & Subscription UI
+- Account information
+- Current plan/status
+- Available plans
+- Checkout handoff
+- Admin-only cancellation
 
-## Testing & CI
+No accounting or financial ledger was introduced.
 
-No changes to the CI quality gate in this release. `gofmt`, `go build`,
-`go vet`, `go test ./...` and the frontend lint/test/build pipeline
-continue to gate every change.
+## Recruitment boundary
 
-## Next
+Requirement → Assignment → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing.
 
-Production is still running commit `643e33c`, predating both v0.5.5
-and this release — redeploy to catch production up remains outstanding.
+Offer is made + accepted. Joining is joining date + joined.
 
----
+HRMS-specific approval and employee-management functionality remains outside SkillSifter.
 
-See [CHANGELOG.md](CHANGELOG.md) for the itemized change history.
+## Docker
+
+No Docker architecture change is required for Phase 9. PostgreSQL remains independent; backend and frontend remain containerized; Docker Compose remains the local development/verification stack.
+
+## CI and release gate
+
+Formatting → Build → Vet → Test with PostgreSQL → Security Tests → UAT → Production Smoke → GO-LIVE.
+
+Authoritative checklist: GitHub Issue #99 and docs/phase-9-release-gate.md.
+
+## Scope discipline
+
+No HRMS, microservices, accounting ledger, configurable permission builder, additional approval hierarchy, unnecessary recruitment entities or containerized PostgreSQL were introduced.
+
+## Final release state
+
+Implementation: complete on main.
+
+Production: pending final evidence from CI, security/UAT and production smoke.
+
+The project should only be declared GO-LIVE after all release-gate checks are verified.
