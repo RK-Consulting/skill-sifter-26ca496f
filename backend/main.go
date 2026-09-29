@@ -2,8 +2,8 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"log"
+	"os"
 	"net/http"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
