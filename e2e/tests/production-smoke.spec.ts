@@ -31,7 +31,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     await expect(page.getByLabel('Password')).toBeVisible();
 
     await page.goto('/register');
-    await expect(page.getByRole('heading', { name: 'Create Tenant Account' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Start Using SkillSifter' })).toBeVisible();
     await expect(page.getByLabel('Administrator name')).toBeVisible();
     await expect(page.getByLabel('Email')).toBeVisible();
     await expect(page.getByLabel('Company / Tenant Name')).toBeVisible();
