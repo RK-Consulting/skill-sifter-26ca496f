@@ -29,7 +29,7 @@ INSERT INTO users (
 VALUES (
     'e2e-admin',
     'e2e-admin@skillsifter.in',
-    '$2y$10$dI3PEkzLj35X/QBJVhwRROXcamLYM5/1xL7kRihQG5wo//JGgwRs6',
+    '$2y$10$mb5vqkJ9EnJtYjVqMBeSru2Fk/9WwAgsK.GVWTWC8c4gM/tqELa5O',
     'admin',
     'e2e_smoke_tenant',
     'SkillSifter E2E Smoke',
