@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"log"
 	"net/http"
 
@@ -165,6 +166,9 @@ func main() {
 	defer db.CloseTenantDatabases()
 	if err := db.InitializeSchema(); err != nil {
 		log.Fatalf("Schema initialization failed: %v", err)
+	}
+	if os.Getenv("SKILLSIFTER_MIGRATE_ONLY") == "1" {
+		return
 	}
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware)
