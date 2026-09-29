@@ -1,98 +1,19 @@
 # SkillSifter
 
-**Open-source, multi-tenant Applicant Tracking System (ATS) for staffing and recruitment teams.**
+**Multi-tenant recruitment intelligence platform for staffing and recruitment teams.**
 
 [![Backend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml)
-[![Status](https://img.shields.io/badge/status-active%20development-blue.svg)](#project-status)
 
-SkillSifter is a full-stack recruitment platform designed to help staffing organizations manage candidates, requirements, recruitment assignments, interviews, and related operational workflows in a secure multi-tenant environment.
+> **Current baseline:** Phase 9 implementation complete on main  
+ > **Release state:** Final CI, security, UAT and production-smoke verification before go-live  
+ > **Product boundary:** SkillSifter is recruitment intelligence. HRMS is a separate future product.
 
-The project combines a **Go REST API**, **React + TypeScript frontend**, and **PostgreSQL** database, with automated backend and frontend verification through GitHub Actions.
+SkillSifter combines a Go REST API, React + TypeScript frontend, and PostgreSQL to manage recruitment in a tenant-isolated environment.
 
-> **Current release:** `v0.5.6`  
-> **Release focus:** Business Dev consolidated into Client, Assignments UI removed, navbar overflow fix  
-> **Project status:** Active development / pre-1.0
+## Recruitment workflow
 
----
-
-## ✨ What is SkillSifter?
-
-SkillSifter is being built as a practical ATS platform for staffing and recruitment organizations.
-
-The platform is centered around the recruitment lifecycle:
-
-- **Candidates** — maintain candidate profiles and recruitment information
-- **Candidate expertise** — maintain structured technical and language expertise
-- **Clients** — manage client records, including partner and contact-person details
-- **Requirements** — manage client/job requirements
-- **Recruitment assignments** — connect candidates with requirements through controlled assignment workflows (backend domain; day-to-day recruiter matching now happens via Daily Tasks, see below)
-- **Screening and submission** — support recruiter-driven candidate progression
-- **Interviews** — manage interview-related recruitment activity
-- **Decision and commercial workflow** — support later-stage recruitment progression toward joining
-- **Resume intelligence** — ingest, parse, and search resume information
-- **Multi-tenancy** — isolate organizational data by tenant
-- **Role-based access control** — control access according to user roles and permissions
-- **Auditability** — preserve important operational history and assignment activity
-
-The architecture is intentionally modular so individual domains can evolve without turning the application into an unnecessarily tightly coupled monolith.
-
----
-
-## 🚀 Current Capabilities
-
-### Candidate Management
-
-- Candidate creation and management
-- Candidate profile information
-- Tenant-scoped candidate access
-- Candidate status management
-- Structured technical expertise
-- Structured language expertise with proficiency levels
-- Resume association and metadata
-- Recruitment activity tracking
-
-### Client Management
-
-- Client record management, including partner name and contact person (merged in from the former standalone Business Dev module in v0.5.6)
-- Paginated client listing
-- Tenant-scoped client access
-
-### Recruitment Requirements
-
-- Requirement management
-- Client/requirement domain separation
-- Requirement status lifecycle
-- Structured requirement information
-- Tenant-scoped requirement access
-
-### Recruitment Assignment
-
-Recruitment assignments remain a controlled domain workflow in the backend rather than a loosely coordinated set of handler operations. As of v0.5.6, the dedicated Assignments frontend tab has been removed as redundant with Daily Tasks, which already covers recruiter-driven candidate-requirement matching day to day; the backend assignment domain and its guarantees below are unaffected.
-
-Current capabilities include:
-
-- Candidate-to-requirement assignment
-- Controlled assignment lifecycle
-- Validated assignment state transitions
-- Tenant isolation
-- Tenant-aware assignment actor authorization
-- Assignment audit records
-- Tenant-aware audit enforcement
-- Immutable candidate snapshots
-- Immutable requirement snapshots
-- Transactional state changes
-- Regression coverage around state, authorization, snapshots, and audit behavior
-
-### Recruitment Workflow
-
-The current product workflow is organized around the following progression:
-
-```text
-Candidate
-    ↓
-Candidate Expertise
-    ↓
+~~~text
 Requirement
     ↓
 Assignment
@@ -101,609 +22,161 @@ Screening
     ↓
 Submission
     ↓
+Feedback
+    ↓
 Interview
     ↓
-Decision
+Selection
     ↓
-Commercial / Joining
-```
+Offer
+    ↓
+Joining
+    ↓
+JOINED
+    ↓
+BILLING
+~~~
 
-Day-to-day recruiter matching is handled through Daily Tasks rather than a separate Assignments tab, following the v0.5.6 consolidation.
+## Current capabilities
 
-### Resume Intelligence
+- Candidate management and expertise
+- Client management
+- Requirements with the defined recruitment fields
+- Assignments and Daily Tasks
+- Screening, Submission, Feedback and Interviews
+- Selection, Offer and Joining
+- Billing worklist
+- Resume intelligence foundation
+- Recruitment history and auditability
+- JWT authentication and server-side RBAC
+- Multi-tenant database provisioning and routing
+- Admin User Management
+- SaaS subscription plans, checkout and lifecycle
+- Account and Subscription UI
 
-- Resume ingestion foundation
-- Resume metadata
-- Resume parsing status
-- Extracted technical expertise
-- Recruiter-assisted resume search
-- Local AI/Ollama integration foundation
+### Offer and Joining
 
-### Authentication & Authorization
+- Offer = made + accepted
+- Joining = joining date + joined
 
-- JWT-based authentication
-- Role-based authorization
-- Tenant-aware access control
-- Protected API routes
-- Administrative user management
-- Tenant-aware assignment actor validation
+### SaaS subscription
 
-### Audit & Tenant Isolation
+~~~text
+Plan
+ ↓
+Checkout
+ ↓
+Provider Webhook
+ ↓
+Activation / Renewal
+ ↓
+Payment Failure / Cancellation / Expiry
+~~~
 
-Security-sensitive recruitment operations enforce tenant boundaries at the domain level.
+SkillSifter does not implement an accounting or financial ledger.
 
-This includes:
+## Multi-tenancy
 
-- Tenant-scoped candidate and requirement access
-- Tenant-scoped assignment operations
-- Assignment actor validation
-- Cross-tenant actor rejection
-- Tenant-aware assignment audit enforcement
-- Regression coverage for cross-tenant access paths
+Phase 9 separates platform control data from tenant-owned recruitment data.
 
-### CI & Quality Gates
+- Control DB: authentication, tenant registry/provisioning state, account and subscription state
+- Tenant DB: candidates, clients, requirements, assignments, recruitment workflow and billing data
+- Tenant database provisioning and migrations
+- Authenticated tenant database routing
+- Tenant ownership checks as defense in depth
+- Cross-tenant negative-test coverage
+- READY gating before tenant login
 
-The repository maintains separate CI pipelines for the two major application layers:
+## Authorization
 
-- **Backend CI** — formatting, repository/migration structure checks, schema validation, build, `go vet`, tests, and coverage reporting
-- **Frontend CI** — dependency installation, lint, tests, and production build
+Supported roles: Admin, Manager, Recruiter and Team Leader.
 
-The CI quality gate is intentionally lean and focused on repeatable engineering verification.
+Authorization is enforced server-side. Frontend visibility is not a security boundary.
 
----
+## Admin User Management
 
-## 🧱 Architecture
+- List, create, update and permitted delete operations
+- Seat usage and limits
+- Tenant-admin protection
+- Server-side authorization
 
-SkillSifter follows a modular full-stack architecture:
+## Architecture boundary
 
-```text
-┌─────────────────────────────────────────────┐
-│                 Frontend                    │
-│                                             │
-│ React + TypeScript + Vite                   │
-│ React Router + TanStack Query               │
-│ shadcn/ui + Radix UI + Tailwind CSS        │
-└──────────────────────┬──────────────────────┘
-                       │
-                       │ REST / JSON
-                       ▼
-┌─────────────────────────────────────────────┐
-│                  Backend                    │
-│                                             │
-│ Go REST API                                 │
-│ Authentication / Authorization              │
-│ Domain services                             │
-│ Recruitment workflows                       │
-│ Resume processing                           │
-│ Audit / tenant isolation                    │
-└──────────────────────┬──────────────────────┘
-                       │
-                       │ SQL
-                       ▼
-┌─────────────────────────────────────────────┐
-│                PostgreSQL                   │
-│                                             │
-│ Tenant data                                 │
-│ Candidates                                  │
-│ Requirements                                │
-│ Assignments                                 │
-│ Expertise                                   │
-│ Resumes                                     │
-│ Audit data                                  │
-└─────────────────────────────────────────────┘
-```
+SkillSifter intentionally does not add HRMS functionality, microservices, an accounting ledger, a configurable permission-builder framework, or unnecessary approval hierarchies.
 
-Database schema changes are maintained through versioned migrations under:
+## Technology
 
-```text
-backend/database/migrations/
-```
+- Go / gorilla-mux / PostgreSQL / JWT
+- React / TypeScript / Vite / TanStack Query / Vitest
+- Docker / Docker Compose / Nginx / GitHub Actions
 
-The migration set is treated as the authoritative database schema source.
+## Docker
 
----
+No Phase 9 Docker architecture change is required.
 
-## 🛠️ Technology Stack
+- PostgreSQL remains independent infrastructure.
+- Backend remains containerized.
+- Frontend remains containerized.
+- Docker Compose remains the local development and verification stack.
+- Tenant DB provisioning and routing remain backend responsibilities.
 
-### Frontend
+## Verification
 
-- React 18
-- TypeScript
-- Vite
-- React Router
-- TanStack Query
-- Axios
-- shadcn/ui
-- Radix UI
-- Tailwind CSS
-- React Hook Form
-- Zod
-- Recharts
-- Vitest
-
-### Backend
-
-- Go
-- `gorilla/mux`
-- PostgreSQL
-- `lib/pq`
-- JWT authentication
-- CORS
-- Standard Go testing tooling
-
-### Infrastructure
-
-- Docker
-- Docker Compose
-- PostgreSQL
-- Nginx
-- GitHub Actions
-- Linux deployment tooling
-
-### Local AI
-
-- Ollama integration foundation for local resume-processing and recruiter-assisted intelligence workflows
-
----
-
-## 📁 Repository Structure
-
-```text
-.
-├── backend/
-│   ├── auth/                       # Authentication and authorization
-│   ├── db/                         # Database connection and migration support
-│   ├── database/
-│   │   └── migrations/             # Authoritative versioned database schema
-│   ├── domain/
-│   │   └── assignment/             # Recruitment assignment domain
-│   ├── handlers/                   # HTTP/API handlers
-│   ├── models/                     # Application data models
-│   ├── docs/                       # Backend API documentation
-│   ├── main.go                     # API entry point
-│   ├── go.mod
-│   └── Dockerfile
-│
-├── frontend/
-│   ├── src/
-│   │   ├── components/             # Reusable UI components
-│   │   ├── hooks/                  # React hooks
-│   │   ├── pages/                  # Application pages
-│   │   ├── services/               # API clients/services
-│   │   └── test/                   # Frontend tests
-│   ├── public/
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── vite.config.ts
-│   └── Dockerfile
-│
-├── infra/
-│   ├── nginx/
-│   ├── systemd/
-│   └── scripts/
-│
-├── docs/
-│   ├── architecture/
-│   ├── product/
-│   ├── project/
-│   └── release/
-│
-├── .github/
-│   └── workflows/
-│       ├── backend-ci.yml
-│       └── frontend-ci.yml
-│
-├── docker-compose.yml
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── CODE_OF_CONDUCT.md
-├── RELEASE_NOTES.md
-└── README.md
-```
-
----
-
-## ⚡ Getting Started
-
-### Prerequisites
-
-For local development:
-
-- Go
-- Node.js
-- npm
-- PostgreSQL
-
-Docker is recommended for running the complete application stack.
-
-### Option 1 — Docker Compose
-
-```bash
-git clone https://github.com/RK-Consulting/skill-sifter-26ca496f.git
-cd skill-sifter-26ca496f
-
-docker compose up --build
-```
-
-The application stack consists of:
-
-```text
-Frontend → Nginx
-              ↓
-          Go API
-              ↓
-         PostgreSQL
-```
-
-### Option 2 — Run Backend Locally
-
-```bash
-cd backend
-
-go mod download
-go run main.go
-```
-
-The backend initializes the database and applies the versioned migrations during startup.
-
-### Run Frontend Locally
-
-```bash
-cd frontend
-
-npm install
-npm run dev
-```
-
-The development frontend is served by Vite.
-
----
-
-## 🧪 Testing
-
-### Backend
-
-From `backend/`:
-
-```bash
+Backend:
+~~~bash
+gofmt -l .
 go build ./...
 go vet ./...
 go test ./...
-```
+~~~
 
-### Frontend
-
-From `frontend/`:
-
-```bash
+Frontend:
+~~~bash
 npm ci
 npm run lint
 npm run test
 npm run build
-```
+~~~
 
-### Full Local Gate
-
-The repository also provides a combined verification gate:
-
-```bash
+Combined local gate:
+~~~bash
 bash infra/scripts/test.sh
-```
+~~~
 
-The engineering principle is simple:
+Release sequence:
+~~~text
+Formatting → Build → Vet → Test with PostgreSQL → Security → UAT → Production Smoke → GO-LIVE
+~~~
 
-> **If it does not pass locally, it should not pass CI.**
+## Phase 9 release gate
 
-The project continues to favor a small, repeatable quality gate over unnecessary testing infrastructure.
+Implementation is consolidated on main. Final release evidence is tracked in GitHub Issue #99 and docs/phase-9-release-gate.md.
 
----
+- [x] Admin User Management
+- [x] Privilege enforcement
+- [x] Tenant isolation implementation
+- [x] Tenant DB provisioning
+- [x] Tenant DB routing
+- [x] Subscription lifecycle
+- [x] Account & Subscription UI
+- [ ] CI evidence on release commit
+- [ ] Security negative-test execution
+- [ ] Production UAT
+- [ ] Production smoke test
+- [ ] GO-LIVE
 
-## 🔄 Continuous Integration
+## Documentation
 
-SkillSifter uses separate GitHub Actions workflows for maintainability.
+- CHANGELOG.md
+- RELEASE_NOTES.md
+- docs/features.md
+- docs/phase-9-release-gate.md
+- backend/docs/swagger.yaml
 
-### Backend CI
+## Post-go-live
 
-```text
-Pull Request / Push
-        ↓
- Repository checks
-        ↓
- Migration/schema validation
-        ↓
- Go formatting
-        ↓
-      Build
-        ↓
-       Vet
-        ↓
-      Tests
-        ↓
-    Coverage
-        ↓
-       PASS
-```
+Once Phase 9 passes its release gate, freeze the architecture. New functionality becomes post-go-live product work and should be driven by real usage evidence.
 
-Workflow:
+## License
 
-```text
-.github/workflows/backend-ci.yml
-```
-
-### Frontend CI
-
-```text
-Pull Request / Push
-        ↓
-     npm ci
-        ↓
-       Lint
-        ↓
-       Test
-        ↓
-      Build
-        ↓
-       PASS
-```
-
-Workflow:
-
-```text
-.github/workflows/frontend-ci.yml
-```
-
-Backend and frontend workflows remain separate so each application layer has an independent and maintainable verification pipeline.
-
----
-
-## 🔐 Security & Multi-Tenancy
-
-Multi-tenancy is a core architectural boundary of SkillSifter.
-
-Security-sensitive recruitment operations are designed to prevent cross-tenant data and actor relationships.
-
-Key controls include:
-
-- Tenant-scoped data access
-- Tenant-aware authorization
-- Role-based access control
-- Assignment actor tenant validation
-- Cross-tenant actor rejection
-- Tenant-aware audit relationships
-- Regression coverage for tenant isolation
-
-The application is pre-1.0 software, so security hardening and validation remain ongoing engineering responsibilities.
-
----
-
-## 🌿 Development Workflow
-
-The repository follows a feature-branch and pull-request workflow.
-
-```text
-Feature Branch
-      ↓
-Implementation
-      ↓
-Local Verification
-      ↓
-Pull Request
-      ↓
-Backend CI ──────┐
-                 ├──→ Quality Gate
-Frontend CI ─────┘
-      ↓
-Review
-      ↓
-Merge
-      ↓
-Release Checkpoint
-```
-
-The `main` branch is the release integration branch. Development branches may contain work for upcoming checkpoints and should not be assumed to represent the current production baseline.
-
-Governance is intentionally lightweight: automation and process are used where they provide a clear engineering benefit without creating unnecessary overhead.
-
----
-
-## 📚 Documentation
-
-Project documentation is organized under `docs/` and evolves alongside the implementation.
-
-Useful documentation areas include:
-
-- Architecture
-- Product scope
-- Architecture Decision Records
-- Engineering principles
-- Release process
-- Versioning policy
-- Project backlog
-- Release readiness
-
-For API details, see:
-
-```text
-backend/docs/swagger.yaml
-```
-
-Release-specific documentation is maintained under:
-
-```text
-docs/release/
-```
-
----
-
-## 📌 Project Status
-
-SkillSifter is **active development software** and remains **pre-1.0**.
-
-The project has progressed beyond the initial ATS foundation into recruitment workflow hardening and production-readiness validation.
-
-### v0.5.6 Status
-
-The current release is a navigation and domain-model cleanup pass:
-
-- Business Dev's unique fields (partner name, contact person) are now part of Client, and the standalone Business Dev tab is removed.
-- The Assignments frontend tab is removed as redundant with Daily Tasks.
-- Navbar overflow is fixed so all tabs and actions remain reachable as the tab count grows.
-
-The go-live readiness work established in CP11/CP12 (v0.5.3) remains the standing quality bar; the final application-level gate remains manual recruiter UAT against the running application before production cutover.
-
-### Current Engineering Priorities
-
-- Production hardening
-- Recruitment workflow validation
-- Tenant isolation and authorization assurance
-- Regression safety
-- Focused recruiter UAT
-- Production deployment readiness
-- Evidence-driven reliability and performance improvements
-
-Production observability, performance optimization, and additional infrastructure should be driven by real usage evidence rather than speculative engineering.
-
----
-
-## 🗺️ Roadmap
-
-SkillSifter is being developed through incremental checkpoints rather than attempting to implement the entire product in a single release.
-
-### Foundation — Completed
-
-- [x] Core ATS foundation
-- [x] Authentication and authorization
-- [x] Multi-tenant foundation
-- [x] Candidate management
-- [x] Requirement domain foundation
-- [x] Structured candidate expertise foundation
-- [x] Recruitment assignment foundation
-- [x] Assignment tenant isolation
-- [x] Assignment actor authorization
-- [x] Assignment audit foundation
-- [x] Assignment state-machine foundation
-- [x] Candidate/requirement snapshot handling
-- [x] Backend CI
-- [x] Frontend CI
-- [x] Protected `main`
-- [x] Resume ingestion/search foundation
-
-### Production Readiness — Current
-
-- [x] CP11 Production Quality Gate
-- [x] CP12 Recruitment Workflow UAT / Go-Live Readiness checkpoint
-- [x] Backend regression quality gate
-- [x] Frontend regression/build quality gate
-- [x] Tenant isolation release validation
-- [x] Assignment authorization release validation
-- [ ] Final production recruiter UAT
-- [ ] Production cutover
-
-### Post-Go-Live / V1
-
-- [ ] Production hardening based on real usage
-- [ ] Operational observability based on real production needs
-- [ ] Reliability improvements based on production evidence
-- [ ] Expanded automated workflow coverage where justified
-- [ ] V1 product scope completion
-- [ ] V1 release preparation
-
-The detailed implementation roadmap is maintained separately from this README.
-
----
-
-## 📦 Releases
-
-SkillSifter follows:
-
-- **Semantic Versioning**
-- **Keep a Changelog**
-- Incremental development checkpoints
-
-### Current Release — v0.5.6
-
-**Released:** September 13, 2026
-
-v0.5.6 consolidates the Business Dev module into Client (`partner_name`, `contact_person` are now Client fields), removes the redundant Assignments frontend tab in favor of Daily Tasks, and fixes navbar overflow so navigation stays usable as the tab count grows.
-
-The backend `BusinessDev` struct and table remain in place but are now unused by the frontend — flagged for a future cleanup pass.
-
-### Release History
-
-| Release | Focus |
-|---|---|
-| `v0.5.6` | Business Dev merged into Client, Assignments UI removed, navbar overflow fix |
-| `v0.5.5` | Docker architecture decision (ADR 0009), Resume AI fix, audit read access, unused-table cleanup |
-| `v0.5.3` | CP11 Production Quality + CP12 Go-Live Readiness |
-| `v0.5.1` | Recruitment workflow stabilization and verification |
-| `v0.4.0` | Recruitment Assignment State Machine, tenant isolation, audit integrity, candidate expertise, CI foundations |
-| `v0.3.0` | Resume intelligence foundation and V1 architecture/product baseline |
-| `v0.2.0` | ATS stabilization, RBAC, testing infrastructure, and critical fixes |
-| `v0.1.0` | Initial documented baseline |
-
-See:
-
-- [`CHANGELOG.md`](CHANGELOG.md)
-- [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
-- [`docs/release/`](docs/release/)
-
----
-
-## 🎯 Release Philosophy
-
-SkillSifter follows a deliberately incremental engineering approach:
-
-```text
-LEAN
-  ↓
-STABLE
-  ↓
-LIVE
-  ↓
-OBSERVE
-  ↓
-FIX
-  ↓
-OPTIMIZE
-  ↓
-EXPAND
-```
-
-The project avoids introducing infrastructure or architectural complexity before there is evidence that the complexity is needed.
-
-This principle is particularly important as SkillSifter moves from development checkpoints toward real production usage.
-
----
-
-## 🤝 Contributing
-
-Contributions, bug reports, documentation improvements, and engineering discussions are welcome.
-
-Before contributing, please read:
-
-- [`CONTRIBUTING.md`](CONTRIBUTING.md)
-- [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
-
-For architectural changes, review the existing project documentation and architecture decisions before introducing new patterns or dependencies.
-
-Changes should normally be developed on a feature branch and submitted through a pull request with the applicable CI checks passing.
-
----
-
-## 📄 License
-
-A project license has not yet been finalized.
-
-Until a license is added to the repository, the source code should **not** be assumed to be available for unrestricted redistribution or commercial use.
-
----
-
-## ⭐ Project
-
-**SkillSifter**
-
-An open-source foundation for modern staffing and recruitment operations.
-
-Built with:
-
-**Go · React · TypeScript · PostgreSQL · Docker · GitHub Actions**
+A project license has not yet been finalized. Until a license is added, the source should not be assumed to be available for unrestricted redistribution or commercial use.
