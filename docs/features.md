@@ -1,89 +1,104 @@
 # SkillSifter — Feature Specification & Implementation Status
 
-This documents the full functional scope of SkillSifter as currently designed, cross-checked against the actual codebase (not just what renders). Status is based on direct inspection of `src/` and `backend/`, not assumption.
+Status key:
+- ✅ Implemented — implementation is present in the current main baseline.
+- 🧪 Release verification — implementation exists but final CI/UAT/production verification remains.
+- ⛔ Out of scope — deliberately excluded.
 
-**Status key:**
-- ✅ **Live** — wired to the real API, verified working
-- ⚠️ **Partial / Mixed** — some parts real, some hardcoded — see note
-- 🔴 **Mock only** — hardcoded data, no real API call at all
-- ❓ **Unverified** — exists in code, not yet manually tested end-to-end
+## 1. Product boundary
 
----
+SkillSifter is a recruitment intelligence platform, not an HRMS.
 
-## A. Dashboard (`src/components/dashboard/Dashboard.tsx`)
+Workflow: Requirement → Assignment → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing.
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Welcome message | ✅ Live | Pulls logged-in user's name |
-| 2 | Total Candidates (stat) | ✅ Live | Real API call, `isLoading` state handled |
-| 3 | Open Requirements (stat) | ✅ Live | Same pattern as above |
-| 4 | Daily Tasks (stat) | ✅ Live | Same pattern |
-| 5 | Business Contacts (stat) | ✅ Live | Same pattern |
-| 6 | Hiring Trend (bar graph) | ❓ Unverified | Backend endpoint (`GET /api/reports/hiring`) exists and is real — need to confirm frontend actually renders its response rather than a placeholder |
-| 7 | Candidate Sources (pie chart) | ❓ Unverified | Backend endpoint (`GET /api/reports/sources`) exists and is real — same caveat as above |
-| 8 | Upload Files button | ❓ Unverified | UI present; unclear if resume upload has real backend handling yet, or is a placeholder for the future AI/AstraMind resume-parsing feature (see `docs/architecture.md` §11) |
-| 9 | Recruitment Pipeline (Screening/Interview/Rejected counts) | 🔴 **Mock only** | Hardcoded `pipelineData` array (`24`, `12`, `8`) — no API call at all, not even a fallback pattern |
-| 10 | Recent Activity feed | 🔴 **Mock only** | Hardcoded `activityData` array (Sarah Wilson, TechSolutions Inc, Alex) — no API call, "View All" button destination unverified |
+Out of scope: HRMS employee lifecycle, interviewer panels, hiring-manager hierarchy, client interview panels, internal approvals, internal evaluation forms, payroll/attendance/leave, accounting ledger, microservices and configurable permission-builder frameworks.
 
-## B. Candidates (`src/pages/Candidates.tsx`)
+## 2. Recruitment features
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Search by skill set (text + filter) | ❓ Unverified | UI present; need to confirm search actually filters via API vs. client-side only |
-| 2 | Add Candidate button → form | ❓ Unverified | Form exists (`AddCandidate.tsx`); need to confirm submit wires to `POST /api/candidates` |
-| 3 | Results table | ❓ Unverified | Need to confirm columns render real data, not placeholders |
+| Feature | Status |
+|---|---|
+| Candidates | ✅ |
+| Candidate expertise | ✅ |
+| Clients | ✅ |
+| Requirements | ✅ |
+| Assignments | ✅ |
+| Daily Tasks | ✅ |
+| Screening | ✅ |
+| Submission | ✅ |
+| Feedback | ✅ |
+| Interviews | ✅ |
+| Selection | ✅ |
+| Offer | ✅ |
+| Joining | ✅ |
+| Billing | ✅ |
+| Recruitment history/audit | ✅ |
+| Resume intelligence foundation | ✅ |
 
-## C. Requirements (`src/pages/Requirements.tsx`)
+## 3. Requirements
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Search by skill/designation | ❓ Unverified | |
-| 2 | Add Requirement button → form | ❓ Unverified | |
-| 3 | Results table (Title, Department, Location, Status, Job Type, Work Arrangement, Open Positions, Actions) | ❓ Unverified | |
+Requirement fields: Client, Job Type, Job Title, Department, Experience Required, Budget, Language Requirements, Certifications Required, Notice Period, Mode of Work, Mandatory Requirements, Job Description, Status, Job Location and Number of Open Positions.
 
-## D. Daily Tasks (`src/pages/DailyJobs.tsx`)
+## 4. Offer and Joining
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Search by assignee | ❓ Unverified | |
-| 2 | Add Assignment button → form | ❓ Unverified | |
-| 3 | Results table (JD No., Instructions, Assigned To, Assigned Date, Actions) | ❓ Unverified | |
+Offer = made + accepted.
 
-## E. Business Development (`src/pages/BusinessDev.tsx`)
+Joining = joining date + joined.
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Search Clients | ❓ Unverified | |
-| 2 | Add Client button → form | ❓ Unverified | |
-| 3 | Results table (Client Name, Partner, Contact Person, Contact Info, Added, Actions) | ⚠️ **Partial** | Real API call attempted first; **falls back to hardcoded mock data only if the API call fails** — this is the correct defensive pattern, unlike the Dashboard bug above. Worth confirming the API call is actually succeeding in production (not silently failing into mock every time) |
+## 5. Authentication and RBAC
 
-## F. Interviews (`src/pages/Interviews.tsx`)
+Roles: Admin, Manager, Recruiter, Team Leader.
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Search Interview Schedules | ❓ Unverified | |
-| 2 | Add/Schedule Interview button → form | ❓ Unverified | |
-| 3 | Results table (Candidate, Position, Date & Time, Status, Feedback, Actions) | ❓ Unverified | |
+Server-side capabilities include JWT authentication, protected routes, role authorization, tenant-aware identity, admin user management, seat-limit enforcement and admin account protection.
 
-## G. Reports & Analytics (`src/pages/Reports.tsx`)
+## 6. Multi-tenancy
 
-| # | Feature | Status | Note |
-|---|---|---|---|
-| 1 | Dashboard-style layout | ❓ Unverified | |
-| 2 | Total Candidates, Total Interviews, Interview Rate, Hiring Trend, Candidate Sources | ❓ Unverified | Same underlying `/api/reports/*` endpoints as Dashboard §A.6–7 — if those are confirmed working here, likely also fixable on the Dashboard the same way |
+Control plane owns authentication identity, tenant registry/provisioning state and subscription/account state.
 
-## Global
+Tenant DB owns recruitment and operational data.
 
-| Feature | Status | Note |
-|---|---|---|
-| Logout | ❓ Unverified | |
-| Global search (search icon, top nav) | ❓ Unverified | Unclear what this searches — candidates only, or across all resource types |
-| Add Candidate (top nav shortcut) | ❓ Unverified | Likely same form as B.2 |
+Phase 9 includes tenant DB provisioning, migrations, routing, READY gating, tenant ownership checks and cross-tenant negative tests.
 
----
+## 7. Admin User Management
 
-## Immediate action items surfaced by this review
+Tenant administrators can list, create, update and delete permitted users, while seeing seat usage/limits. Tenant-admin protection and server-side authorization are enforced.
 
-1. **Fix Dashboard §A.9 and §A.10** — replace hardcoded `pipelineData`/`activityData` arrays with real API calls. Highest-priority bug found here: it's the first thing any user (or investor, or pilot customer) sees, and it's currently lying about the data.
-2. **Verify Dashboard §A.6–7 (charts)** — confirm they render real report data; the backend endpoints exist, so this may already work correctly, or may need frontend wiring.
-3. **Systematic pass through B–G**: this document currently has a lot of ❓ — each of B.1–G.3 needs a real click-through test to convert unverifieds into confirmed ✅/⚠️/🔴, ideally logged with actual console errors from the DevTools review already in progress.
+## 8. Subscription lifecycle
+
+Plans → Checkout → Provider Webhook → Activation → Renewal → Payment Failure / Cancellation / Expiry.
+
+Implemented: plans, checkout handoff, webhook processing, activation, renewal, payment failure, cancellation, expiry, idempotency, server-side enforcement, Account & Subscription UI.
+
+No accounting ledger is part of SkillSifter.
+
+## 9. Security
+
+Phase 9 includes authenticated tenant identity, server-side RBAC, tenant DB routing, ownership checks, cross-tenant rejection, protected admin operations, subscription enforcement and webhook validation.
+
+## 10. CI and quality
+
+Backend: Formatting → Build → Vet → Test with PostgreSQL.
+
+Frontend: Install → Lint → Test → Build.
+
+Release: CI → Security → UAT → Production Smoke → GO-LIVE.
+
+## 11. Docker
+
+No Phase 9 Docker architecture expansion is required. PostgreSQL remains independent infrastructure; backend and frontend remain containerized; Docker Compose remains the local development/verification stack.
+
+## 12. Release verification
+
+Implementation is consolidated on main.
+
+- 🧪 CI evidence on release commit
+- 🧪 Security negative-test execution
+- 🧪 Production UAT
+- 🧪 Production smoke test
+
+Only after these gates pass should the project be declared GO-LIVE.
+
+## 13. Post-go-live
+
+Freeze the architecture after Phase 9. New functionality becomes post-go-live product work and should be driven by real usage evidence.
+
+See docs/phase-9-release-gate.md and GitHub Issue #99.
