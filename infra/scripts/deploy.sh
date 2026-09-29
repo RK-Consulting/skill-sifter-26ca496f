@@ -15,6 +15,13 @@ git reset --hard "origin/${CURRENT_BRANCH}"
 
 echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 cd "$APP_DIR/backend"
+
+# Load the production database environment before the test gate so integration
+# tests use the same DB credentials as the application. Explicit TEST_DB_*
+# variables still override these values inside the test bootstrap.
+source "$APP_DIR/backend/.env"
+export DB_HOST DB_PORT DB_USER DB_PASSWORD DB_NAME
+
 go mod download
 
 UNFORMATTED=$(gofmt -l .)
