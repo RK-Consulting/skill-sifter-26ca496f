@@ -1,8 +1,7 @@
 # SkillSifter — Current Implementation Status
 
-**Baseline:** `main` at `ca19e6efac6f98c91f8f9873be20a0c5a03520ac`  
-**Date:** 2026-09-28  
-**Purpose:** authoritative implementation handoff after completion of the recruitment lifecycle and the first Phase 9 SaaS access work.
+**Baseline:** current `main` after completion of the Phase 9 implementation sequence
+**Date:** 2026-09-29
 
 ## 1. PR / Merge Status
 
@@ -80,90 +79,26 @@ PR #86 added:
 
 SkillSifter billing remains an operational recruitment record. Formal invoicing, accounting, GST/tax, banking and client payment collection remain outside SkillSifter.
 
-## 4. Implemented Phase 9 Foundation
+## 4. Implemented Phase 9 Platform
 
-### Control plane
+### Control plane and access
 
 Implemented:
 
 - `platform_tenants`
 - `platform_subscriptions`
 - `platform_user_accounts`
-- subscription user limit
-- tenant/account status
-- subscription status
-- provisioning status
-- plan code
-- external provider reference fields
+- subscription user limits
+- tenant/account/subscription/provisioning status
+- trusted tenant and role resolution
+- protected-request subscription access checks
+- public tenant registration with initial Admin
+- Admin User Management UI and API
+- fixed V1 roles
 
-Existing tenants/users are backfilled into the control-plane bridge.
+### V1 privilege enforcement
 
-### Login
-
-Implemented:
-
-- real email/password login
-- trusted tenant resolution
-- subscription access check on every protected request
-- trusted role resolution
-- tenant identity in JWT
-- current account access endpoint
-- frontend display of tenant/company, role, plan and subscription context
-
-### Registration
-
-Implemented:
-
-- public registration creates a new tenant
-- first public user is always Admin
-- caller cannot choose a role
-- caller cannot join an existing tenant through public registration
-- initial platform subscription is created as the compatibility/legacy subscription
-
-### Initial RBAC enforcement
-
-Implemented:
-
-- Admin-only tenant user-management API
-- fixed V1 roles:
-  - admin
-  - manager
-  - recruiter
-  - team_leader
-- candidate mutation role restrictions
-- trusted role/tenant context from the platform access layer
-
-This is **not yet the complete V1 privilege matrix enforcement**.
-
-## 5. Remaining Implementation
-
-The remaining work is deliberately split into small blocks.
-
-### A. Admin User Management UI
-
-Backend user-management capability exists.
-
-Still required:
-
-- Admin Users screen
-- list tenant users
-- create additional user
-- edit user
-- delete user
-- assign only Manager / Recruiter / Team Leader
-- show subscription seat usage
-- prevent Admin promotion
-- prevent deletion/editing of the initial Admin
-- frontend API integration
-- negative authorization tests
-
-No custom permission editor is required.
-
-### B. V1 Privilege Matrix Enforcement
-
-The approved four-role matrix must be enforced across every protected module.
-
-The implementation must cover:
+Implemented across the protected application surface:
 
 - Clients
 - Requirements
@@ -178,83 +113,84 @@ The implementation must cover:
 - Billing
 - Business Development
 - Reports
-- Resume/AI operations
+- Resume/AI
 - Daily Tasks
-- Tenant/user administration
-- Tenant configuration
+- tenant/user administration
 
-The authorization convention should become consistent domain-action authorization rather than a growing collection of ad-hoc role comparisons.
+No permission builder or arbitrary role model was introduced.
 
-Tenant isolation remains a separate security invariant.
+### Tenant isolation
 
-### C. Tenant Isolation Audit
+Implemented:
 
-The application still contains historical shared-schema code.
+- authenticated tenant ID as the security boundary
+- tenant-scoped create/read/update/delete paths
+- cross-tenant known-ID negative tests
+- client-supplied tenant identity cannot override authenticated tenant identity
+- reporting and legacy operational isolation checks
+- tenant DB routing with request-scoped access
 
-Remaining work:
+### Tenant DB provisioning
 
-- identify all tenant-owned queries
-- ensure authoritative tenant ID is used
-- remove remaining security dependence on `company_name`
-- verify every create/read/update/delete path
-- add cross-tenant negative tests
-- ensure role checks cannot bypass tenant isolation
-
-### D. Tenant Database Provisioning — Phase 9B
-
-Not yet implemented:
+Implemented:
 
 - deterministic tenant database identity
-- provisioning abstraction
-- database creation
-- tenant migration execution
-- idempotent provisioning
-- provisioning failure handling
+- create-or-resume provisioning
+- tenant schema migration
+- idempotency
+- provisioning status
 - activation only after successful provisioning
+- registration-time provisioning
+- administrator retry path
 
-### E. Tenant Database Routing — Phase 9C
+### Tenant DB routing
 
-Not yet implemented:
+Implemented:
 
-- authenticated tenant → database resolution
-- request-scoped tenant DB context
-- replacement of the single global tenant DB connection
-- safe connection lifecycle
-- routing/isolation tests
+- authenticated tenant → tenant DB resolution
+- request-scoped tenant DB
+- tenant-owned handler routing
+- control-plane queries remain on the control DB
+- request DB lifecycle cleanup
 
-This is the largest remaining architectural Phase 9 block.
+### Subscription lifecycle
 
-### F. Subscription Lifecycle / Payment Provider — Phase 9E
+Implemented:
 
-Not yet implemented:
-
-- plan catalog/runtime plan management
-- external checkout handoff
-- provider adapter
-- webhook endpoint
-- normalized subscription events
+- runtime plan catalog
+- external Razorpay checkout handoff
+- signed webhook processing
 - activation
 - renewal
-- payment failure
-- suspension
+- payment failure/suspension
 - cancellation
 - expiry
-- reactivation
+- reactivation/resumption
+- account/subscription APIs
 
-SkillSifter must not become a payment gateway or financial ledger.
+SkillSifter does not process payment instruments or maintain a financial ledger.
 
-### G. Account / Subscription UI — Phase 9F
+### Account and Subscription UI
 
-Not yet implemented:
+Implemented:
 
-- company account page
+- account details
 - current plan
-- seat usage
 - subscription status
-- subscription dates
+- seat usage
+- available plans
 - checkout handoff
-- access/suspension state
-- administrator-only subscription controls
+- administrator-only cancellation
+
+## 5. Phase 9 Security / UAT / Go-Live
+
+The implementation gate is complete. Deployment-specific UAT remains the final operational gate.
+
+The acceptance checklist is maintained in:
+
+`docs/phase-9-security-uat-go-live.md`
+
+Required production verification includes authentication, fixed-role authorization, cross-tenant isolation, tenant DB provisioning/routing, lifecycle completion, subscription state transitions, webhook signature validation, migration/backup verification, production configuration, HTTPS and health monitoring.
 
 ## 6. Documentation Work Remaining
 
@@ -273,7 +209,7 @@ Older documents that describe company-name tenancy or the earlier authentication
 
 ## 7. Explicit Non-Goals
 
-The next implementation stages must not introduce:
+The Phase 9 implementation does not introduce:
 
 - microservices
 - custom permission builders
@@ -283,7 +219,9 @@ The next implementation stages must not introduce:
 - GST/accounting module
 - banking/payment-instrument storage
 - custom payment gateway
-- per-customer server by default
+- per-customer servers by default
+
+The recruitment lifecycle remains frozen.
 
 ## 8. Recommended Implementation Order
 
