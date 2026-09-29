@@ -22,15 +22,26 @@ npx playwright install chromium
 
 ## Production smoke
 
-Use a disposable administrator account:
+The repository seeds one dedicated **permanent production-smoke account** through the database schema definitions:
 
-```bash
-E2E_ADMIN_EMAIL="..." E2E_ADMIN_PASSWORD="..." npm run smoke
-```
+- tenant: `e2e_smoke_tenant`
+- company: `SkillSifter E2E Smoke`
+- administrator: `e2e-admin@skillsifter.in`
+- subscription: `e2e-smoke / ACTIVE / no expiry`
+- tenant routing: `READY`
 
-The default smoke suite is deliberately non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
+The account uses the normal login, RBAC, tenant-routing, and subscription checks. It does not bypass authentication or payment/subscription gates.
 
-## Mutating UAT
+The smoke credentials are supplied through GitHub Actions secrets:
+
+- `SKILLSIFTER_E2E_ADMIN_EMAIL`
+- `SKILLSIFTER_E2E_ADMIN_PASSWORD`
+
+For the seeded fixture, the email must be `e2e-admin@skillsifter.in`. The password must match the password represented by the bcrypt hash in `038_e2e_smoke_account.sql`.
+
+The normal smoke suite is non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
+
+## Mutating production smoke
 
 The client/requirement/candidate creation flow is opt-in:
 
@@ -41,7 +52,18 @@ E2E_ADMIN_PASSWORD="..." \
 npm run smoke
 ```
 
-Only use this against a disposable UAT tenant. It creates uniquely named dummy records.
+The mutation flow uses the permanent production-smoke tenant and creates uniquely named test records. **Only after the complete mutation flow succeeds**, the test deletes the candidate, requirement, and client created by that run, in dependency order.
+
+The cleanup never deletes:
+
+- the production-smoke tenant
+- its tenant database
+- the permanent administrator
+- the platform user account
+- the active subscription
+- the subscription/plan configuration
+
+If the mutation flow fails before cleanup begins, the created records are intentionally retained so the failure can be diagnosed.
 
 ## Reports
 
