@@ -72,7 +72,11 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       ['/requirements', 'Requirements'],
       ['/candidates', 'Candidates'],
       ['/recruitment/lifecycle', 'Recruitment Lifecycle'],
+      ['/interviews', 'Interviews'],
       ['/billing', 'Billing'],
+      ['/daily-jobs', 'Daily Job Assignments'],
+      ['/reports', 'Reports & Activity'],
+      ['/resume-ai', 'Resume AI'],
       ['/account', 'Account & Subscription'],
       ['/admin/users', 'User Management'],
     ] as const;
@@ -81,6 +85,21 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await page.goto(route);
       await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
     }
+
+    await page.goto('/clients');
+    await expect(page.getByText('E2E Smoke Client', { exact: true })).toBeVisible();
+
+    await page.goto('/requirements');
+    await expect(page.getByText('E2E Smoke Software Engineer', { exact: true })).toBeVisible();
+
+    await page.goto('/candidates');
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
+
+    await page.goto('/interviews');
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
+
+    await page.goto('/billing');
+    await expect(page.getByText('E2E Smoke Candidate', { exact: true })).toBeVisible();
   });
 
   test('subscription/account surfaces load without browser errors', async ({ page }) => {
