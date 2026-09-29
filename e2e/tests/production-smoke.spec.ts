@@ -100,6 +100,9 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     await page.goto('/requirements/add');
     await expect(page.getByLabel('Job ID *')).toBeVisible();
     await page.getByLabel('Job ID *').fill(`E2E-${suffix}`);
+    const clientSelect = page.getByLabel('Client *');
+    await expect(clientSelect).toBeVisible();
+    await clientSelect.selectOption({ label: clientName });
     await page.getByLabel('Job Title *').fill(requirementTitle);
     await page.getByLabel('Department').fill('Engineering');
     await page.getByLabel('Experience Required').fill('5 years');
