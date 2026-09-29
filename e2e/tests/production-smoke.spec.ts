@@ -94,7 +94,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     await expect(page.getByText('Plan:', { exact: false })).toBeVisible();
 
     await page.goto('/billing');
-    await expect(page.getByRole('heading', { name: 'Billing' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
 
     expect(errors, errors.join('\n')).toEqual([]);
   });
@@ -121,6 +121,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     await page.getByLabel('Client Name').fill(clientName);
     await page.getByLabel('Contact Person').fill('Production Smoke Contact');
     await page.getByLabel('Contact Email').fill(`smoke-contact-${suffix}@example.invalid`);
+    await page.getByLabel('Status').selectOption('active');
 
     const clientResponsePromise = page.waitForResponse(
       response => response.url().includes('/api/v1/clients') && response.request().method() === 'POST',
