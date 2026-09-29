@@ -25,10 +25,10 @@ func TestMain(m *testing.M) {
 }
 
 func ensureSchemaTestDatabase(dbName string) error {
-	host := getenvDefault("TEST_DB_HOST", "localhost")
-	port := getenvDefault("TEST_DB_PORT", "5432")
-	user := getenvDefault("TEST_DB_USER", "postgres")
-	password := getenvDefault("TEST_DB_PASSWORD", "postgres")
+	host := getenvDefault("TEST_DB_HOST", getenvDefault("DB_HOST", "localhost"))
+	port := getenvDefault("TEST_DB_PORT", getenvDefault("DB_PORT", "5432"))
+	user := getenvDefault("TEST_DB_USER", getenvDefault("DB_USER", "postgres"))
+	password := getenvDefault("TEST_DB_PASSWORD", getenvDefault("DB_PASSWORD", "postgres"))
 
 	adminDSN := "host=" + host + " port=" + port + " user=" + user +
 		" password=" + password + " dbname=postgres sslmode=disable"
