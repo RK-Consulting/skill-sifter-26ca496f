@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import Navbar from '@/components/layout/Navbar';
@@ -10,7 +9,6 @@ import { authService, subscriptionService } from '@/services/api';
 
 const Account = () => {
   const queryClient = useQueryClient();
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const accountQuery = useQuery({
     queryKey: ['current-account'],
@@ -20,23 +18,6 @@ const Account = () => {
   const subscriptionQuery = useQuery({
     queryKey: ['subscription-account'],
     queryFn: async () => (await subscriptionService.getSubscription()).data.data,
-  });
-
-  const plansQuery = useQuery({
-    queryKey: ['subscription-plans'],
-    queryFn: async () => (await subscriptionService.getPlans()).data.data,
-  });
-
-  const checkoutMutation = useMutation({
-    mutationFn: (planCode: string) => subscriptionService.checkout(planCode),
-    onSuccess: (response) => {
-      const url = response.data.data.checkoutUrl;
-      setCheckoutUrl(url);
-      if (url) window.open(url, '_blank', 'noopener,noreferrer');
-      toast.success('Checkout created');
-      queryClient.invalidateQueries({ queryKey: ['subscription-account'] });
-    },
-    onError: () => toast.error('Could not start subscription checkout'),
   });
 
   const cancelMutation = useMutation({
@@ -60,7 +41,7 @@ const Account = () => {
         <Container>
           <div className="mb-8">
             <h1 className="text-3xl font-semibold tracking-tight mb-2">Account & Subscription</h1>
-            <p className="text-ats-gray-500">Manage your SkillSifter account, plan and subscription.</p>
+            <p className="text-ats-gray-500">View your SkillSifter account and subscription status.</p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
@@ -97,52 +78,6 @@ const Account = () => {
               </CardContent>
             </Card>
           </div>
-
-          {checkoutUrl && (
-            <Card className="mt-6">
-              <CardContent className="p-6">
-                <div className="font-medium mb-2">Checkout ready</div>
-                <a className="text-ats-blue-500 underline" href={checkoutUrl} target="_blank" rel="noreferrer">
-                  Open payment checkout
-                </a>
-              </CardContent>
-            </Card>
-          )}
-
-          <Card className="mt-6">
-            <CardHeader><CardTitle>Available Plans</CardTitle></CardHeader>
-            <CardContent>
-              {plansQuery.isLoading ? (
-                <div>Loading plans...</div>
-              ) : plansQuery.isError ? (
-                <div className="text-red-600">Could not load plans.</div>
-              ) : plansQuery.data?.length ? (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {plansQuery.data.map((plan: { code: string; name: string; amountMinor: number; currency: string; billingInterval: number; billingPeriod: string; userLimit: number }) => (
-                    <div key={plan.code} className="border rounded-lg p-5 space-y-3">
-                      <div className="font-semibold text-lg">{plan.name}</div>
-                      <div>{plan.currency} {(plan.amountMinor / 100).toFixed(2)}</div>
-                      <div className="text-sm text-ats-gray-500">
-                        {plan.billingInterval} {plan.billingPeriod} · {plan.userLimit} users
-                      </div>
-                      {isAdmin && (
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => checkoutMutation.mutate(plan.code)}
-                          disabled={checkoutMutation.isPending}
-                        >
-                          {checkoutMutation.isPending ? 'Starting...' : 'Choose Plan'}
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-ats-gray-500">No paid plans are configured yet.</div>
-              )}
-            </CardContent>
-          </Card>
         </Container>
       </main>
       <Footer />
