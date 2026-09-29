@@ -27,8 +27,8 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
 		return
 	}
-	if creds.CompanyName == "" {
-		respondWithError(w, http.StatusBadRequest, "Company name is required")
+	if creds.CompanyName == "" || creds.PlanCode == "" {
+		respondWithError(w, http.StatusBadRequest, "Company name and plan are required")
 		return
 	}
 
@@ -87,14 +87,23 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var planLimit int
+	if err = tx.QueryRow(
+		"SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE",
+		creds.PlanCode,
+	).Scan(&planLimit); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusBadRequest, "Selected subscription plan is not available")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not validate subscription plan")
+		return
+	}
+
 	if _, err = tx.Exec(`
 		INSERT INTO platform_subscriptions(tenant_id, plan_code, status, user_limit)
-		SELECT $1, 'legacy', 'ACTIVE', 1
-		WHERE NOT EXISTS (
-			SELECT 1 FROM platform_subscriptions
-			WHERE tenant_id = $1 AND status IN ('TRIAL', 'ACTIVE')
-		)
-	`, companyID); err != nil {
+		VALUES($1, $2, 'TRIAL', $3)
+	`, companyID, creds.PlanCode, planLimit); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform subscription")
 		return
 	}
@@ -141,8 +150,10 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "User registered successfully",
 		Data: models.TokenResponse{
-			Token: tokenString,
-			User:  user,
+			Token:              tokenString,
+			User:               user,
+			SubscriptionStatus: "TRIAL",
+			PlanCode:           creds.PlanCode,
 		},
 	})
 }

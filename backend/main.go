@@ -49,6 +49,8 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
 	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
+	r.HandleFunc("/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
+	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 }
 func setupResourceRoutes(router *mux.Router, path string, getAll, create, getOne, update, del http.HandlerFunc) {
 	router.HandleFunc(path, getAll).Methods("GET", "OPTIONS")
@@ -75,7 +77,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
-	api.HandleFunc("/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription", handlers.GetSubscriptionAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription/checkout", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.StartSubscriptionCheckout)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/account/subscription/cancel", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.CancelSubscription)).ServeHTTP).Methods("POST", "OPTIONS")
