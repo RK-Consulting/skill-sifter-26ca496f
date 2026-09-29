@@ -61,12 +61,12 @@ go build -o skillsifter .
 echo "==> Applying database migrations through the application migration engine"
 SKILLSIFTER_MIGRATE_ONLY=1 ./skillsifter
 
-if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_versions" | grep -qx "38"; then
-  echo "❌ DEPLOY ABORTED: application migration engine did not reach schema version 38."
+if ! psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -tAc "SELECT COALESCE(MAX(version), 0) FROM schema_versions" | grep -qx "39"; then
+  echo "❌ DEPLOY ABORTED: application migration engine did not reach schema version 39."
   exit 1
 fi
 
-echo "✅ Database migration gate passed — schema_versions is at version 38"
+echo "✅ Database migration gate passed — schema_versions is at version 39"
 echo "==> Syncing nginx config"
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 nginx -t
