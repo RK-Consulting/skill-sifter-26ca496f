@@ -4,6 +4,9 @@
 
 [![Backend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/backend-ci.yml)
 [![Frontend CI](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml/badge.svg)](https://github.com/RK-Consulting/skill-sifter-26ca496f/actions/workflows/frontend-ci.yml)
+[![Release](https://img.shields.io/github/v/release/RK-Consulting/skill-sifter-26ca496f?display_name=tag)](https://github.com/RK-Consulting/skill-sifter-26ca496f/releases)
+[![Version](https://img.shields.io/github/package-json/v/RK-Consulting/skill-sifter-26ca496f)](https://github.com/RK-Consulting/skill-sifter-26ca496f/releases/latest)
+[![GitHub issues](https://img.shields.io/github/issues/RK-Consulting/skill-sifter-26ca496f)](https://github.com/RK-Consulting/skill-sifter-26ca496f/issues)
 
 > **Current baseline:** Phase 9 implementation complete on main  
  > **Release state:** Final CI, security, UAT and production-smoke verification before go-live  
