@@ -27,9 +27,10 @@ async function deleteResource(
   page: import('@playwright/test').Page,
   path: string,
   token: string,
+  apiOrigin: string,
   label: string,
 ) {
-  const response = await page.request.delete(new URL(path, page.url()).toString(), {
+  const response = await page.request.delete(new URL(path, apiOrigin).toString(), {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -112,6 +113,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     let clientID: number | undefined;
     let requirementID: number | undefined;
     let candidateID: number | undefined;
+    let apiOrigin: string | undefined;
 
     // Client
     await page.goto('/clients/add');
@@ -126,6 +128,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     await page.getByRole('button', { name: 'Save Client' }).click();
     const clientResponse = await clientResponsePromise;
     expect(clientResponse.ok()).toBeTruthy();
+    apiOrigin = new URL(clientResponse.url()).origin;
     clientID = createdID(await clientResponse.json());
 
     await expect(page).toHaveURL(/\/clients$/);
@@ -192,8 +195,12 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       throw new Error('Production smoke cleanup could not read the authenticated token.');
     }
 
-    await deleteResource(page, `/api/candidates/${candidateID}`, token, 'candidate');
-    await deleteResource(page, `/api/v1/requirements/${requirementID}`, token, 'requirement');
-    await deleteResource(page, `/api/v1/clients/${clientID}`, token, 'client');
+    if (!apiOrigin) {
+      throw new Error('Production smoke cleanup could not determine the API origin.');
+    }
+
+    await deleteResource(page, `/api/candidates/${candidateID}`, token, apiOrigin, 'candidate');
+    await deleteResource(page, `/api/v1/requirements/${requirementID}`, token, apiOrigin, 'requirement');
+    await deleteResource(page, `/api/v1/clients/${clientID}`, token, apiOrigin, 'client');
   });
 });
