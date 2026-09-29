@@ -207,6 +207,23 @@ describe('authentication UI behavior', () => {
   });
 
   it('rejects mismatched registration passwords', async () => {
+    mocks.subscriptionService.getPlans.mockResolvedValueOnce({
+      data: {
+        success: true,
+        data: [
+          {
+            code: 'starter',
+            name: 'Starter',
+            amountMinor: 100000,
+            currency: 'INR',
+            billingInterval: 1,
+            billingPeriod: 'month',
+            userLimit: 5,
+          },
+        ],
+      },
+    });
+
     renderPage(<Register />, ['/register']);
 
     fireEvent.change(await screen.findByPlaceholderText('Enter your name'), {
