@@ -59,6 +59,7 @@ const mocks = vi.hoisted(() => {
     companyService: service(),
     roleService: service(),
     userService: service(),
+    subscriptionService: service(),
     toast: {
       success: vi.fn(),
       error: vi.fn(),
@@ -90,6 +91,7 @@ import ResumeAI from '@/pages/ResumeAI';
 import RecruitmentLifecycle from '@/pages/RecruitmentLifecycle';
 import Billing from '@/pages/Billing';
 import AdminUsers from '@/pages/AdminUsers';
+import Account from '@/pages/Account';
 import NotFound from '@/pages/NotFound';
 import Navbar from '@/components/layout/Navbar';
 
@@ -338,6 +340,29 @@ describe('Admin user management UI behavior', () => {
         role: 'recruiter',
       }),
     );
+  });
+});
+
+describe('Account subscription UI behavior', () => {
+  it('shows account details and configured subscription plans', async () => {
+    setLoggedIn();
+    mocks.authService.getCurrentAccount.mockResolvedValueOnce({
+      data: { data: { role: 'admin', companyName: 'Demo Company', userCount: 1, userLimit: 5, accountStatus: 'ACTIVE' } },
+    });
+    mocks.subscriptionService.getSubscription.mockResolvedValueOnce({
+      data: { data: { planCode: 'starter', planName: 'Starter', status: 'ACTIVE', provider: 'razorpay', userLimit: 5 } },
+    });
+    mocks.subscriptionService.getPlans.mockResolvedValueOnce({
+      data: { data: [{ code: 'starter', name: 'Starter', amountMinor: 99900, currency: 'INR', billingInterval: 1, billingPeriod: 'month', userLimit: 5 }] },
+    });
+
+    renderPage(<Account />, ['/account']);
+
+    expect(await screen.findByRole('heading', { name: 'Account & Subscription' })).toBeInTheDocument();
+    expect(await screen.findByText('Demo Company')).toBeInTheDocument();
+    expect(await screen.findByText('Plan:')).toBeInTheDocument();
+    expect(screen.getAllByText('Starter')).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Choose Plan' })).toBeInTheDocument();
   });
 });
 

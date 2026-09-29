@@ -311,6 +311,13 @@ export const roleService = {
   },
 };
 
+export const subscriptionService = {
+  getPlans: async () => api.get('/account/plans'),
+  getSubscription: async () => api.get('/account/subscription'),
+  checkout: async (planCode: string) => api.post('/account/subscription/checkout', { planCode }),
+  cancel: async () => api.post('/account/subscription/cancel'),
+};
+
 export const userService = {
   getAllUsers: async () => {
     return api.get('/admin/users');
