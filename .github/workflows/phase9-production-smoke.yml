@@ -1,0 +1,57 @@
+name: Phase 9 Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed SkillSifter URL'
+        required: true
+        default: 'https://skillsifter.in'
+        type: string
+      run_mutations:
+        description: 'Run disposable-data UI mutations (normally false for production)'
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  production-smoke:
+    name: Browser Production Smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.base_url }}
+      E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
+      E2E_RUN_MUTATIONS: ${{ inputs.run_mutations }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package.json
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm install
+
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Run production smoke
+        working-directory: e2e
+        run: npm run smoke
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: phase9-production-smoke-report
+          path: e2e/playwright-report/
+          retention-days: 30
