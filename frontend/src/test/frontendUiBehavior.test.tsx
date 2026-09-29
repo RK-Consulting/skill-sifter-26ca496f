@@ -360,7 +360,8 @@ describe('Account subscription UI behavior', () => {
 
     expect(await screen.findByRole('heading', { name: 'Account & Subscription' })).toBeInTheDocument();
     expect(await screen.findByText('Demo Company')).toBeInTheDocument();
-    expect(await screen.findByText('Starter')).toBeInTheDocument();
+    expect(await screen.findByText('Plan:')).toBeInTheDocument();
+    expect(screen.getAllByText('Starter')).toHaveLength(2);
     expect(screen.getByRole('button', { name: 'Choose Plan' })).toBeInTheDocument();
   });
 });
