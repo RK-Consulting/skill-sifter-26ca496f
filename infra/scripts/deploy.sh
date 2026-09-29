@@ -35,6 +35,29 @@ ensure_test_db "${SKILLSIFTER_HANDLER_TEST_DB:-skillsifter_handler_test}"
 echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 go mod download
 
+UNFORMATTED=$(gofmt -l .)
+if [ -n "$UNFORMATTED" ]; then
+  echo "❌ DEPLOY ABORTED: the following files are not gofmt-formatted:"
+  echo "$UNFORMATTED"
+  echo "The live service was NOT touched. Fix formatting, push, and redeploy."
+  exit 1
+fi
+
+if ! go vet ./...; then
+  echo "❌ DEPLOY ABORTED: go vet failed. The live service was NOT touched."
+  exit 1
+fi
+
+if ! go test ./...; then
+  echo "❌ DEPLOY ABORTED: tests failed. The live service was NOT touched."
+  exit 1
+fi
+
+echo "✅ Test gate passed — proceeding with build and deploy"
+
+echo "==> Building backend"
+go build -o skillsifter .
+
 echo "==> Applying database migrations through the application migration engine"
 SKILLSIFTER_MIGRATE_ONLY=1 ./skillsifter
 
