@@ -27,8 +27,8 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
 		return
 	}
-	if creds.CompanyName == "" {
-		respondWithError(w, http.StatusBadRequest, "Company name is required")
+	if creds.CompanyName == "" || creds.PlanCode == "" {
+		respondWithError(w, http.StatusBadRequest, "Company name and plan are required")
 		return
 	}
 
