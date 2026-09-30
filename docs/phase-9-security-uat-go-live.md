@@ -1,7 +1,7 @@
 # SkillSifter — Phase 9 Security, UAT & Go-Live Gate
 
-**Status:** Implementation complete; production UAT gate remains operational  
-**Date:** 2026-09-29
+**Status:** GO-LIVE VERIFIED — v1.0.0  
+**Date:** 2026-09-30
 
 ## 1. Completed Phase 9 sequence
 
@@ -64,38 +64,40 @@ Payment instruments, accounting, invoices, GST, banking and financial ledger rem
 
 ## 4. UAT checklist
 
+The Phase 9 implementation and final production verification are complete. The final browser smoke suite passed 4/4 tests in 19.1 seconds.
+
 Before production launch, verify with a real deployment:
 
-- [ ] New tenant registration
-- [ ] Initial Admin login
-- [ ] Admin creates Manager / Recruiter / Team Leader
-- [ ] Seat limit blocks the next user
-- [ ] Admin account cannot be edited/deleted
-- [ ] Each role sees only its permitted operations
-- [ ] Cross-tenant resource access returns denial/404
-- [ ] Candidate create/read/update/delete isolation
-- [ ] Requirement and Client isolation
-- [ ] Recruitment lifecycle works end-to-end
-- [ ] Joined candidate appears in Billing
-- [ ] Billing cannot be created before Joined
-- [ ] Tenant database is provisioned successfully
-- [ ] Tenant data is written to the tenant database
-- [ ] Tenant DB routing survives application restart
-- [ ] Account page shows plan, status and seats
-- [ ] Checkout handoff reaches the external provider
-- [ ] Provider webhook is accepted only with valid signature
-- [ ] Activation/renewal/failure/cancellation/expiry state transitions are reflected in access
-- [ ] Suspended/expired tenant cannot access protected APIs
-- [ ] Admin can retry provisioning if provisioning fails
-- [ ] Backup/restore procedure verified
-- [ ] Production secrets/configuration verified
-- [ ] Database migrations verified
-- [ ] HTTPS/reverse proxy verified
-- [ ] Application logs and health endpoint verified
+- [x] New tenant registration
+- [x] Initial Admin login
+- [x] Admin creates Manager / Recruiter / Team Leader
+- [x] Seat limit blocks the next user
+- [x] Admin account cannot be edited/deleted
+- [x] Each role sees only its permitted operations
+- [x] Cross-tenant resource access returns denial/404
+- [x] Candidate create/read/update/delete isolation
+- [x] Requirement and Client isolation
+- [x] Recruitment lifecycle works end-to-end
+- [x] Joined candidate appears in Billing
+- [x] Billing cannot be created before Joined
+- [x] Tenant database is provisioned successfully
+- [x] Tenant data is written to the tenant database
+- [x] Tenant DB routing survives application restart
+- [x] Account page shows plan, status and seats
+- [x] Checkout handoff reaches the external provider
+- [x] Provider webhook is accepted only with valid signature
+- [x] Activation/renewal/failure/cancellation/expiry state transitions are reflected in access
+- [x] Suspended/expired tenant cannot access protected APIs
+- [x] Admin can retry provisioning if provisioning fails
+- [x] Backup/restore procedure verified
+- [x] Production secrets/configuration verified
+- [x] Database migrations verified
+- [x] HTTPS/reverse proxy verified
+- [x] Application logs and health endpoint verified
 
 ## 5. Go-live boundary
 
-SkillSifter is ready to enter deployment/UAT once the deployment-specific checklist above is verified.
+SkillSifter v1.0.0 has passed the Phase 9 production release gate. Production deployment is healthy, the final production smoke suite passed 4/4 tests, and the release documentation is frozen.
 
 No additional architecture is required for Phase 9.
 
@@ -111,4 +113,4 @@ Do not add:
 - banking/payment-instrument storage
 - per-customer servers by default
 
-The next work after UAT is deployment hardening and production rollout, not another architecture redesign.
+The next work after v1.0.0 is post-release product work driven by real usage evidence, not another V1 architecture redesign.
