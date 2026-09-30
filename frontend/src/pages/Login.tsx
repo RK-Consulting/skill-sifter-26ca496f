@@ -50,7 +50,7 @@ const Login = () => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      navigate('/dashboard', { replace: true });
+      navigate(data.subscriptionStatus === 'EXPIRED' ? '/account' : '/dashboard', { replace: true });
     } else {
       setIsInitialized(true);
     }
