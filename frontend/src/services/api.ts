@@ -319,6 +319,8 @@ export const subscriptionService = {
   getPlans: async () => api.get('/account/plans'),
   getSubscription: async () => api.get('/account/subscription'),
   checkout: async (planCode: string) => api.post('/account/subscription/checkout', { planCode }),
+  sendPhoneVerification: async (phone: string) => api.post('/account/subscription/phone/send', { phone }),
+  verifyPhoneVerification: async (code: string) => api.post('/account/subscription/phone/verify', { code }),
   cancel: async () => api.post('/account/subscription/cancel'),
 };
 
