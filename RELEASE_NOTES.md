@@ -1,79 +1,166 @@
-# SkillSifter — Phase 9 Release Notes
+# SkillSifter v1.0.0 — Release Notes
 
-## Phase 9 — SaaS Foundation, Security Hardening and Go-Live Readiness
+**Release date:** 2026-09-30  
+**Status:** Production release
 
-Phase 9 completes the core SaaS architecture required to operate SkillSifter as a multi-tenant recruitment platform.
+SkillSifter v1.0.0 is the first production release of the multi-tenant recruitment intelligence platform. It consolidates the V1 recruitment workflow, SaaS account/subscription layer, tenant database isolation, fixed-role authorization, administration, production hardening and go-live verification.
 
-Implementation is consolidated on main. Final production activation remains subject to GitHub Issue #99.
+## What is included
 
-## Highlights
+### Recruitment operations
 
-### Admin User Management
-- User listing, creation, updates and permitted deletion
-- Seat usage and limits
-- Tenant-admin protection
-- Server-side authorization
+- Clients and client contacts
+- Requirements
+- Candidate management and expertise
+- Candidate × Requirement recruitment context
+- Screening
+- Submission
+- Feedback
+- Interviews
+- Selection
+- Offers
+- Joining
+- Joined-candidate billing worklist
+- Daily recruitment tasks
+- Recruitment history and auditability
+- Operational reporting
 
-### Privilege Enforcement
-- V1 privilege matrix enforced across protected application domains.
-- Frontend visibility is not treated as authorization.
+### Resume and AI assistance
 
-### Tenant Isolation
-- Authenticated tenant identity
-- Tenant database routing
-- Tenant ownership checks
-- Control-plane / tenant-data separation
-- Cross-tenant negative-test coverage
+- Resume ingestion and extraction foundation
+- Resume intelligence
+- Recruiter-assisted candidate-to-requirement matching
+- AI-assisted search/reporting
+- Recruiter remains responsible for selection and submission decisions
 
-### Tenant Database Provisioning
-- Deterministic tenant database identity
-- Tenant schema migrations
-- Tenant seed data
-- Provisioning status
-- READY gating
-- Administrative retry
+### SaaS account and subscription
 
-### Subscription Lifecycle
-
-Plan → Checkout → Provider Webhook → Activation → Renewal → Payment Failure → Cancellation / Expiry.
-
-Implemented: plans, checkout, webhook processing, activation, renewal, payment failure, cancellation, expiry, idempotency and server-side enforcement.
-
-### Account & Subscription UI
-- Account information
-- Current plan/status
-- Available plans
+- Tenant registration
+- Initial tenant Admin
+- Plan catalog
 - Checkout handoff
-- Admin-only cancellation
+- Provider webhook processing
+- Webhook signature validation
+- Idempotent subscription events
+- Activation
+- Renewal
+- Payment failure/suspension
+- Cancellation
+- Expiry
+- Reactivation/resumption
+- Server-side subscription access enforcement
+- Account and Subscription UI
+- Seat limits
 
-No accounting or financial ledger was introduced.
+### Tenant isolation
+
+- Control-plane tenant/account/subscription state
+- Dedicated PostgreSQL database per subscribed tenant
+- Deterministic provisioning
+- Tenant schema initialization
+- READY gating
+- Authenticated tenant DB routing
+- Request-scoped tenant DB access
+- Tenant ownership defense-in-depth
+- Cross-tenant negative tests
+- Tenant isolation independent of frontend visibility
+
+### Authorization and administration
+
+Fixed V1 roles:
+
+- Admin
+- Manager
+- Recruiter
+- Team Leader
+
+Implemented:
+
+- Server-side V1 privilege matrix
+- Admin User Management
+- User creation/update/permitted deletion
+- Tenant-admin protection
+- Server-side seat enforcement
+
+## Security and production hardening
+
+- Production JWT configuration fails closed when `JWT_SECRET` is missing.
+- Production runtime is explicitly marked as production.
+- Tenant DB routing is enforced on the V1 API.
+- Deployment tests use persistent production database credentials before service restart.
+- Obsolete duplicate deployment migration execution was removed.
+- Production schema definition 039 was restored to match the applied production schema.
+- Nginx, systemd, database connectivity and API health are checked during deployment.
+
+## Release verification
+
+### Production deployment
+
+Verified on commit `bce3d5dac7a078a9af83c65456a0cc0a17279cf8`:
+
+- Deployment test gate passed.
+- Backend built successfully.
+- Nginx configuration passed.
+- systemd service active.
+- PostgreSQL connection successful.
+- API health endpoint returned `{"status":"OK"}`.
+
+### Production smoke
+
+Final Playwright production smoke:
+
+```text
+Running 4 tests using 1 worker
+
+✓ public login and registration pages load
+✓ authenticated application smoke across Phase 9 modules
+✓ subscription/account surfaces load without browser errors
+✓ mutating production smoke uses the permanent account and clears only its test data
+
+4 passed (19.1s)
+```
 
 ## Recruitment boundary
 
-Requirement → Assignment → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing.
+The V1 lifecycle is:
 
-Offer is made + accepted. Joining is joining date + joined.
+```text
+Requirement
+ → Candidate × Requirement
+ → Screening
+ → Submission
+ → Feedback
+ → Interview
+ → Selection
+ → Offer
+ → Joining
+ → JOINED
+ → BILLING
+```
 
-HRMS-specific approval and employee-management functionality remains outside SkillSifter.
+Offer is **made + accepted**.  
+Joining is **joining date + joined**.
 
-## Docker
+## Explicit non-goals
 
-No Docker architecture change is required for Phase 9. PostgreSQL remains independent; backend and frontend remain containerized; Docker Compose remains the local development/verification stack.
+v1.0.0 does not introduce:
 
-## CI and release gate
+- HRMS
+- microservices
+- arbitrary RBAC or permission builders
+- accounting or financial ledger
+- GST/accounting module
+- banking/payment-instrument storage
+- custom payment gateway
+- autonomous recruiting
+- automated external sourcing/scraping
+- WhatsApp automation
+- candidate/client portals
+- complex vector-database architecture
+- advanced autonomous analytics
 
-Formatting → Build → Vet → Test with PostgreSQL → Security Tests → UAT → Production Smoke → GO-LIVE.
+## Architecture status
 
-Authoritative checklist: GitHub Issue #99 and docs/phase-9-release-gate.md.
+The V1 architecture is frozen at release.
 
-## Scope discipline
-
-No HRMS, microservices, accounting ledger, configurable permission builder, additional approval hierarchy, unnecessary recruitment entities or containerized PostgreSQL were introduced.
-
-## Final release state
-
-Implementation: complete on main.
-
-Production: pending final evidence from CI, security/UAT and production smoke.
-
-The project should only be declared GO-LIVE after all release-gate checks are verified.
+Post-v1.0.0 work is new product work and should be driven by real production usage, not by reopening the V1 architecture without evidence.
