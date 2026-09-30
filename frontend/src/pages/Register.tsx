@@ -212,7 +212,7 @@ const Register = () => {
             <Card className="border-white/10 bg-white text-slate-900 shadow-2xl shadow-black/20">
               <CardHeader className="pb-3">
                 <div className="text-sm font-semibold text-blue-600">CREATE YOUR ACCOUNT</div>
-                <CardTitle className="text-3xl tracking-tight">Start using SkillSifter</CardTitle>
+                <CardTitle className="text-3xl tracking-tight">Start Using SkillSifter</CardTitle>
                 <p className="text-sm text-slate-500">Set up your administrator account and choose the plan that fits your team.</p>
               </CardHeader>
               <CardContent>
