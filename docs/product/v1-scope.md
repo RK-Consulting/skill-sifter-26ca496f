@@ -1,11 +1,12 @@
 # SkillSifter V1 Scope
 
-**Status:** Product-scope baseline  
-**Owner:** Product owner
+**Status:** Released V1.0.0 product scope  
+**Owner:** Product owner  
+**Release date:** 2026-09-30
 
 ## Included
 
-V1.0 covers the recruitment firm's core operating lifecycle: business development, clients and requirements, candidate management, recruitment assignments, screening, submission, interviews, offers, joining, commercial processing, reporting, security, and UAT.
+V1.0 covers the recruitment firm's core operating lifecycle: business development, clients and requirements, candidate management, Candidate × Requirement recruitment context, screening, submission, feedback, interviews, selection, offers, joining, operational billing, reporting, SaaS account/subscription, security and UAT.
 
 AI is limited to recruiter-assisted resume extraction and candidate-to-requirement matching. A recruiter remains responsible for candidate selection and submission decisions.
 
@@ -21,3 +22,10 @@ AI is limited to recruiter-assisted resume extraction and candidate-to-requireme
 ## Delivery rule
 
 Each issue must identify its release milestone, acceptance criteria, tenant/security implications, migration and API impact, and required tests. A scope change requires product-owner approval before implementation.
+
+
+## Release status
+
+V1.0.0 is the production release of the defined V1 scope. The recruitment lifecycle and product boundary are frozen for this release.
+
+Post-v1.0.0 work is V2/product work and requires an explicit scope decision.
