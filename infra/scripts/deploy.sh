@@ -17,6 +17,8 @@ git fetch origin
 git reset --hard "origin/${CURRENT_BRANCH}"
 RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "unknown")"
 RELEASE_REVISION="$(git rev-parse HEAD)"
+export SKILLSIFTER_VERSION="$RELEASE_VERSION"
+export SKILLSIFTER_REVISION="$RELEASE_REVISION"
 echo "==> Deploying SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION})"
 
 echo "==> Loading backend environment for deployment and integration tests"
@@ -79,7 +81,7 @@ systemctl reload nginx
 
 echo "==> Syncing systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
-sed -i "s|__APP_DIR__|$APP_DIR|g" /etc/systemd/system/skillsifter.service
+sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /etc/systemd/system/skillsifter.service
 systemctl daemon-reload
 
 echo "==> Restarting service"
