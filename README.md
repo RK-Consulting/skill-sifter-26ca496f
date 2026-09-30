@@ -300,6 +300,7 @@ Post-v1.0.0 work is new product work and must be driven by real usage evidence.
 - [Phase 9 Security / UAT / Go-Live](docs/phase-9-security-uat-go-live.md)
 - [Phase 9 Release Gate](docs/phase-9-release-gate.md)
 - [Feature Reference](docs/features.md)
+- [Production Topology & Recovery](docs/operations/production-topology.md)
 - [API Specification](backend/docs/swagger.yaml)
 
 ## License
