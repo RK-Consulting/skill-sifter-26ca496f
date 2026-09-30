@@ -13,6 +13,32 @@ echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
 git reset --hard "origin/${CURRENT_BRANCH}"
 
+echo "==> Loading backend environment for deployment and integration tests"
+if [ ! -f "$APP_DIR/backend/.env" ]; then
+  echo "❌ DEPLOY ABORTED: backend/.env is missing."
+  echo "The live service was NOT touched."
+  exit 1
+fi
+
+set -a
+source "$APP_DIR/backend/.env"
+set +a
+
+: "${TEST_DB_HOST:=${DB_HOST:-localhost}}"
+: "${TEST_DB_PORT:=${DB_PORT:-5432}}"
+: "${TEST_DB_USER:=${DB_USER:-}}"
+: "${TEST_DB_PASSWORD:=${DB_PASSWORD:-}}"
+
+if [ -z "$TEST_DB_USER" ] || [ -z "$TEST_DB_PASSWORD" ]; then
+  echo "❌ DEPLOY ABORTED: TEST_DB_USER/TEST_DB_PASSWORD are not configured."
+  echo "Set them in backend/.env or provide DB_USER/DB_PASSWORD there."
+  echo "The live service was NOT touched."
+  exit 1
+fi
+
+export TEST_DB_HOST TEST_DB_PORT TEST_DB_USER TEST_DB_PASSWORD
+
+echo "==> Integration test database: ${TEST_DB_HOST}:${TEST_DB_PORT} as ${TEST_DB_USER}"
 echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 cd "$APP_DIR/backend"
 go mod download
