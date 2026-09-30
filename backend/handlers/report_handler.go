@@ -114,7 +114,7 @@ func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 
 func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	companyName, _ := r.Context().Value("companyName").(string)
-	rows, err := db.RequestDB(r).Query(`SELECT action,description,created_at FROM activity_logs WHERE company_name=$1 ORDER BY created_at DESC LIMIT 10` , companyName)
+	rows, err := db.RequestDB(r).Query(`SELECT action,description,created_at FROM activity_logs WHERE company_name=$1 ORDER BY created_at DESC LIMIT 10`, companyName)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching recent activity")
 		return
