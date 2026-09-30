@@ -7,7 +7,7 @@ ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="SkillSifter Backend" \
       org.opencontainers.image.version="$APP_VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \
-      org.opencontainers.image.description="SkillSifter v1.0.0 Go API"
+      org.opencontainers.image.description="SkillSifter Go API"
 
 WORKDIR /app
 
