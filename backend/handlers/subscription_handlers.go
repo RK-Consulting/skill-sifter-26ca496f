@@ -148,6 +148,16 @@ func StartSubscriptionCheckout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var phoneVerified bool
+	if err := db.DB.QueryRow("SELECT phone_verified_at IS NOT NULL FROM users WHERE id = (SELECT MIN(id) FROM users WHERE tenant_id=$1 AND role='admin')", tenantID).Scan(&phoneVerified); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not verify subscription phone status")
+		return
+	}
+	if !phoneVerified {
+		respondWithError(w, http.StatusPreconditionRequired, "Verify the administrator phone number before subscribing")
+		return
+	}
+
 	var name, provider, providerRef string
 	var totalCount int
 	if err := db.DB.QueryRow(
