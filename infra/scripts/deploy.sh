@@ -21,6 +21,20 @@ export SKILLSIFTER_VERSION="$RELEASE_VERSION"
 export SKILLSIFTER_REVISION="$RELEASE_REVISION"
 echo "==> Deploying SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION})"
 
+echo "==> Checking live Nginx configuration for drift"
+LIVE_NGINX="/etc/nginx/sites-available/api.skillsifter.in"
+REPO_NGINX="$APP_DIR/infra/nginx/api.skillsifter.in.conf"
+if [ -f "$LIVE_NGINX" ] && ! cmp -s "$REPO_NGINX" "$LIVE_NGINX"; then
+  echo "❌ DEPLOY ABORTED: live Nginx configuration differs from Git."
+  echo "Live: $LIVE_NGINX"
+  echo "Git:  $REPO_NGINX"
+  echo "Review the difference, reconcile the intended change into Git,"
+  echo "then run deploy.sh again. The live service was NOT touched."
+  diff -u "$REPO_NGINX" "$LIVE_NGINX" || true
+  exit 1
+fi
+echo "✅ Nginx configuration matches Git"
+
 echo "==> Loading backend environment for deployment and integration tests"
 if [ ! -f "$APP_DIR/backend/.env" ]; then
   echo "❌ DEPLOY ABORTED: backend/.env is missing."
