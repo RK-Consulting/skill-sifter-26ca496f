@@ -6,6 +6,11 @@ import { subscriptionService } from "@/services/api";
 import { toast } from "sonner";
 
 type Plan = { code:string; name:string; amountMinor:number; billingPeriod:string; userLimit:number };
+const errorMessage = (error: unknown, fallback: string) => {
+  const response = (error as { response?: { data?: { message?: string } } })?.response;
+  return response?.data?.message || fallback;
+};
+
 
 const SubscriptionCheckout = () => {
   const [plans,setPlans]=useState<Plan[]>([]);
@@ -23,20 +28,20 @@ const SubscriptionCheckout = () => {
   const sendCode=async()=>{
     if(!phone.trim()){toast.error("Enter the administrator phone number.");return;}
     try{setBusy(true);await subscriptionService.sendPhoneVerification(phone.trim());setPhoneSent(true);toast.success("Phone verification code sent.");}
-    catch(e){toast.error((e as any)?.response?.data?.message||"Could not send verification code.");}
+    catch(e){toast.error(errorMessage(e, "Could not send verification code."));}
     finally{setBusy(false);}
   };
 
   const verify=async()=>{
     if(code.length!==6){toast.error("Enter the 6-digit verification code.");return;}
     try{setBusy(true);await subscriptionService.verifyPhoneVerification(code);setVerified(true);toast.success("Phone number verified.");}
-    catch(e){toast.error((e as any)?.response?.data?.message||"Verification failed.");}
+    catch(e){toast.error(errorMessage(e, "Verification failed."));}
     finally{setBusy(false);}
   };
 
   const checkout=async(planCode:string)=>{
     try{setBusy(true);const r=await subscriptionService.checkout(planCode);const url=r.data?.data?.checkoutUrl;if(!url)throw new Error("Checkout URL was not returned.");window.location.href=url;}
-    catch(e){toast.error((e as any)?.response?.data?.message||"Could not start payment checkout.");setBusy(false);}
+    catch(e){toast.error(errorMessage(e, "Could not start payment checkout."));setBusy(false);}
   };
 
   return <Card className="mt-6">
