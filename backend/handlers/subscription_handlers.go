@@ -406,6 +406,7 @@ func CleanupExpiredTrials() {
         if err := db.DeleteTenantDatabase(db.DB, tenantID); err != nil { continue }
         tx, err := db.DB.Begin()
         if err != nil { continue }
+        _, _ = tx.Exec("DELETE FROM platform_pending_registrations WHERE email IN (SELECT email FROM users WHERE tenant_id=$1)", tenantID)
         _, _ = tx.Exec("DELETE FROM platform_verification_codes WHERE user_id IN (SELECT id FROM users WHERE tenant_id=$1)", tenantID)
         _, _ = tx.Exec("DELETE FROM platform_user_accounts WHERE tenant_id=$1", tenantID)
         _, _ = tx.Exec("DELETE FROM platform_subscription_events WHERE tenant_id=$1", tenantID)
