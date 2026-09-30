@@ -338,6 +338,7 @@ const Register = () => {
               </Form>
             </CardContent>
           </Card>
+          </div>
         </Container>
       </div>
       <div className="bg-slate-950 border-t border-white/10">
