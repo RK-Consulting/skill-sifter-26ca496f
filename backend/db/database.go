@@ -229,3 +229,28 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID, companyName string) (d
 	setTenantProvisioningStatus(controlDB, tenantID, "READY", databaseName)
 	return databaseName, nil
 }
+
+
+// DeleteTenantDatabase permanently removes the tenant database and is intended
+// only for expired, unsubscribed trial tenants after the retention window.
+func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
+    if tenantID == "" {
+        return fmt.Errorf("tenant id is required")
+    }
+    databaseName := TenantDatabaseName(tenantID)
+    if cached, ok := tenantDBs.Load(tenantID); ok {
+        cached.(*sql.DB).Close()
+        tenantDBs.Delete(tenantID)
+    }
+
+    adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
+    if err != nil {
+        return fmt.Errorf("open control database for tenant deletion: %w", err)
+    }
+    defer adminDB.Close()
+
+    if _, err := adminDB.Exec("DROP DATABASE IF EXISTS " + databaseName + " WITH (FORCE)"); err != nil {
+        return fmt.Errorf("drop tenant database: %w", err)
+    }
+    return nil
+}
