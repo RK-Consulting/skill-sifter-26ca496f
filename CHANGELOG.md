@@ -2,46 +2,69 @@
 
 All notable changes to SkillSifter are documented in this file.
 
-## [Unreleased] — Phase 9 SaaS / Go-Live
+## [1.0.0] - 2026-09-30
 
-Phase 9 implementation is consolidated into main. Final production activation remains subject to the release gate.
+Production release.
 
 ### Added
 
-- Tenant database provisioning and tenant schema migration support.
-- Tenant provisioning status and READY gating.
-- Tenant database routing for tenant-owned operations.
-- Admin User Management UI and API integration.
+- Complete Phase 9 SaaS platform foundation.
+- Public tenant registration with initial Admin account.
+- Control-plane tenant, account, subscription and provisioning state.
+- Dedicated tenant PostgreSQL database provisioning.
+- Tenant schema initialization and READY gating.
+- Authenticated tenant database routing and request-scoped tenant DB access.
+- Admin User Management UI and API.
 - Server-side seat-limit enforcement.
-- Subscription plans and lifecycle persistence.
-- Checkout handoff and provider webhook processing.
-- Activation, renewal, payment-failure, cancellation and expiry handling.
+- Fixed V1 privilege matrix across protected application domains.
+- Subscription plan catalog and lifecycle persistence.
+- External checkout handoff and provider webhook processing.
+- Webhook signature validation and idempotency.
+- Subscription activation, renewal, payment failure/suspension, cancellation, expiry and reactivation.
 - Account and Subscription UI.
-- Phase 9 release-gate documentation and GitHub Issue #99.
+- Production Playwright smoke workflow.
+- Permanent production smoke tenant and cleanup-safe mutation smoke.
+- Phase 9 security, UAT and go-live documentation.
 
-### Changed
+### Recruitment
 
-- Completed V1 privilege enforcement across protected application domains.
-- Strengthened tenant isolation and cross-tenant negative-test coverage.
-- Kept tenant ownership checks as defense in depth.
-- Separated control-plane authentication/subscription data from tenant recruitment data.
-- Kept the recruitment workflow deliberately simple.
-- Simplified Offer to made + accepted.
-- Simplified Joining to joining date + joined.
+- Completed Requirement → Candidate × Requirement → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing workflow.
+- Kept Offer intentionally simple: made + accepted.
+- Kept Joining intentionally simple: joining date + joined.
+- Added operational Billing worklist for joined recruitment records.
+- Preserved recruiter-assisted AI/resume functionality without autonomous hiring decisions.
+- Maintained recruitment history and auditability.
 
 ### Security
 
-- Server-side RBAC and tenant identity enforcement.
-- Tenant database routing from authenticated tenant context.
-- Cross-tenant access rejection.
-- Protected admin user management.
-- Subscription state enforcement.
-- Authenticated/idempotent provider webhook handling.
+- Enforced trusted authenticated tenant identity as the tenant security boundary.
+- Enforced tenant DB routing on the V1 API.
+- Added cross-tenant negative-test coverage.
+- Kept tenant ownership checks as defense in depth.
+- Enforced server-side V1 role privileges.
+- Protected Admin User Management and tenant-admin accounts.
+- Enforced subscription state before protected tenant access.
+- Production JWT configuration now fails closed when `JWT_SECRET` is missing.
+- Production systemd environment explicitly identifies the production runtime.
+- Removed the obsolete second deployment-time migration loop.
+- Restored schema definition 039 required by the production database and kept schema checksum integrity intact.
 
-### Release verification
+### CI / Deployment
 
-- Implementation complete on main.
-- Final CI, security, UAT and production-smoke verification remains required.
+- Production deployment gate loads persistent production database credentials for PostgreSQL-backed tests.
+- Deployment gate runs formatting, build, vet and tests before service restart.
+- Production smoke workflow validates required credentials without printing secrets.
+- Production deployment verifies Nginx configuration, systemd service health, DB connectivity and API health.
+- Final production smoke passed all four Playwright tests in 19.1 seconds.
+
+### Documentation / Architecture
+
+- Consolidated Phase 9 architecture and go-live documentation.
+- Updated V1 product scope and architecture baseline.
+- Preserved the product boundary: SkillSifter recruitment intelligence; HRMS remains a separate future product.
+- Kept the modular Go application architecture; no microservice split.
+- Kept payment/accounting responsibilities outside SkillSifter.
+- Kept the fixed V1 role model; no permission-builder framework.
 
 ### Scope discipline
 
@@ -49,7 +72,10 @@ Phase 9 implementation is consolidated into main. Final production activation re
 - No microservice split.
 - No accounting or financial ledger.
 - No configurable permission-builder framework.
-- No unnecessary Docker expansion.
+- No unnecessary approval hierarchy.
+- No autonomous recruiting agents.
+- No automated external sourcing/scraping.
+- No unnecessary infrastructure expansion.
 
 ## [0.5.6] - 2026-09-13
 
