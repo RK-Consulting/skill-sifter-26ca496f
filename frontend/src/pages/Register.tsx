@@ -338,7 +338,6 @@ const Register = () => {
             </CardContent>
           </Card>
         </Container>
-        </Container>
       </div>
       <div className="bg-slate-950 border-t border-white/10">
         <Footer />
