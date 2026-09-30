@@ -48,6 +48,8 @@ const Register = () => {
   const [selectedPlan, setSelectedPlan] = useState('');
   const [plansLoading, setPlansLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [registrationId, setRegistrationId] = useState<number | null>(null);
+  const [verificationCode, setVerificationCode] = useState('');
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -78,10 +80,8 @@ const Register = () => {
       toast.error('Please select a subscription plan.');
       return;
     }
-
     try {
       setIsLoading(true);
-
       const response = await authService.register({
         username: values.username,
         email: values.email,
@@ -89,12 +89,34 @@ const Register = () => {
         companyName: values.company,
         planCode: selectedPlan,
       });
-
       if (!response.data?.success) {
         throw new Error(response.data?.message || 'Registration failed');
       }
+      setRegistrationId(response.data.data.registrationId);
+      toast.success('Verification code sent to your email.');
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error, 'Could not start registration.'));
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const data = response.data.data;
+  const verifyEmail = async () => {
+    if (!registrationId || verificationCode.length !== 6) {
+      toast.error('Enter the 6-digit verification code.');
+      return;
+    }
+    try {
+      setIsLoading(true);
+      const response = await authService.verifyEmail(registrationId, verificationCode);
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Verification failed');
+      }
+      toast.success('Email verified. Your 2-day trial has started.');
+      const values = form.getValues();
+      const login = await authService.login({ email: values.email, password: values.password });
+      const data = login.data?.data;
+      if (!login.data?.success || !data?.token) throw new Error('Verification succeeded, but login could not be completed.');
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify({
         ...data.user,
@@ -102,22 +124,45 @@ const Register = () => {
         subscriptionStatus: data.subscriptionStatus,
         planCode: data.planCode,
       }));
-
-      const checkout = await subscriptionService.checkout(selectedPlan);
-      const checkoutUrl = checkout.data?.data?.checkoutUrl;
-
-      if (!checkoutUrl) {
-        throw new Error('Subscription checkout could not be created.');
-      }
-
-      toast.success('Account created. Continue to payment.');
-      window.location.assign(checkoutUrl);
+      navigate('/dashboard', { replace: true });
     } catch (error: unknown) {
-      toast.error(getErrorMessage(error, 'Could not complete SaaS onboarding.'));
+      toast.error(getErrorMessage(error, 'Verification failed.'));
     } finally {
       setIsLoading(false);
     }
   };
+
+  if (registrationId) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white flex items-center justify-center p-6">
+        <Card className="w-full max-w-md bg-slate-900 border-white/10">
+          <CardHeader>
+            <CardTitle className="text-2xl text-center">Verify your email</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-slate-400 text-center mb-6">
+              We sent a 6-digit verification code to <strong>{form.getValues('email')}</strong>.
+            </p>
+            <Input
+              value={verificationCode}
+              onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              maxLength={6}
+              autoFocus
+              className="text-center text-2xl tracking-[0.4em]"
+              placeholder="000000"
+            />
+            <Button onClick={verifyEmail} variant="primary" className="w-full mt-5" disabled={isLoading}>
+              {isLoading ? 'Verifying...' : 'Verify email & start trial'}
+            </Button>
+            <button onClick={() => { setRegistrationId(null); setVerificationCode(''); }} className="w-full mt-4 text-sm text-slate-500 hover:text-white">
+              Back to registration
+            </button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -237,7 +282,7 @@ const Register = () => {
 
                   <div className="flex flex-col space-y-2">
                     <Button type="submit" variant="primary" className="w-full" disabled={isLoading || plansLoading || !selectedPlan}>
-                      {isLoading ? 'Creating account...' : 'Create Account & Continue to Payment'}
+                      {isLoading ? 'Creating account...' : 'Create Account & Verify Email'}
                     </Button>
                     <div className="text-center text-sm mt-4">
                       Already have an account?{' '}
