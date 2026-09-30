@@ -30,8 +30,7 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 			SELECT status, plan_code
 			FROM platform_subscriptions
 			WHERE tenant_id = pua.tenant_id
-			  AND status IN ('TRIAL', 'ACTIVE')
-			  AND (ends_at IS NULL OR ends_at >= NOW())
+			  AND status IN ('TRIAL', 'ACTIVE', 'EXPIRED', 'PAST_DUE')
 			ORDER BY starts_at DESC, id DESC
 			LIMIT 1
 		) active_sub ON TRUE
