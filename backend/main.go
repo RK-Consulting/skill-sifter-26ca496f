@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
@@ -176,6 +177,14 @@ func main() {
 	setupPublicRoutes(r)
 	setupProtectedRoutes(r)
 	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			handlers.CleanupExpiredTrials()
+		}
+	}()
+	handlers.CleanupExpiredTrials()
 	port := db.GetEnv("PORT", "8080")
 	fmt.Printf("SkillSifter API running at http://localhost:%s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, setupCORS().Handler(r)))
