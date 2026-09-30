@@ -136,7 +136,7 @@ const SubscriptionCheckout = () => {
                       maxLength={6}
                       placeholder="Enter 6-digit code"
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/D/g, "").slice(0, 6))}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
                       className="bg-white tracking-[0.25em]"
                     />
                     <Button onClick={verify} disabled={busy} variant="outline" className="sm:min-w-32">
