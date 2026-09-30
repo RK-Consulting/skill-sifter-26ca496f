@@ -26,6 +26,23 @@ jobs:
       E2E_RUN_MUTATIONS: ${{ inputs.run_mutations }}
 
     steps:
+      - name: Verify production smoke credentials
+        shell: bash
+        run: |
+          if [ -z "$E2E_ADMIN_EMAIL" ]; then
+            echo "Production smoke credential SKILLSIFTER_E2E_ADMIN_EMAIL is not configured."
+            exit 1
+          fi
+          if [ -z "$E2E_ADMIN_PASSWORD" ]; then
+            echo "Production smoke credential SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."
+            exit 1
+          fi
+          if [ "$E2E_ADMIN_EMAIL" != "e2e-admin@skillsifter.in" ]; then
+            echo "Production smoke email does not match the permanent E2E smoke account."
+            exit 1
+          fi
+          echo "Production smoke credentials are configured for the permanent E2E smoke account."
+
       - name: Checkout
         uses: actions/checkout@v6
 
