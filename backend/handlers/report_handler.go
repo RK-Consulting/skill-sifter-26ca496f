@@ -32,7 +32,6 @@ type ActivityLogRow struct {
 }
 
 func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value("tenantID").(string)
 	companyName, _ := r.Context().Value("companyName").(string)
 	period := r.URL.Query().Get("period")
 	if period == "" {
@@ -80,7 +79,6 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetActivityLog(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value("tenantID").(string)
 	companyName, _ := r.Context().Value("companyName").(string)
 	limit := 100
 	if raw := r.URL.Query().Get("limit"); raw != "" {
