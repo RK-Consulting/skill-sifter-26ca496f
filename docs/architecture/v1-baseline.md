@@ -1,8 +1,9 @@
 # SkillSifter V1 Architecture Baseline
 
-**Status:** Approved architecture baseline  
+**Status:** Frozen production architecture baseline  
 **Applies from:** v0.4.0  
-**Target:** v1.0.0
+**Released as:** v1.0.0  
+**Release date:** 2026-09-30
 
 ## Purpose
 
@@ -13,16 +14,22 @@ This document defines architectural boundaries, not feature-level implementation
 ## Core workflow
 
 ```text
-Lead → Opportunity → Client → Requirement
-                                ↓
-Candidate × Requirement → Screening → Submission → Client review
-                                                        ↓
-                                                  Interview → Selection
-                                                        ↓
-                                                  Offer → Joining
-                                                                    ↓
-                                               Invoice → Payment → Guarantee → Closure / Replacement
+Requirement
+    ↓
+Candidate × Requirement
+    ↓
+Screening → Submission → Feedback
+                         ↓
+                    Interview → Selection
+                                  ↓
+                              Offer → Joining
+                                         ↓
+                                      JOINED
+                                         ↓
+                                      BILLING
 ```
+
+Business development and client acquisition support the requirement lifecycle but do not replace the Candidate × Requirement runtime context.
 
 `Candidate × Requirement` is the central runtime recruitment context. It connects one candidate to one client requirement without introducing a separate Assignment runtime entity. Historical Recruitment Assignment data remains only where required for database upgrade compatibility. Candidate master state must not be used as the state of a specific recruitment context.
 
@@ -30,13 +37,19 @@ Candidate × Requirement → Screening → Submission → Client review
 
 ```text
 Dashboard
-Recruitment: active requirements, candidate pool, submissions, interviews, offers, closures
-Clients: clients, contacts, requirements, activity
-Candidates: database, AI search, new candidates, requests
-Business development: leads, opportunities, follow-ups
-Commercial: invoices, payments, replacements
-Reports
+Business Development
+Clients / Contacts / Requirements
+Candidates / Resume Intelligence / AI-assisted Search
+Screening / Submission / Feedback
+Interviews / Selection
+Offers / Joining / Joined
+Billing Worklist
+Reports / Auditability
+Account / Subscription
+Admin User Management
 ```
+
+The commercial boundary is operational billing. Accounting, GST, banking and financial-ledger functions remain external.
 
 The system must not add major modules outside this boundary without an approved product decision.
 
@@ -58,6 +71,8 @@ This is a conceptual model, not authorization to create every table at once. Tab
 
 - Use the existing React/TypeScript/Vite frontend, Go modular-monolith API, PostgreSQL, Nginx, and Docker architecture.
 - Maintain tenant isolation for every tenant-owned operation. Cross-tenant access is a security defect.
+- Use the authenticated tenant as the security boundary and route tenant-owned requests to the tenant database.
+- Keep platform account/subscription/provisioning state on the control plane.
 - Treat SkillSifter as the authoritative system of record for operational data.
 - Model language expertise generically as language + proficiency framework + proficiency level; do not make JLPT the universal data model.
 - Preserve historical transactional facts where a later candidate or requirement update would otherwise change what was submitted or agreed.
@@ -80,10 +95,15 @@ Initial AI use cases are resume extraction and candidate-to-requirement matching
 | v0.9 | Joining, invoices, payments, guarantee, replacement, closure |
 | v0.9.1 | UAT and stabilization with R K Consulting |
 | v0.9.2 | Production hardening: security, tenant isolation, migrations, backups, monitoring, regression |
-| v1.0 | Production release |
+| v1.0 | Production release — **released 2026-09-30** |
 
 ## Governance
 
 Architecture changes follow: problem → analysis → options → trade-offs → approved decision → ADR → GitHub issue → implementation. When an issue conflicts with this baseline, has a tenant/security concern, requires a breaking API/database change, or is ambiguous, implementation stops for an owner decision.
 
 See [the Codex engineering rules](../../CODEX_ENGINEERING_RULES.md), [V1 scope](../product/v1-scope.md), and [ADRs](ADRs/README.md).
+
+
+## V1.0 release status
+
+The V1 architecture baseline is frozen with the v1.0.0 production release. Post-release architecture changes require a new product/architecture decision and must not silently expand the V1 boundary.
