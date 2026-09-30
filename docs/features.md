@@ -1,15 +1,14 @@
 # SkillSifter — Feature Specification & Implementation Status
 
 Status key:
-- ✅ Implemented — implementation is present in the current main baseline.
-- 🧪 Release verification — implementation exists but final CI/UAT/production verification remains.
+- ✅ Implemented and released in v1.0.0.
 - ⛔ Out of scope — deliberately excluded.
 
 ## 1. Product boundary
 
 SkillSifter is a recruitment intelligence platform, not an HRMS.
 
-Workflow: Requirement → Assignment → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing.
+Workflow: Requirement → Candidate × Requirement → Screening → Submission → Feedback → Interview → Selection → Offer → Joining → JOINED → Billing.
 
 Out of scope: HRMS employee lifecycle, interviewer panels, hiring-manager hierarchy, client interview panels, internal approvals, internal evaluation forms, payroll/attendance/leave, accounting ledger, microservices and configurable permission-builder frameworks.
 
@@ -88,7 +87,7 @@ No Phase 9 Docker architecture expansion is required. PostgreSQL remains indepen
 
 ## 12. Release verification
 
-Implementation is consolidated on main.
+Implementation is consolidated on main and released as v1.0.0.
 
 - 🧪 CI evidence on release commit
 - 🧪 Security negative-test execution
