@@ -9,9 +9,15 @@ APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$APP_DIR"
 
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "unknown")"
+RELEASE_REVISION="$(git rev-parse HEAD)"
+echo "==> SkillSifter release: v${RELEASE_VERSION} (${RELEASE_REVISION})"
 echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
 git reset --hard "origin/${CURRENT_BRANCH}"
+RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "unknown")"
+RELEASE_REVISION="$(git rev-parse HEAD)"
+echo "==> Deploying SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION})"
 
 echo "==> Loading backend environment for deployment and integration tests"
 if [ ! -f "$APP_DIR/backend/.env" ]; then
