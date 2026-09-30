@@ -2,7 +2,8 @@ package handlers
 
 import (
     "crypto/rand"
-    "crypto/sha256"\n    "math/big"
+    "crypto/sha256"
+    "math/big"
     "encoding/hex"
     "encoding/json"
     "fmt"
