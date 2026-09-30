@@ -391,7 +391,7 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 
 func ExpireDueSubscriptions() {
 	_, _ = db.DB.Exec("UPDATE platform_subscriptions SET status='EXPIRED',updated_at=NOW() WHERE status IN ('TRIAL','ACTIVE') AND ends_at IS NOT NULL AND ends_at<NOW()")
-	_, _ = db.DB.Exec("UPDATE platform_tenants t SET account_status='EXPIRED',updated_at=NOW() WHERE EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status='EXPIRED') AND NOT EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('TRIAL','ACTIVE'))")
+	_, _ = db.DB.Exec("UPDATE platform_tenants t SET account_status='EXPIRED',updated_at=NOW() WHERE EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status='EXPIRED' AND s.provider IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('TRIAL','ACTIVE','PAST_DUE'))")
 }
 
 
