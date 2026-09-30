@@ -73,6 +73,10 @@ export const authService = {
     return api.post('/auth/register', credentials);
   },
 
+  verifyEmail: async (registrationId: number, code: string) => {
+    return api.post('/auth/register/verify-email', { registrationId, code });
+  },
+
   // Logout
   getCurrentAccount: async () => {
     return api.get('/account');
