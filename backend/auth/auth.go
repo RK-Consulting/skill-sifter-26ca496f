@@ -128,6 +128,14 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
+		if access.SubscriptionStatus == "EXPIRED" {
+			path := r.URL.Path
+			if !strings.HasPrefix(path, "/api/account") && path != "/api/admin/tenant/provision" {
+				http.Error(w, "Trial expired. Please subscribe to continue.", http.StatusPaymentRequired)
+				return
+			}
+		}
+
 		// Store trusted control-plane context for downstream handlers.
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "userID", claims.UserID)

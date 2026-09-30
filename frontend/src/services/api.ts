@@ -73,6 +73,10 @@ export const authService = {
     return api.post('/auth/register', credentials);
   },
 
+  verifyEmail: async (registrationId: number, code: string) => {
+    return api.post('/auth/register/verify-email', { registrationId, code });
+  },
+
   // Logout
   getCurrentAccount: async () => {
     return api.get('/account');
@@ -315,6 +319,8 @@ export const subscriptionService = {
   getPlans: async () => api.get('/account/plans'),
   getSubscription: async () => api.get('/account/subscription'),
   checkout: async (planCode: string) => api.post('/account/subscription/checkout', { planCode }),
+  sendPhoneVerification: async (phone: string) => api.post('/account/subscription/phone/send', { phone }),
+  verifyPhoneVerification: async (code: string) => api.post('/account/subscription/phone/verify', { code }),
   cancel: async () => api.post('/account/subscription/cancel'),
 };
 

@@ -6,6 +6,7 @@ import Footer from '@/components/layout/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui-custom/Card';
 import Button from '@/components/ui-custom/Button';
 import { authService, subscriptionService } from '@/services/api';
+import SubscriptionCheckout from '@/components/SubscriptionCheckout';
 
 const Account = () => {
   const queryClient = useQueryClient();
@@ -78,6 +79,8 @@ const Account = () => {
               </CardContent>
             </Card>
           </div>
+
+          {isAdmin && ['TRIAL', 'EXPIRED', 'CANCELLED'].includes(subscription?.status) && <SubscriptionCheckout />}
         </Container>
       </main>
       <Footer />

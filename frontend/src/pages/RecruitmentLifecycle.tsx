@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import Navbar from '@/components/layout/Navbar';
@@ -90,7 +90,7 @@ const RecruitmentLifecycle = () => {
       .catch(() => toast.error('Failed to load recruitment context'));
   }, []);
 
-  const loadState = async () => {
+  const loadState = useCallback(async () => {
     if (!candidateId || !requirementId) return;
     const candidate = Number(candidateId);
     const requirement = Number(requirementId);
@@ -130,7 +130,7 @@ const RecruitmentLifecycle = () => {
     } else {
       setFeedback(null);
     }
-  };
+  }, [candidateId, requirementId]);
 
   useEffect(() => {
     if (!candidateId || !requirementId) {
@@ -140,7 +140,7 @@ const RecruitmentLifecycle = () => {
     }
     setLoading(true);
     loadState().finally(() => setLoading(false));
-  }, [candidateId, requirementId]);
+  }, [candidateId, requirementId, loadState]);
 
   const selectedCandidate = candidates.find((item) => item.id === Number(candidateId));
   const selectedRequirement = requirements.find((item) => item.id === Number(requirementId));

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
@@ -45,12 +46,14 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/ping", pingHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/auth/register", handlers.RegisterUser).Methods("POST", "OPTIONS")
+	r.HandleFunc("/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
 	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
 	r.HandleFunc("/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
+	r.HandleFunc("/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
 func setupResourceRoutes(router *mux.Router, path string, getAll, create, getOne, update, del http.HandlerFunc) {
 	router.HandleFunc(path, getAll).Methods("GET", "OPTIONS")
@@ -78,6 +81,8 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/company-users", handlers.GetUsers).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription", handlers.GetSubscriptionAccount).Methods("GET", "OPTIONS")
+	api.HandleFunc("/account/subscription/phone/send", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.SendPhoneVerificationCode)).ServeHTTP).Methods("POST", "OPTIONS")
+	api.HandleFunc("/account/subscription/phone/verify", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.VerifyPhoneVerificationCode)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/account/subscription/checkout", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.StartSubscriptionCheckout)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/account/subscription/cancel", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.CancelSubscription)).ServeHTTP).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/subscriptions/webhook/razorpay", handlers.RazorpaySubscriptionWebhook).Methods("POST", "OPTIONS")
@@ -172,6 +177,14 @@ func main() {
 	setupPublicRoutes(r)
 	setupProtectedRoutes(r)
 	r.Methods("OPTIONS").HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) })
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			handlers.CleanupExpiredTrials()
+		}
+	}()
+	handlers.CleanupExpiredTrials()
 	port := db.GetEnv("PORT", "8080")
 	fmt.Printf("SkillSifter API running at http://localhost:%s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, setupCORS().Handler(r)))
