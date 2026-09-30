@@ -394,27 +394,34 @@ func ExpireDueSubscriptions() {
 	_, _ = db.DB.Exec("UPDATE platform_tenants t SET account_status='EXPIRED',updated_at=NOW() WHERE EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status='EXPIRED' AND s.provider IS NOT NULL) AND NOT EXISTS(SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('TRIAL','ACTIVE','PAST_DUE'))")
 }
 
-
 func CleanupExpiredTrials() {
-    ExpireDueSubscriptions()
-    rows, err := db.DB.Query("SELECT t.tenant_id FROM platform_tenants t WHERE t.data_deletion_at IS NOT NULL AND t.data_deletion_at<=NOW() AND NOT EXISTS (SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('ACTIVE','PAST_DUE'))")
-    if err != nil { return }
-    defer rows.Close()
-    for rows.Next() {
-        var tenantID string
-        if err := rows.Scan(&tenantID); err != nil { continue }
-        if err := db.DeleteTenantDatabase(db.DB, tenantID); err != nil { continue }
-        tx, err := db.DB.Begin()
-        if err != nil { continue }
-        _, _ = tx.Exec("DELETE FROM platform_pending_registrations WHERE email IN (SELECT email FROM users WHERE tenant_id=$1)", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_verification_codes WHERE user_id IN (SELECT id FROM users WHERE tenant_id=$1)", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_user_accounts WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_subscription_events WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_subscription_checkouts WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_subscriptions WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM users WHERE tenant_id=$1", tenantID)
-        _, _ = tx.Exec("DELETE FROM companies WHERE id=$1", tenantID)
-        _ = tx.Commit()
-    }
+	ExpireDueSubscriptions()
+	rows, err := db.DB.Query("SELECT t.tenant_id FROM platform_tenants t WHERE t.data_deletion_at IS NOT NULL AND t.data_deletion_at<=NOW() AND NOT EXISTS (SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('ACTIVE','PAST_DUE'))")
+	if err != nil {
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var tenantID string
+		if err := rows.Scan(&tenantID); err != nil {
+			continue
+		}
+		if err := db.DeleteTenantDatabase(db.DB, tenantID); err != nil {
+			continue
+		}
+		tx, err := db.DB.Begin()
+		if err != nil {
+			continue
+		}
+		_, _ = tx.Exec("DELETE FROM platform_pending_registrations WHERE email IN (SELECT email FROM users WHERE tenant_id=$1)", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_verification_codes WHERE user_id IN (SELECT id FROM users WHERE tenant_id=$1)", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_user_accounts WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_subscription_events WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_subscription_checkouts WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_subscriptions WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM users WHERE tenant_id=$1", tenantID)
+		_, _ = tx.Exec("DELETE FROM companies WHERE id=$1", tenantID)
+		_ = tx.Commit()
+	}
 }
