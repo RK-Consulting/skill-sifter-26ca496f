@@ -1,7 +1,7 @@
 # SkillSifter — Current Implementation Status
 
-**Baseline:** current `main` after completion of the Phase 9 implementation sequence
-**Date:** 2026-09-29
+**Baseline:** v1.0.0 production release
+**Date:** 2026-09-30
 
 ## 1. PR / Merge Status
 
@@ -184,7 +184,9 @@ Implemented:
 
 ## 5. Phase 9 Security / UAT / Go-Live
 
-The implementation gate is complete. Deployment-specific UAT remains the final operational gate.
+The Phase 9 implementation and production go-live gate are complete for v1.0.0.
+
+Production verification included the deployment gate, service health, PostgreSQL connectivity, API health and final Playwright production smoke. The final smoke run passed all four tests in 19.1 seconds.
 
 The acceptance checklist is maintained in:
 
@@ -192,7 +194,15 @@ The acceptance checklist is maintained in:
 
 Required production verification includes authentication, fixed-role authorization, cross-tenant isolation, tenant DB provisioning/routing, lifecycle completion, subscription state transitions, webhook signature validation, migration/backup verification, production configuration, HTTPS and health monitoring.
 
-## 6. Documentation Work Remaining
+## 6. v1.0.0 Release Evidence
+
+- Production deployment succeeded on the final security-fixed main commit.
+- API health returned `{"status":"OK"}`.
+- Final production smoke: **4 passed (19.1s)**.
+- Frontend release version is `1.0.0` and is displayed in the application footer.
+- Release documentation and architecture are frozen with the v1.0.0 release.
+
+## 7. Documentation Work Remaining
 
 The following documents must be kept synchronized with implementation:
 
@@ -207,7 +217,7 @@ The following documents must be kept synchronized with implementation:
 
 Older documents that describe company-name tenancy or the earlier authentication model are historical and must not be treated as the current runtime contract.
 
-## 7. Explicit Non-Goals
+## 8. Explicit Non-Goals
 
 The Phase 9 implementation does not introduce:
 
@@ -223,7 +233,7 @@ The Phase 9 implementation does not introduce:
 
 The recruitment lifecycle remains frozen.
 
-## 8. Recommended Implementation Order
+## 9. Recommended Implementation Order
 
 ```
 Documentation baseline
