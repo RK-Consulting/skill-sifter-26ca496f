@@ -333,7 +333,6 @@ const Register = () => {
                       </span>
                     </div>
                   </div>
-                  </div>
                 </div>
                 </form>
               </Form>
