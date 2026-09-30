@@ -99,6 +99,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	// Requirements replace the legacy Jobs resource.
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(auth.AuthMiddleware)
+	apiV1.Use(auth.TenantDBMiddleware)
 
 	// Phase 5: agency-first interview workflow. Interview history is preserved;
 	// deletion is intentionally not exposed as a core workflow operation.
