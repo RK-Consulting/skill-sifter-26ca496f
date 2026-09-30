@@ -1,5 +1,5 @@
 [Unit]
-Description=SkillSifter Go API
+Description=SkillSifter Go API v1.0.0
 After=network.target postgresql.service
 
 [Service]
@@ -8,6 +8,7 @@ User=root
 WorkingDirectory=__APP_DIR__/backend
 EnvironmentFile=__APP_DIR__/backend/.env
 Environment=SKILLSIFTER_ENV=production
+Environment=SKILLSIFTER_VERSION=1.0.0
 ExecStart=__APP_DIR__/backend/skillsifter
 Restart=on-failure
 RestartSec=5
