@@ -1,9 +1,9 @@
 # Phase 9 — SaaS Subscription, Bridge Tenancy, and Login Context
 
-**Status:** Architecture approved; Phase 9 foundation implemented, platform completion pending  
+**Status:** Architecture implemented and frozen for v1.0.0  
 **Related issue:** #79  
 **ADR:** ADR 0014  
-**Current implementation status:** See [Phase 9 Implementation Status](phase-9-implementation-status.md)  
+**Current implementation status:** v1.0.0 production release  
 **Authorization contract:** See [V1 Privilege Matrix](authorization/v1-privilege-matrix.md)
 
 ## Purpose
@@ -224,3 +224,7 @@ The first implementation remains a modular Go application. The bridge tenancy bo
 - Existing recruitment lifecycle tests remain green.
 - Provisioning is idempotent.
 - Tenant migration failures do not activate the tenant.
+
+## v1.0.0 implementation status
+
+The control-plane, subscription, tenant provisioning, tenant routing, authentication, RBAC and account/subscription UI architecture described here are implemented in the v1.0.0 production release. No microservice decomposition is introduced by this architecture.
