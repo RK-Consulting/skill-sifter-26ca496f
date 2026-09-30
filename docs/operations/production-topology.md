@@ -178,7 +178,62 @@ The same principle applies to:
 - application configuration templates
 - other files copied from Git to the production server
 
-## 7. Docker and production distinction
+## 7. Emergency Nginx change checklist
+
+Use this when a production issue requires a direct live Nginx correction, especially for CORS, proxy headers, TLS, routing, request limits or security headers.
+
+1. **Make the smallest necessary live change.**
+2. Run:
+   ```
+   nginx -t
+   ```
+3. If the configuration test passes, reload Nginx:
+   ```
+   systemctl reload nginx
+   ```
+4. Verify the affected production behaviour.
+5. Copy the final working configuration back into:
+   ```
+   infra/nginx/api.skillsifter.in.conf
+   ```
+6. Review the Git diff carefully. Remove any temporary/debug-only change.
+7. Commit and push the reconciled configuration to GitHub.
+8. The next deployment should then pass the Nginx drift check.
+9. If the drift check still reports a difference, **do not bypass it**. Compare the live and repository files and reconcile them deliberately.
+
+### CORS-specific reminder
+
+CORS corrections are particularly easy to make directly on the server and forget. Treat every production CORS correction as a source-code/infrastructure change:
+
+```
+Live CORS fix
+    ↓
+Test with nginx -t
+    ↓
+Reload Nginx
+    ↓
+Verify browser/API behaviour
+    ↓
+Copy final config into Git
+    ↓
+Commit
+    ↓
+Next deployment verifies no drift
+```
+
+Never solve a recurring CORS problem by permanently editing only `/etc/nginx/` on the server.
+
+### Before declaring the incident closed
+
+Confirm:
+
+- the live Nginx file matches the repository file;
+- `nginx -t` passes;
+- the affected frontend/API flow works;
+- the Git change is committed and pushed;
+- no temporary credentials, debugging headers or unrelated changes were left in the configuration.
+
+## 8. Docker and production distinction
 
 `docker-compose.yml` provides a self-contained development/reproducibility environment.
 
