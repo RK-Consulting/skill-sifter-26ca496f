@@ -5,13 +5,13 @@
 # does NOT force-switch branches. Check out the branch you want first.
 set -euo pipefail
 
-APP_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")/../.." && pwd)"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$APP_DIR"
 
 CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
-echo "==> Pulling latest \${CURRENT_BRANCH}"
+echo "==> Pulling latest ${CURRENT_BRANCH}"
 git fetch origin
-git reset --hard "origin/\${CURRENT_BRANCH}"
+git reset --hard "origin/${CURRENT_BRANCH}"
 
 echo "==> Running backend test gate (fmt, vet, test) before touching the live service"
 cd "$APP_DIR/backend"
