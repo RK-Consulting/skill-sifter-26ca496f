@@ -28,7 +28,7 @@ ARG VCS_REF=unknown
 LABEL org.opencontainers.image.title="SkillSifter Frontend" \
       org.opencontainers.image.version="$APP_VERSION" \
       org.opencontainers.image.revision="$VCS_REF" \
-      org.opencontainers.image.description="SkillSifter v1.0.0 React frontend"
+      org.opencontainers.image.description="SkillSifter React frontend"
 
 # Copy the build output
 COPY --from=build /app/dist /usr/share/nginx/html
