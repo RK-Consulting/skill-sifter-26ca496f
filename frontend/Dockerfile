@@ -2,6 +2,9 @@
 # Stage 1: Build the React application
 FROM node:18-alpine AS build
 
+ARG APP_VERSION=1.0.0
+ARG VCS_REF=unknown
+
 WORKDIR /app
 
 # Copy package.json and package-lock.json
@@ -18,6 +21,14 @@ RUN npm run build
 
 # Stage 2: Serve the app with Nginx
 FROM nginx:alpine
+
+ARG APP_VERSION=1.0.0
+ARG VCS_REF=unknown
+
+LABEL org.opencontainers.image.title="SkillSifter Frontend" \
+      org.opencontainers.image.version="$APP_VERSION" \
+      org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.description="SkillSifter v1.0.0 React frontend"
 
 # Copy the build output
 COPY --from=build /app/dist /usr/share/nginx/html
