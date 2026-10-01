@@ -376,6 +376,11 @@ export const reportService = {
     return api.get('/reports/hiring');
   },
 
+  // Get recruitment pipeline report data
+  getPipelineReport: async () => {
+    return api.get('/reports/pipeline');
+  },
+
   // Get source report data
   getSourceReport: async () => {
     return api.get('/reports/sources');
