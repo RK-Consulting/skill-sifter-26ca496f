@@ -10,6 +10,11 @@ export interface SourceReportEntry {
   count: number;
 }
 
+export interface PipelineReportEntry {
+  stage: string;
+  count: number;
+}
+
 export interface ActivityEntry {
   type: string;
   title: string;
@@ -24,6 +29,16 @@ export const reportsService = {
       return response.data?.data || [];
     } catch (error) {
       console.error('Error fetching hiring statistics:', error);
+      return [];
+    }
+  },
+
+  async getPipelineStats(): Promise<PipelineReportEntry[]> {
+    try {
+      const response = await reportService.getPipelineReport();
+      return response.data?.data || [];
+    } catch (error) {
+      console.error('Error fetching recruitment pipeline:', error);
       return [];
     }
   },
