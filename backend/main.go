@@ -40,19 +40,14 @@ func setupCORS() *cors.Cors {
 	return cors.New(cors.Options{AllowedOrigins: []string{"https://skillsifter.in", "https://www.skillsifter.in", "https://api.skillsifter.in", "https://*.skill-sifter-26ca496f.pages.dev", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"}, AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"}, AllowedHeaders: []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"}, ExposedHeaders: []string{"Content-Length", "Content-Type"}, AllowCredentials: true, MaxAge: 86400})
 }
 func setupPublicRoutes(r *mux.Router) {
+	// The API is canonical under /api. Keep the site root separate from API routes.
 	r.HandleFunc("/", rootHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api", apiRootHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/health-check", healthCheckHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/ping", pingHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
-	r.HandleFunc("/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
-	r.HandleFunc("/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
-	r.HandleFunc("/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
 func setupResourceRoutes(router *mux.Router, path string, getAll, create, getOne, update, del http.HandlerFunc) {
