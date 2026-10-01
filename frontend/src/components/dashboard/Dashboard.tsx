@@ -93,21 +93,29 @@ const Dashboard = ({ username }: DashboardProps) => {
     }
   ];
 
-  // Pipeline data
+  const { data: pipelineReport = [], isLoading: pipelineLoading } = useQuery({
+    queryKey: ['pipelineReport'],
+    queryFn: reportsService.getPipelineStats,
+  });
+
+  const pipelineCounts = Object.fromEntries(
+    pipelineReport.map((entry) => [entry.stage, entry.count]),
+  );
+
   const pipelineData = [
     {
       label: "Screening",
-      count: 24,
+      count: pipelineCounts.screening ?? 0,
       icon: <CheckCircle2 className="w-5 h-5 text-green-500" />
     },
     {
       label: "Interview",
-      count: 12,
+      count: pipelineCounts.interview ?? 0,
       icon: <Clock3 className="w-5 h-5 text-yellow-500" />
     },
     {
       label: "Rejected",
-      count: 8,
+      count: pipelineCounts.rejected ?? 0,
       icon: <XCircle className="w-5 h-5 text-red-500" />
     }
   ];
@@ -257,7 +265,7 @@ const Dashboard = ({ username }: DashboardProps) => {
         {/* Actions Row */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <UploadSection />
-          <PipelineStatus items={pipelineData} />
+          <PipelineStatus items={pipelineData} loading={pipelineLoading} />
         </div>
 
         {/* Recent Activity */}
