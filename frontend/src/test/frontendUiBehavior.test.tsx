@@ -94,6 +94,7 @@ import AdminUsers from '@/pages/AdminUsers';
 import Account from '@/pages/Account';
 import NotFound from '@/pages/NotFound';
 import Navbar from '@/components/layout/Navbar';
+import Dashboard from '@/components/dashboard/Dashboard';
 
 const renderPage = (ui: React.ReactElement, initialEntries = ['/']) => {
   const route = initialEntries[0];
@@ -154,6 +155,28 @@ describe('frontend UI smoke coverage', () => {
     if (_name !== 'Login') setLoggedIn();
     renderPage(page, [route]);
     expect(await screen.findByRole('heading', { name: heading, exact: false })).toBeInTheDocument();
+  });
+});
+
+describe('dashboard reporting UI behavior', () => {
+  it('renders pipeline counts from the reporting API instead of fabricated values', async () => {
+    setLoggedIn();
+    mocks.reportService.getPipelineReport.mockResolvedValueOnce({
+      data: {
+        data: [
+          { stage: 'screening', count: 2 },
+          { stage: 'interview', count: 1 },
+          { stage: 'rejected', count: 0 },
+        ],
+      },
+    });
+
+    renderPage(<Dashboard username="Test User" />);
+
+    expect(await screen.findByText('2 candidates')).toBeInTheDocument();
+    expect(screen.getByText('1 candidates')).toBeInTheDocument();
+    expect(screen.getByText('0 candidates')).toBeInTheDocument();
+    expect(mocks.reportService.getPipelineReport).toHaveBeenCalled();
   });
 });
 
