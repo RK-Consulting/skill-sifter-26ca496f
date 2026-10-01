@@ -278,6 +278,11 @@ type HiringReportEntry struct {
 	TotalHires      int    `json:"totalHires"`
 }
 
+type PipelineReportEntry struct {
+	Stage string `json:"stage"`
+	Count int `json:"count"`
+}
+
 type SourceReportEntry struct {
 	Source string `json:"source"`
 	Count  int    `json:"count"`
