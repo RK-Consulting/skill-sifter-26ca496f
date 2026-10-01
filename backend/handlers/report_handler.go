@@ -141,7 +141,7 @@ func GetPipelineReport(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := db.RequestDB(r).Query(`
-		SELECT stage, COUNT(*)
+		SELECT stage, COUNT(c.id)
 		FROM (
 			SELECT unnest(ARRAY['screening', 'interview', 'rejected']) AS stage
 		) stages
