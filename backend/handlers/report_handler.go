@@ -133,6 +133,53 @@ func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, 200, models.ApiResponse{Success: true, Message: "Recent activity retrieved successfully", Data: activity})
 }
 
+func GetPipelineReport(w http.ResponseWriter, r *http.Request) {
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
+
+	rows, err := db.RequestDB(r).Query(`
+		SELECT stage, COUNT(*)
+		FROM (
+			SELECT unnest(ARRAY['screening', 'interview', 'rejected']) AS stage
+		) stages
+		LEFT JOIN candidates c
+			ON c.pipeline_stage = stages.stage AND c.tenant_id = $1
+		GROUP BY stage
+		ORDER BY CASE stage
+			WHEN 'screening' THEN 1
+			WHEN 'interview' THEN 2
+			WHEN 'rejected' THEN 3
+		END`, tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to fetch pipeline report")
+		return
+	}
+	defer rows.Close()
+
+	out := []models.PipelineReportEntry{}
+	for rows.Next() {
+		var entry models.PipelineReportEntry
+		if err := rows.Scan(&entry.Stage, &entry.Count); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Failed to read pipeline report")
+			return
+		}
+		out = append(out, entry)
+	}
+	if err := rows.Err(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to read pipeline report")
+		return
+	}
+
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{
+		Success: true,
+		Message: "Pipeline report fetched",
+		Data: out,
+	})
+}
+
 func GetHiringReport(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 	rows, err := db.RequestDB(r).Query(`SELECT TO_CHAR(DATE_TRUNC('month',interview_date),'YYYY-MM'),COUNT(*) FROM interviews WHERE tenant_id=$1 GROUP BY 1 ORDER BY 1`, tenantID)
