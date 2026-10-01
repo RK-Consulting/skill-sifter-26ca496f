@@ -60,7 +60,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	out := []PeriodReportRow{}
+	var out []PeriodReportRow
 	for rows.Next() {
 		var p time.Time
 		var x PeriodReportRow
