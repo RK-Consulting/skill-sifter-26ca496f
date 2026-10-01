@@ -7,9 +7,10 @@ interface PipelineItemProps {
   label: string;
   count: number;
   icon: React.ReactNode;
+  loading: boolean;
 }
 
-const PipelineItem = ({ label, count, icon }: PipelineItemProps) => (
+const PipelineItem = ({ label, count, icon, loading }: PipelineItemProps & { loading: boolean }) => (
   <div className="flex items-center justify-between p-4 rounded-lg border border-ats-gray-200 hover:border-ats-gray-300 transition-colors">
     <div className="flex items-center space-x-3">
       {icon}
@@ -45,6 +46,7 @@ const PipelineStatus = ({ items, loading = false }: PipelineStatusProps) => {
               label={item.label}
               count={item.count}
               icon={item.icon}
+              loading={loading}
             />
           ))}
         </div>
