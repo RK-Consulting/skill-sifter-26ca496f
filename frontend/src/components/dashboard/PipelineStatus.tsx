@@ -10,7 +10,7 @@ interface PipelineItemProps {
   loading: boolean;
 }
 
-const PipelineItem = ({ label, count, icon, loading }: PipelineItemProps & { loading: boolean }) => (
+const PipelineItem = ({ label, count, icon, loading }: PipelineItemProps) => (
   <div className="flex items-center justify-between p-4 rounded-lg border border-ats-gray-200 hover:border-ats-gray-300 transition-colors">
     <div className="flex items-center space-x-3">
       {icon}
