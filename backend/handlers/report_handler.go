@@ -176,7 +176,7 @@ func GetPipelineReport(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Pipeline report fetched",
-		Data: out,
+		Data:    out,
 	})
 }
 
