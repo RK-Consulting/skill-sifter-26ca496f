@@ -16,7 +16,7 @@ const PipelineItem = ({ label, count, icon }: PipelineItemProps) => (
       <span className="font-medium">{label}</span>
     </div>
     <div className="flex items-center">
-      <span className="text-ats-gray-500 mr-2">{count} candidates</span>
+      <span className="text-ats-gray-500 mr-2">{loading ? '...' : `${count} candidates`}</span>
       <ChevronRight className="w-4 h-4 text-ats-gray-400" />
     </div>
   </div>
@@ -28,9 +28,10 @@ interface PipelineStatusProps {
     count: number;
     icon: React.ReactNode;
   }[];
+  loading?: boolean;
 }
 
-const PipelineStatus = ({ items }: PipelineStatusProps) => {
+const PipelineStatus = ({ items, loading = false }: PipelineStatusProps) => {
   return (
     <Card className="col-span-full lg:col-span-2">
       <CardHeader className="p-6">
