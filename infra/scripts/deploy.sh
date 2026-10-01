@@ -104,4 +104,4 @@ sleep 2
 systemctl status skillsifter --no-pager
 
 echo "==> Health check"
-curl -sf http://localhost:8081/health-check && echo "" && echo "==> Deploy succeeded"
+curl -sf http://localhost:8081/api/health-check && echo "" && echo "==> Deploy succeeded"
