@@ -1,8 +1,6 @@
 package models
 
-import (
-	"time"
-)
+import "time"
 
 // Candidate represents a candidate in the recruitment system.
 //
@@ -280,7 +278,7 @@ type HiringReportEntry struct {
 
 type PipelineReportEntry struct {
 	Stage string `json:"stage"`
-	Count int `json:"count"`
+	Count int    `json:"count"`
 }
 
 type SourceReportEntry struct {
