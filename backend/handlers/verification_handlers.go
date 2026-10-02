@@ -33,15 +33,68 @@ func generateOTP() string {
 }
 
 func sendEmailOTP(to, code string) error {
-	host, port, user, password, from := os.Getenv("SMTP_HOST"), os.Getenv("SMTP_PORT"), os.Getenv("SMTP_USER"), os.Getenv("SMTP_PASSWORD"), os.Getenv("SMTP_FROM")
+	host := os.Getenv("SMTP_HOST")
+	port := os.Getenv("SMTP_PORT")
+	user := os.Getenv("SMTP_USERNAME")
+	if user == "" {
+		// Keep SMTP_USER as a backwards-compatible fallback for existing deployments.
+		user = os.Getenv("SMTP_USER")
+	}
+	password := os.Getenv("SMTP_PASSWORD")
+	from := os.Getenv("SMTP_FROM")
 	if host == "" || port == "" || from == "" {
 		return fmt.Errorf("SMTP is not configured")
 	}
+
 	msg := []byte("From: " + from + "\r\nTo: " + to + "\r\nSubject: Your SkillSifter verification code\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nYour SkillSifter verification code is " + code + ". It expires in 10 minutes.\r\n")
 	var auth smtp.Auth
 	if user != "" {
 		auth = smtp.PlainAuth("", user, password, host)
 	}
+
+	// Port 465 uses implicit TLS. smtp.SendMail expects a plaintext connection
+	// and negotiates STARTTLS, so it cannot be used directly for port 465.
+	if port == "465" {
+		tlsConfig := &tls.Config{
+			ServerName: host,
+			MinVersion: tls.VersionTLS12,
+		}
+		conn, err := tls.Dial("tcp", net.JoinHostPort(host, port), tlsConfig)
+		if err != nil {
+			return err
+		}
+		client, err := smtp.NewClient(conn, host)
+		if err != nil {
+			_ = conn.Close()
+			return err
+		}
+		defer client.Close()
+
+		if auth != nil {
+			if err := client.Auth(auth); err != nil {
+				return err
+			}
+		}
+		if err := client.Mail(from); err != nil {
+			return err
+		}
+		if err := client.Rcpt(to); err != nil {
+			return err
+		}
+		writer, err := client.Data()
+		if err != nil {
+			return err
+		}
+		if _, err := writer.Write(msg); err != nil {
+			_ = writer.Close()
+			return err
+		}
+		if err := writer.Close(); err != nil {
+			return err
+		}
+		return client.Quit()
+	}
+
 	return smtp.SendMail(host+":"+port, auth, from, []string{to}, msg)
 }
 
