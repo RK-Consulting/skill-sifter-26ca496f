@@ -8,18 +8,48 @@
 -- application model. Its id must equal tenant_id and it is cascade-owned by
 -- platform_tenants. New tenant-owned tables reference platform_tenants directly.
 
--- The companies row is now a compatibility child of the tenant root.
-DO $$
+-- companies remains a compatibility table. Legacy fixtures and older
+-- administrative paths may still insert it directly, so bridge those writes
+-- into the canonical tenant root without making companies a second identity.
+CREATE OR REPLACE FUNCTION ensure_platform_tenant_for_company()
+RETURNS TRIGGER AS $$
 BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint WHERE conname = 'companies_tenant_fk'
-    ) THEN
-        ALTER TABLE companies
-            ADD CONSTRAINT companies_tenant_fk
-            FOREIGN KEY (id) REFERENCES platform_tenants(tenant_id)
-            ON DELETE CASCADE;
-    END IF;
-END $$;
+    INSERT INTO platform_tenants (
+        tenant_id, company_name, account_status, provisioning_status
+    )
+    VALUES (
+        NEW.id, NEW.name, 'ACTIVE', 'READY'
+    )
+    ON CONFLICT (tenant_id) DO UPDATE
+        SET company_name = EXCLUDED.company_name,
+            updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS companies_platform_tenant_bridge ON companies;
+
+CREATE TRIGGER companies_platform_tenant_bridge
+AFTER INSERT OR UPDATE OF name ON companies
+FOR EACH ROW
+EXECUTE FUNCTION ensure_platform_tenant_for_company();
+
+-- Root deletion owns the compatibility company row as well. This is a
+-- trigger rather than a foreign key to avoid a circular insert dependency.
+CREATE OR REPLACE FUNCTION delete_compatibility_company_for_tenant()
+RETURNS TRIGGER AS $$
+BEGIN
+    DELETE FROM companies WHERE id = OLD.tenant_id;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS platform_tenant_delete_company ON platform_tenants;
+
+CREATE TRIGGER platform_tenant_delete_company
+AFTER DELETE ON platform_tenants
+FOR EACH ROW
+EXECUTE FUNCTION delete_compatibility_company_for_tenant();
 
 -- Move every existing tenant_id foreign key from companies to the tenant root
 -- and make tenant deletion cascade through tenant-owned control/application
