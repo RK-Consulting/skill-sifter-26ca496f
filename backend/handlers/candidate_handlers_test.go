@@ -66,11 +66,6 @@ func setupTestDB(t *testing.T) *sql.DB {
 			provisioning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)
-		-- 
-			id VARCHAR(255) PRIMARY KEY,
-			name VARCHAR(255) NOT NULL UNIQUE,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)
 	`)
 	testDB.Exec(`
 		CREATE TABLE IF NOT EXISTS candidates (
