@@ -205,3 +205,32 @@ The greenfield reconstruction has now started.
 ### Current rule
 
 Do not add compatibility migrations to make the historical shared schema look like the new architecture. The final baselines are the target; Go code and tests are being brought to those contracts.
+
+
+## Implementation progress — tenant boundary and concurrency pass
+
+### Completed in this pass
+- Removed tenant-runtime dependence on legacy `company_name` from candidate, resume, interview, reporting, and resume-search paths.
+- Replaced legacy `activity_logs` reporting with tenant-local reporting and `audit_events` reads.
+- Removed legacy `job_id` from the Requirement model and recruitment workflow.
+- Removed legacy `required_skills`; matching now treats `mandatory_requirements` as the authoritative requirement criterion.
+- Removed legacy shared-user authentication handlers.
+- Tenant user creation now uses a per-tenant PostgreSQL advisory transaction lock while checking subscription user limits, preventing two concurrent requests from consuming the same user slot.
+- Registration pending-state creation now relies on the database uniqueness boundary rather than a pre-check race.
+- Registration email verification consumes the verification code atomically.
+- Permanent registration identity is claimed with `INSERT ... ON CONFLICT DO NOTHING RETURNING`.
+- Tenant provisioning no longer requires company name and is serialized per tenant with a PostgreSQL advisory lock.
+- Tenant provisioning remains retryable and records FAILED/READY state in the control plane.
+
+### Remaining RED work
+1. Remove/retire legacy `daily_jobs` and `business_dev` runtime routes because neither belongs to the frozen tenant baseline.
+2. Remove remaining compatibility fields from API/domain models where they represent deleted physical columns.
+3. Add explicit audit-event writes to the successful recruitment transactions; the report reader is already on the final `audit_events` model.
+4. Complete tenant deletion as an explicit application-owned sequence, including connection-cache invalidation and database retirement.
+5. Rewrite handler/domain tests against clean control-plane and tenant-plane baselines.
+6. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
+7. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+
+### Current architectural rule
+
+The final baselines are authoritative. Historical migrations remain historical evidence only and must not be replayed to construct a new tenant or control database.
