@@ -155,6 +155,7 @@ CREATE TABLE platform_user_accounts (
     user_id INTEGER NOT NULL,
     email VARCHAR(255) NOT NULL,
     role VARCHAR(50) NOT NULL,
+    phone_verified_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT platform_user_accounts_tenant_user_unique UNIQUE (tenant_id, user_id)
