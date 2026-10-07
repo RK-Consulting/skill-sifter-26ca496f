@@ -223,10 +223,19 @@ Do not add compatibility migrations to make the historical shared schema look li
 - Tenant provisioning remains retryable and records FAILED/READY state in the control plane.
 
 ### Remaining RED work
-1. Remove remaining compatibility fields from API/domain models where they represent deleted physical columns.
-2. Add explicit audit-event writes to the successful recruitment transactions; the report reader is already on the final `audit_events` model.
-3. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
-4. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+1. Remove any remaining dead compatibility code that still references retired recruitment resources; do not reintroduce deleted physical columns.
+2. Run gofmt, build, vet, unit/integration tests and frontend CI after the final code/schema contract pass.
+3. Perform the final Phase 9 security/UAT/go-live audit against the frozen control-plane and tenant-plane invariants.
+
+### Completed — explicit recruitment audit events
+- Added one application-owned audit writer for the tenant-plane `audit_events` table.
+- Successful screening, submission, feedback, interview, selection, offer, joining, and billing transactions now emit explicit events.
+- No database trigger was introduced; audit semantics remain in Go.
+- Audit payloads contain workflow identifiers and decisions rather than full candidate row JSON.
+
+### Completed — model/database boundary cleanup
+- Removed ORM-level tenant-to-control-plane foreign-key metadata from the Go models.
+- `tenant_id` is now a tenant-local field in tenant models; physical isolation is enforced by separate databases and runtime routing.
 
 ### Completed — clean-baseline test reconstruction
 - Handler integration tests now initialize separate control-plane and tenant-plane PostgreSQL databases from the authoritative baselines.
