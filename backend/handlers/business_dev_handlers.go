@@ -173,7 +173,7 @@ func AddBusinessDev(w http.ResponseWriter, r *http.Request) {
 				contact_email VARCHAR(255) NOT NULL,
 				created_at TIMESTAMP DEFAULT NOW(),
 				last_modified TIMESTAMP DEFAULT NOW(),
-				tenant_id VARCHAR(255) REFERENCES companies(id),
+				tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 				company_name VARCHAR(255) NOT NULL
 			)
 		`)
