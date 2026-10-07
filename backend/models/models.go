@@ -30,8 +30,7 @@ type Candidate struct {
 	LanguageExpertise  []CandidateLanguageExpertise `json:"languageExpertise,omitempty" db:"-"`
 	TechnicalExpertise []CandidateExpertise         `json:"technicalExpertise,omitempty" db:"-"`
 	CreatedAt          time.Time                    `json:"createdAt,omitempty" db:"created_at,default:CURRENT_TIMESTAMP"`
-	TenantID           string                       `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
-	CompanyName        string                       `json:"companyName" db:"company_name,notnull"`
+	TenantID           string                       `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // CandidateLanguageExpertise represents one candidate language expertise
@@ -83,8 +82,7 @@ type DailyJob struct {
 	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
 	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID         string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
-	CompanyName      string    `json:"companyName" db:"company_name,notnull"`
+	TenantID         string    `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // Interview represents an agency-neutral recruitment interview event.
@@ -106,8 +104,7 @@ type Interview struct {
 	CandidateFeedback string    `json:"candidateFeedback,omitempty" db:"candidate_feedback"`
 	NextAction        string    `json:"nextAction,omitempty" db:"next_action"`
 	LastModified      time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID          string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
-	CompanyName       string    `json:"companyName" db:"company_name,notnull"`
+	TenantID          string    `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // BusinessDev model
@@ -120,8 +117,7 @@ type BusinessDev struct {
 	ContactEmail  string    `json:"contactEmail" db:"contact_email,notnull"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
-	CompanyName   string    `json:"companyName" db:"company_name,notnull"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // Client model. ADR 0002: a Client represents an organization the
@@ -137,7 +133,7 @@ type Client struct {
 	ContactPerson string    `json:"contactPerson,omitempty" db:"contact_person"`
 	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 	UpdatedAt     time.Time `json:"updatedAt" db:"updated_at,default:CURRENT_TIMESTAMP"`
-	TenantID      string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
+	TenantID      string    `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // Requirement model. A Requirement is the authoritative representation
@@ -162,7 +158,7 @@ type Requirement struct {
 	OpenedDate             time.Time `json:"openedDate,omitempty" db:"opened_date"`
 	CreatedAt              time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 	LastModified           time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID               string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
+	TenantID               string    `json:"tenantId" db:"tenant_id,notnull"`
 }
 
 // Offer represents an offer made for a selected Candidate × Requirement.
@@ -229,8 +225,7 @@ type User struct {
 	Email       string    `json:"email" db:"email,notnull,unique"`
 	Password    string    `json:"password,omitempty" db:"password,notnull"`
 	Role        string    `json:"role" db:"role,notnull"`
-	TenantID    string    `json:"tenantId" db:"tenant_id,notnull,foreignkey:platform_tenants(tenant_id)"`
-	CompanyName string    `json:"companyName" db:"company_name,notnull"` // Changed from CompanyID
+	TenantID    string    `json:"tenantId" db:"tenant_id,notnull"` // Changed from CompanyID
 	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
 
