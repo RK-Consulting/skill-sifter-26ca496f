@@ -14,7 +14,7 @@ type LoginAccess struct {
 	Role               string
 }
 
-func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAccess, error) {
+func resolveAccess(dbConn *sql.DB, userID int, tenantID string, requireReady bool) (LoginAccess, error) {
 	var access LoginAccess
 	err := dbConn.QueryRow(`
 		SELECT
@@ -51,7 +51,7 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 		return LoginAccess{}, fmt.Errorf("resolve tenant access: %w", err)
 	}
 
-	if access.ProvisioningStatus != "READY" {
+	if requireReady && access.ProvisioningStatus != "READY" {
 		return LoginAccess{}, fmt.Errorf("tenant database is not ready")
 	}
 	if access.AccountStatus != "ACTIVE" {
@@ -61,4 +61,16 @@ func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAcces
 		return LoginAccess{}, fmt.Errorf("tenant subscription is not active")
 	}
 	return access, nil
+}
+
+
+func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAccess, error) {
+	return resolveAccess(dbConn, userID, tenantID, true)
+}
+
+// ResolveProvisioningAccess authenticates an active tenant even when its
+// tenant database is PENDING or FAILED, so the administrator can recover
+// provisioning through the dedicated control-plane endpoint.
+func ResolveProvisioningAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAccess, error) {
+	return resolveAccess(dbConn, userID, tenantID, false)
 }
