@@ -259,8 +259,8 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 
 	result, err := db.RequestDB(r).Exec(`
 		UPDATE requirements SET client_id = $1, job_type = $2, title = $3, department = $4,
-			experience_required = $6, budget = $7, language_requirement = $8,
-			certifications_required = $9, notice_period = $10, work_arrangement = $11,
+			experience_required = $5, budget = $6, language_requirement = $7,
+			certifications_required = $8, notice_period = $9, work_arrangement = $10,
 			mandatory_requirements = $11, description = $12, status = $13, location = $14,
 			headcount = $15, opened_date = $16, last_modified = NOW()
 		WHERE id = $17 AND tenant_id = $18`,
