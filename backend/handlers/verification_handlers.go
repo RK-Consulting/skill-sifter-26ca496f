@@ -370,7 +370,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit registration")
 		return
 	}
-	_, tenantUserID, err := db.ProvisionTenantDatabase(db.DB, tenantID, company, &db.TenantUser{Username: username, Email: email, Password: passwordHash, Role: "admin"})
+	_, tenantUserID, err := db.ProvisionTenantDatabase(db.DB, tenantID, &db.TenantUser{Username: username, Email: email, Password: passwordHash, Role: "admin"})
 	if err != nil {
 		_, _ = db.DB.Exec("UPDATE platform_tenants SET provisioning_status='FAILED' WHERE tenant_id=$1", tenantID)
 		respondWithError(w, http.StatusServiceUnavailable, "Account created but tenant provisioning failed; please retry provisioning")
