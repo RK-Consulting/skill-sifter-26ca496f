@@ -65,18 +65,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	role := "admin"
-	var userID int
-	if err = tx.QueryRow(`
-		INSERT INTO users(username, email, password, role, tenant_id, company_name, created_at)
-		VALUES($1, $2, $3, $4, $5, $6, $7) RETURNING id
-	`, creds.Username, creds.Email, hashedPassword, role, companyID, creds.CompanyName, time.Now()).Scan(&userID); err != nil {
-		if strings.Contains(err.Error(), "unique constraint") {
-			respondWithError(w, http.StatusConflict, "Email already exists")
-			return
-		}
-		respondWithError(w, http.StatusInternalServerError, "Could not register user")
-		return
-	}
 
 	if _, err = tx.Exec(`
 		INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
@@ -108,26 +96,19 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if _, err = tx.Exec(`
-		INSERT INTO platform_user_accounts(user_id, tenant_id, email, role)
-		VALUES($1, $2, $3, $4)
-		ON CONFLICT (user_id) DO UPDATE
-		SET tenant_id = EXCLUDED.tenant_id,
-		    email = EXCLUDED.email,
-		    role = EXCLUDED.role,
-		    updated_at = NOW()
-	`, userID, companyID, creds.Email, role); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
-		return
-	}
-
 	if err = tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit transaction")
 		return
 	}
 
-	if _, err = db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName); err != nil {
+	databaseName, userID, err := db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName, &db.TenantUser{Username: creds.Username, Email: creds.Email, Password: hashedPassword, Role: role})
+	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed; administrator can retry provisioning")
+		return
+	}
+
+	if _, err = db.DB.Exec(`INSERT INTO platform_user_accounts(tenant_id,user_id,email,role) VALUES($1,$2,$3,$4) ON CONFLICT (tenant_id,user_id) DO UPDATE SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()`, companyID, userID, creds.Email, role); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform user account")
 		return
 	}
 
@@ -168,14 +149,14 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	var user models.User
 	var hashedPassword string
+	var tenantUserID int
+	var tenantID string
+	var platformRole string
 	err := db.DB.QueryRow(`
-		SELECT u.id, u.username, u.email, u.password, u.role, u.tenant_id, u.company_name, u.created_at
-		FROM users u
-		WHERE u.email = $1
-	`, creds.Email).Scan(
-		&user.ID, &user.Username, &user.Email, &hashedPassword,
-		&user.Role, &user.TenantID, &user.CompanyName, &user.CreatedAt,
-	)
+		SELECT user_id, tenant_id, role
+		FROM platform_user_accounts
+		WHERE LOWER(email)=LOWER($1)
+	`, creds.Email).Scan(&tenantUserID, &tenantID, &platformRole)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			respondWithError(w, http.StatusUnauthorized, "Invalid credentials")
@@ -184,11 +165,36 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Database error")
 		return
 	}
-
+	access, err := platformaccess.ResolveLoginAccess(db.DB, tenantUserID, tenantID)
+	if err != nil {
+		access, err = platformaccess.ResolveProvisioningAccess(db.DB, tenantUserID, tenantID)
+		if err != nil {
+			respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+			return
+		}
+	}
+	tenantDB, err := db.TenantDB(db.DB, tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusForbidden, "Tenant database is not ready")
+		return
+	}
+	err = tenantDB.QueryRow(`
+		SELECT id, username, email, password, role, tenant_id, created_at
+		FROM users WHERE id=$1 AND LOWER(email)=LOWER($2)
+	`, tenantUserID, creds.Email).Scan(
+		&user.ID, &user.Username, &user.Email, &hashedPassword,
+		&user.Role, &user.TenantID, &user.CreatedAt)
+	if err != nil {
+		respondWithError(w, http.StatusUnauthorized, "Invalid credentials")
+		return
+	}
 	if err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(creds.Password)); err != nil {
 		respondWithError(w, http.StatusUnauthorized, "Invalid credentials")
 		return
 	}
+	user.Password = ""
+	user.CompanyName = ""
+	user.Role = platformRole
 
 	user.Password = ""
 	access, err := platformaccess.ResolveLoginAccess(db.DB, user.ID, user.TenantID)
