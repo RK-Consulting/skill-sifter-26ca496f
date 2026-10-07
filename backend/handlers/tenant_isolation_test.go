@@ -66,12 +66,11 @@ func isoCtx(req *http.Request, tenantID string) *http.Request {
 // Tenant B's data, even knowing Tenant B's exact resource ID.
 func TestTenantIsolation_Candidates(t *testing.T) {
 	testDB := setupIsolationTestDB(t)
-	defer testDB.Close()
 
 	var tenantBCandidateID int
 	err := testDB.QueryRow(
-		`INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, tenant_id, company_name)
-		 VALUES ('B Candidate', 'bcand@test.com', '', '', '', '', '', '', '', '', 'tenant_b', 'tenant_b') RETURNING id`,
+		`INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, tenant_id)
+		 VALUES ('B Candidate', 'bcand@test.com', '', '', '', '', '', '', '', '', 'tenant_b') RETURNING id`,
 	).Scan(&tenantBCandidateID)
 	if err != nil {
 		t.Fatalf("seed failed: %v", err)
@@ -170,7 +169,6 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 // ID in another tenant" case for Update/Delete.
 func TestTenantIsolation_Users(t *testing.T) {
 	testDB := setupIsolationTestDB(t)
-	defer testDB.Close()
 
 	var tenantBUserID int
 	err := testDB.QueryRow(
