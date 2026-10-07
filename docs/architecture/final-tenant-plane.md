@@ -49,7 +49,7 @@ Requirements are the sole recruitment-demand model. There is no Jobs domain.
 AI-derived data remains tenant data. AI assists recruiters; it does not own recruitment decisions.
 
 ### Recruitment execution
-- recruitment assignments
+- recruitment execution records (screening, submission, feedback, interview, selection, offer, joining, billing)
 - screening state/history
 - submissions
 - client feedback
@@ -141,7 +141,6 @@ The database may constrain the allowed state values, but state transitions are p
 
 Important race-sensitive operations must use an atomic PostgreSQL operation and return a deterministic result to Go:
 
-- assignment uniqueness
 - screening-limit consumption
 - submission
 - feedback update
@@ -221,7 +220,7 @@ The following historical/shared objects are not part of the final tenant baselin
 
 - `companies` customer-root usage
 - `jobs`
-- `daily_jobs` if replaced by the final assignment/task model
+- `daily_jobs` legacy runtime model
 - legacy activity-log trigger infrastructure
 - `platform_tenants` references
 - control-plane subscription tables
