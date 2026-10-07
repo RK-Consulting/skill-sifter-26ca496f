@@ -95,7 +95,7 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 	).Scan(&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
 		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
-		&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
+		&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
 		&req.Headcount, &req.OpenedDate, &req.CreatedAt, &req.LastModified, &req.TenantID)
 
 	if err != nil {
