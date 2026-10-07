@@ -16,123 +16,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// setupTestDB connects to a real Postgres instance for integration testing.
-// Skips (not fails) if no test database is reachable, so `go test ./...`
-// still works in environments without a DB configured — but when a DB IS
-// available (CI, or run manually), this exercises the exact code path that
-// broke silently in production: does the SQL actually match the schema?
+// setupTestDB uses the authoritative tenant-plane baseline prepared by TestMain.
 func setupTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-
-	host := os.Getenv("TEST_DB_HOST")
-	if host == "" {
-		host = "localhost"
-	}
-	port := os.Getenv("TEST_DB_PORT")
-	if port == "" {
-		port = "5432"
-	}
-	user := os.Getenv("TEST_DB_USER")
-	if user == "" {
-		user = "postgres"
-	}
-	password := os.Getenv("TEST_DB_PASSWORD")
-	if password == "" {
-		password = "postgres"
-	}
-	dbname := os.Getenv("TEST_DB_NAME")
-	if dbname == "" {
-		dbname = "skillsifter_test"
-	}
-
-	connStr := "host=" + host + " port=" + port + " user=" + user +
-		" password=" + password + " dbname=" + dbname + " sslmode=disable"
-
-	testDB, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Skipf("skipping integration test: could not open test DB connection: %v", err)
-	}
-	if err := testDB.Ping(); err != nil {
-		t.Skipf("skipping integration test: test DB not reachable (%v). "+
-			"Set TEST_DB_HOST/PORT/USER/PASSWORD/NAME, or run against a local Postgres "+
-			"with a 'skillsifter_test' database to enable this test.", err)
-	}
-
-	testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS platform_tenants (
-			tenant_id VARCHAR(255) PRIMARY KEY,
-			company_name VARCHAR(255) NOT NULL,
-			account_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
-			provisioning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
-			created_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)
-	`)
-	testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS candidates (
-			id SERIAL PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			email VARCHAR(255) NOT NULL,
-			phone VARCHAR(20),
-			position VARCHAR(100),
-			location VARCHAR(50),
-			experience VARCHAR(100),
-			currentctc VARCHAR(100),
-			expectedctc VARCHAR(100),
-			noticeperiod VARCHAR(100),
-			jobdescription VARCHAR(500),
-			status VARCHAR(50) NOT NULL DEFAULT 'active',
-			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
-			company_name VARCHAR(255) NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT candidates_status_valid CHECK (
-				status IN ('active', 'inactive', 'blacklisted', 'archived')
-			)
-		)
-	`)
-
-	testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS candidate_language_expertise (
-			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
-			candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
-			language VARCHAR(100) NOT NULL,
-			proficiency_framework VARCHAR(50) NOT NULL,
-			proficiency_level VARCHAR(50) NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT candidate_language_expertise_unique
-				UNIQUE (candidate_id, language, proficiency_framework, proficiency_level)
-		)
-	`)
-
-	testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS candidate_expertise (
-			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
-			candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
-			skill VARCHAR(100) NOT NULL,
-			category VARCHAR(100) NOT NULL,
-			proficiency_level VARCHAR(50) NOT NULL,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT candidate_expertise_unique
-				UNIQUE (candidate_id, skill, category)
-		)
-	`)
-
-	testDB.Exec(`CREATE INDEX IF NOT EXISTS idx_candidate_language_expertise_tenant_candidate ON candidate_language_expertise(tenant_id, candidate_id)`)
-	testDB.Exec(`CREATE INDEX IF NOT EXISTS idx_candidate_expertise_tenant_candidate ON candidate_expertise(tenant_id, candidate_id)`)
-	testDB.Exec(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`)
-
-	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, provisioning_status, account_status) VALUES ('test_company', 'test_company', 'READY', 'ACTIVE') ON CONFLICT (tenant_id) DO NOTHING`)
-	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, provisioning_status, account_status) VALUES ('other_company', 'other_company', 'READY', 'ACTIVE') ON CONFLICT (tenant_id) DO NOTHING`)
-
-	// Clean slate for this test run.
-	testDB.Exec(`DELETE FROM candidate_language_expertise WHERE tenant_id IN ('test_company', 'other_company')`)
-	testDB.Exec(`DELETE FROM candidate_expertise WHERE tenant_id IN ('test_company', 'other_company')`)
-	testDB.Exec(`DELETE FROM candidates WHERE tenant_id IN ('test_company', 'other_company')`)
-
-	return testDB
+	return handlerTenantDB
 }
 
 func withAuthContext(req *http.Request, companyName string) *http.Request {
@@ -142,6 +29,7 @@ func withAuthContext(req *http.Request, companyName string) *http.Request {
 	// unchanged while still exercising the real tenant_id-scoped code path.
 	ctx := context.WithValue(req.Context(), "companyName", companyName)
 	ctx = context.WithValue(ctx, "tenantID", companyName)
+	ctx = db.WithTenantDB(ctx, handlerTenantDB)
 	return req.WithContext(ctx)
 }
 
@@ -154,8 +42,7 @@ func withAuthContext(req *http.Request, companyName string) *http.Request {
 func TestAddCandidateAndGetCandidates(t *testing.T) {
 	testDB := setupTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB // substitute the package-level connection used by the real handlers
-	if _, err := testDB.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE') ON CONFLICT (tenant_id) DO NOTHING", "test_company", "Test Company"); err != nil {
+	if _, err := testDB.Exec("", "test_company", "Test Company"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -229,7 +116,6 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 func TestDeleteCandidateNonexistentReturnsNotFound(t *testing.T) {
 	testDB := setupTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB // substitute the package-level connection used by the real handlers
 
 	req := httptest.NewRequest("DELETE", "/api/candidates/999999", nil)
 	req = withAuthContext(req, "test_company")
