@@ -193,8 +193,11 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	user.Password = ""
 	access, err := platformaccess.ResolveLoginAccess(db.DB, user.ID, user.TenantID)
 	if err != nil {
-		respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
-		return
+		access, err = platformaccess.ResolveProvisioningAccess(db.DB, user.ID, user.TenantID)
+		if err != nil {
+			respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
+			return
+		}
 	}
 	user.Role = access.Role
 	user.TenantID = access.TenantID
