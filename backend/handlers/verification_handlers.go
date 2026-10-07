@@ -314,6 +314,10 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := "comp_" + strings.ReplaceAll(strings.ToLower(company), " ", "_")
+	if _, err = tx.Exec("INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,trial_started_at,trial_expires_at,data_deletion_at) VALUES($1,$2,'ACTIVE','PENDING',NOW(),NOW()+INTERVAL '2 days',NOW()+INTERVAL '9 days')", tenantID, company); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create tenant")
+		return
+	}
 	if _, err = tx.Exec("INSERT INTO companies(id,name,created_at) VALUES($1,$2,NOW())", tenantID, company); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create company")
 		return
