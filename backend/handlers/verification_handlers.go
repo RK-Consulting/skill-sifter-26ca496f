@@ -313,11 +313,12 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusConflict, "Company already has a SkillSifter account")
 		return
 	}
-	tenantID := "comp_" + strings.ReplaceAll(strings.ToLower(company), " ", "_")
-	if _, err = tx.Exec("INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,trial_started_at,trial_expires_at,data_deletion_at) VALUES($1,$2,'ACTIVE','PENDING',NOW(),NOW()+INTERVAL '2 days',NOW()+INTERVAL '9 days')", tenantID, company); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create tenant")
+	tenantBytes := make([]byte, 16)
+	if _, err = rand.Read(tenantBytes); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create tenant identity")
 		return
 	}
+	tenantID := "tenant_" + hex.EncodeToString(tenantBytes)
 
 	var userID int
 	if err = tx.QueryRow("INSERT INTO users(username,email,password,role,tenant_id,company_name,email_verified_at,created_at) VALUES($1,$2,$3,'admin',$4,$5,NOW(),NOW()) RETURNING id", username, email, passwordHash, tenantID, company).Scan(&userID); err != nil {
