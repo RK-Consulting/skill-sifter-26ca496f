@@ -63,13 +63,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
 		return
 	}
-	if _, err = tx.Exec(
-		"INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
-		companyID, creds.CompanyName, time.Now(),
-	); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create company")
-		return
-	}
 
 	role := "admin"
 	var userID int
