@@ -50,11 +50,9 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 			t.Fatal(e)
 		}
 	}
-	_, e := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", tenant, tenant)
-	must(e)
-	var uid, cid, rid, client int
-	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id,company_name) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant, tenant).Scan(&uid))
-	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id,company_name) VALUES ($1,$2,$3,$4) RETURNING id", "Candidate", tenant+"@c", tenant, tenant).Scan(&cid))
+		var uid, cid, rid, client int
+	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
+	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id,company_name) VALUES ($1,$2,$3,$4) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
 	must(d.QueryRow("INSERT INTO clients (name,status,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Client", "active", tenant).Scan(&client))
 	must(d.QueryRow("INSERT INTO requirements (client_id,title,status,tenant_id) VALUES ($1,$2,$3,$4) RETURNING id", client, "Requirement", "open", tenant).Scan(&rid))
 	clean := func() {
@@ -65,8 +63,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM users WHERE tenant_id=$1", tenant)
-		d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenant)
-	}
+			}
 	return tenant, cid, rid, uid, client, clean
 }
 func completedScreening(t *testing.T, d *sql.DB, tenant string, cid, rid, uid int) {
@@ -116,8 +113,7 @@ func TestService_SubmitRejectsCrossTenantCandidate(t *testing.T) {
 	if _, e := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", other, other); e != nil {
 		t.Fatal(e)
 	}
-	defer d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", other)
-	s := NewService(NewPostgresRepository(d), d)
+		s := NewService(NewPostgresRepository(d), d)
 	_, err := s.Submit(other, CreateInput{CandidateID: cid, RequirementID: rid, SubmittedByUserID: uid, RecipientType: RecipientClient, RecipientClientID: &client})
 	if err != ErrCandidateNotFound {
 		t.Fatalf("got %v, want ErrCandidateNotFound", err)
