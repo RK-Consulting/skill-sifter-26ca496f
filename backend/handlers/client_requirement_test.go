@@ -13,64 +13,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
-// setupClientRequirementTestDB stands up (or reuses) the tables needed to
-// exercise the Client/Requirement domain, matching the migration's real
-// schema. Skips (does not fail) if no test database is reachable.
+// setupClientRequirementTestDB uses the authoritative tenant-plane baseline.
 func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-
-	testDB := setupIsolationTestDB(t) // reuses companies/tenant_a/tenant_b setup from tenant_isolation_test.go
-
-	statements := []string{
-		`CREATE TABLE IF NOT EXISTS clients (
-			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
-			name VARCHAR(255) NOT NULL,
-			status VARCHAR(50) NOT NULL DEFAULT 'prospect',
-			contact_email VARCHAR(255),
-			contact_phone VARCHAR(50),
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT clients_status_valid CHECK (status IN ('prospect', 'active', 'inactive'))
-		)`,
-		`CREATE TABLE IF NOT EXISTS requirements (
-			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
-			client_id INTEGER NOT NULL REFERENCES clients(id),
-			job_id VARCHAR(100),
-			title VARCHAR(255) NOT NULL,
-			job_type VARCHAR(30),
-			department VARCHAR(100),
-			location VARCHAR(100),
-			work_arrangement VARCHAR(50),
-			experience_required VARCHAR(100),
-			budget VARCHAR(255),
-			language_requirement VARCHAR(255),
-			certifications_required TEXT,
-			notice_period VARCHAR(100),
-			mandatory_requirements TEXT,
-			status VARCHAR(50) NOT NULL DEFAULT 'open',
-			opened_date TIMESTAMP,
-			description TEXT,
-			required_skills TEXT,
-			compensation VARCHAR(255),
-			headcount INTEGER NOT NULL DEFAULT 1,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-			last_modified TIMESTAMP NOT NULL DEFAULT NOW(),
-			CONSTRAINT requirements_status_valid CHECK (status IN ('open', 'closed', 'on_hold', 'cancelled')),
-			CONSTRAINT requirements_headcount_positive CHECK (headcount > 0)
-		)`,
-	}
-	for _, s := range statements {
-		if _, err := testDB.Exec(s); err != nil {
-			t.Fatalf("client/requirement test schema setup failed: %v\nstatement: %s", err, s)
-		}
-	}
-
-	testDB.Exec(`DELETE FROM requirements WHERE tenant_id IN ('tenant_a', 'tenant_b')`)
-	testDB.Exec(`DELETE FROM clients WHERE tenant_id IN ('tenant_a', 'tenant_b')`)
-
-	return testDB
+	return setupIsolationTestDB(t)
 }
 
 // --- Client domain tests ---
@@ -78,7 +24,6 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 func TestClient_LifecycleAndValidation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	t.Run("AddClient defaults status to prospect", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Acme Corp"})
@@ -152,7 +97,6 @@ func TestClient_LifecycleAndValidation(t *testing.T) {
 func TestClient_CrossTenantIsolation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var tenantBClientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('B Client Co', 'active', 'tenant_b') RETURNING id`).Scan(&tenantBClientID)
@@ -213,7 +157,6 @@ func TestClient_CrossTenantIsolation(t *testing.T) {
 func TestRequirement_LifecycleAndValidation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Req Test Client', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
@@ -293,7 +236,6 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 func TestRequirement_CrossTenantIsolation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var tenantBClientID, tenantBReqID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('B Client', 'active', 'tenant_b') RETURNING id`).Scan(&tenantBClientID)
@@ -368,7 +310,6 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, tenant_id) VALUES ('Minimal Client', 'tenant_a') RETURNING id`).Scan(&clientID)
@@ -406,7 +347,6 @@ func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 func TestDeleteClient_WithRequirements_IsRejected(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Client With Reqs', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
