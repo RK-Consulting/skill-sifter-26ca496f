@@ -67,7 +67,6 @@ func isoCtx(req *http.Request, tenantID string) *http.Request {
 func TestTenantIsolation_Candidates(t *testing.T) {
 	testDB := setupIsolationTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var tenantBCandidateID int
 	err := testDB.QueryRow(
@@ -172,7 +171,6 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 func TestTenantIsolation_Users(t *testing.T) {
 	testDB := setupIsolationTestDB(t)
 	defer testDB.Close()
-	db.DB = testDB
 
 	var tenantBUserID int
 	err := testDB.QueryRow(
