@@ -29,7 +29,6 @@ func submissionDB(t *testing.T) *sql.DB {
 		d.Close()
 		t.Skip(err)
 	}
-	appdb.DB = d
 	if err = appdb.InitializeSchema(); err != nil {
 		d.Close()
 		t.Fatal(err)
@@ -110,10 +109,7 @@ func TestService_SubmitRejectsCrossTenantCandidate(t *testing.T) {
 	tenant, cid, rid, uid, client, clean := subFixture(t, d)
 	defer clean()
 	other := tenant + "_other"
-	if _, e := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", other, other); e != nil {
-		t.Fatal(e)
-	}
-		s := NewService(NewPostgresRepository(d), d)
+			s := NewService(NewPostgresRepository(d), d)
 	_, err := s.Submit(other, CreateInput{CandidateID: cid, RequirementID: rid, SubmittedByUserID: uid, RecipientType: RecipientClient, RecipientClientID: &client})
 	if err != ErrCandidateNotFound {
 		t.Fatalf("got %v, want ErrCandidateNotFound", err)
