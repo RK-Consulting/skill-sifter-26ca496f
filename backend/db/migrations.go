@@ -1,359 +1,254 @@
 package db
 
 import (
-	"context"
-	"crypto/sha256"
-	"database/sql"
-	"encoding/hex"
-	"fmt"
-	"os"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
+    "context"
+    "crypto/sha256"
+    "database/sql"
+    "encoding/hex"
+    "fmt"
+    "os"
+    "path/filepath"
+    "regexp"
+    "sort"
+    "strconv"
 )
 
-// This file owns the application's deterministic database schema setup.
-// Schema definitions are ordered by their numeric filename prefix, recorded
-// in schema_versions, and protected by content checksums. Concurrent
-// application startups are serialized with a PostgreSQL advisory lock.
-var schemaSeqPattern = regexp.MustCompile(`^(\d+)_`)
-
-const schemaLockKey = "skill-sifter:schema"
-
-// schemaDefinitionsDir locates the authoritative schema definitions directory.
-func schemaDefinitionsDir() (string, error) {
-	candidates := []string{"database/migrations", "backend/database/migrations"}
-	for _, c := range candidates {
-		if info, err := os.Stat(c); err == nil && info.IsDir() {
-			return c, nil
-		}
-	}
-	return "", fmt.Errorf("could not locate schema definitions directory (tried: %v)", candidates)
-}
-
-// ensureSchemaVersionsTable creates the schema version table for a clean
-// installation. The table is intentionally defined in its final form: there
-// is no compatibility or upgrade path for an older schema-version table.
-func ensureSchemaVersionsTable() error {
-	_, err := DB.Exec(`
-		CREATE TABLE IF NOT EXISTS schema_versions (
-			version    INTEGER PRIMARY KEY,
-			name       VARCHAR(255) NOT NULL,
-			checksum   VARCHAR(64) NOT NULL,
-			applied_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`)
-	if err != nil {
-		return fmt.Errorf("could not create schema_versions table: %w", err)
-	}
-	return nil
-}
+var schemaSeqPattern = regexp.MustCompile(`^(\\d+)_`)
+const controlSchemaLockKey = "skill-sifter:control-schema"
+const tenantSchemaLockKey = "skill-sifter:tenant-schema"
 
 type schemaDefinition struct {
-	version int
-	name    string
-	path    string
+    version int
+    name    string
+    path    string
 }
 
 type appliedSchemaVersion struct {
-	version  int
-	name     string
-	checksum string
+    version  int
+    name     string
+    checksum string
 }
 
-// discoverSchemaDefinitions reads every SQL schema definition, validates its
-// numeric sequence, and returns the files in ascending execution order.
+func schemaDefinitionsDir(kind string) (string, error) {
+    candidates := []string{
+        filepath.Join("database", kind),
+        filepath.Join("backend", "database", kind),
+    }
+    for _, c := range candidates {
+        if info, err := os.Stat(c); err == nil && info.IsDir() {
+            return c, nil
+        }
+    }
+    return "", fmt.Errorf("could not locate %s schema directory (tried: %v)", kind, candidates)
+}
+
 func discoverSchemaDefinitions(dir string) ([]schemaDefinition, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return nil, fmt.Errorf("could not read schema definitions directory %q: %w", dir, err)
-	}
+    entries, err := os.ReadDir(dir)
+    if err != nil {
+        return nil, fmt.Errorf("could not read schema definitions directory %q: %w", dir, err)
+    }
 
-	var files []schemaDefinition
-	seen := map[int]string{}
+    files := make([]schemaDefinition, 0, len(entries))
+    seen := map[int]string{}
 
-	for _, e := range entries {
-		if e.IsDir() || filepath.Ext(e.Name()) != ".sql" {
-			continue
-		}
+    for _, e := range entries {
+        if e.IsDir() || filepath.Ext(e.Name()) != ".sql" {
+            continue
+        }
 
-		m := schemaSeqPattern.FindStringSubmatch(e.Name())
-		if m == nil {
-			return nil, fmt.Errorf("schema definition %q does not start with a numeric sequence prefix", e.Name())
-		}
+        m := schemaSeqPattern.FindStringSubmatch(e.Name())
+        if m == nil {
+            return nil, fmt.Errorf("schema definition %q does not start with a numeric sequence prefix", e.Name())
+        }
 
-		version, err := strconv.Atoi(m[1])
-		if err != nil {
-			return nil, fmt.Errorf("schema definition %q has an unparseable sequence prefix: %w", e.Name(), err)
-		}
+        version, err := strconv.Atoi(m[1])
+        if err != nil {
+            return nil, fmt.Errorf("schema definition %q has an invalid sequence prefix: %w", e.Name(), err)
+        }
+        if prior, exists := seen[version]; exists {
+            return nil, fmt.Errorf("duplicate schema definition sequence %d: %q and %q", version, prior, e.Name())
+        }
+        seen[version] = e.Name()
 
-		if prior, exists := seen[version]; exists {
-			return nil, fmt.Errorf("duplicate schema definition sequence %d: both %q and %q claim it", version, prior, e.Name())
-		}
-		seen[version] = e.Name()
+        files = append(files, schemaDefinition{version: version, name: e.Name(), path: filepath.Join(dir, e.Name())})
+    }
 
-		files = append(files, schemaDefinition{
-			version: version,
-			name:    e.Name(),
-			path:    filepath.Join(dir, e.Name()),
-		})
-	}
-
-	sort.Slice(files, func(i, j int) bool { return files[i].version < files[j].version })
-	return files, nil
+    sort.Slice(files, func(i, j int) bool { return files[i].version < files[j].version })
+    return files, nil
 }
 
 func schemaDefinitionChecksum(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(data)
-	return hex.EncodeToString(sum[:]), nil
+    data, err := os.ReadFile(path)
+    if err != nil {
+        return "", err
+    }
+    sum := sha256.Sum256(data)
+    return hex.EncodeToString(sum[:]), nil
 }
 
-func appliedSchemaVersions() (map[int]appliedSchemaVersion, error) {
-	rows, err := DB.Query(`
-		SELECT version, name, checksum
-		FROM schema_versions
-		ORDER BY version
-	`)
-	if err != nil {
-		return nil, fmt.Errorf("could not read schema_versions: %w", err)
-	}
-	defer rows.Close()
-
-	applied := map[int]appliedSchemaVersion{}
-	for rows.Next() {
-		var v appliedSchemaVersion
-		if err := rows.Scan(&v.version, &v.name, &v.checksum); err != nil {
-			return nil, fmt.Errorf("could not scan schema_versions row: %w", err)
-		}
-		applied[v.version] = v
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("could not read schema_versions rows: %w", err)
-	}
-	return applied, nil
+func ensureSchemaVersionsTable(conn *sql.DB) error {
+    _, err := conn.Exec(`
+        CREATE TABLE IF NOT EXISTS schema_versions (
+            version INTEGER PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            checksum VARCHAR(64) NOT NULL,
+            applied_at TIMESTAMP NOT NULL DEFAULT NOW()
+        )`)
+    if err != nil {
+        return fmt.Errorf("could not create schema_versions table: %w", err)
+    }
+    return nil
 }
 
-// withSchemaLock serializes schema initialization across application
-// instances. The lock is session-scoped and is released on the same
-// dedicated database connection.
-func withSchemaLock(fn func() error) error {
-	conn, err := DB.Conn(context.Background())
-	if err != nil {
-		return fmt.Errorf("could not acquire schema database connection: %w", err)
-	}
-	defer conn.Close()
+func appliedSchemaVersions(conn *sql.DB) (map[int]appliedSchemaVersion, error) {
+    rows, err := conn.Query(`
+        SELECT version, name, checksum
+        FROM schema_versions
+        ORDER BY version`)
+    if err != nil {
+        return nil, fmt.Errorf("could not read schema_versions: %w", err)
+    }
+    defer rows.Close()
 
-	if _, err := conn.ExecContext(context.Background(),
-		`SELECT pg_advisory_lock(hashtext($1)::bigint)`,
-		schemaLockKey,
-	); err != nil {
-		return fmt.Errorf("could not acquire schema lock: %w", err)
-	}
-
-	defer func() {
-		_, _ = conn.ExecContext(context.Background(),
-			`SELECT pg_advisory_unlock(hashtext($1)::bigint)`,
-			schemaLockKey,
-		)
-	}()
-
-	return fn()
+    applied := map[int]appliedSchemaVersion{}
+    for rows.Next() {
+        var v appliedSchemaVersion
+        if err := rows.Scan(&v.version, &v.name, &v.checksum); err != nil {
+            return nil, fmt.Errorf("could not scan schema_versions row: %w", err)
+        }
+        applied[v.version] = v
+    }
+    if err := rows.Err(); err != nil {
+        return nil, fmt.Errorf("could not read schema_versions rows: %w", err)
+    }
+    return applied, nil
 }
 
-// InitializeSchema discovers the authoritative schema definitions, verifies
-// recorded definitions, applies pending definitions in order, and records
-// each successful definition atomically.
+func withSchemaLock(conn *sql.DB, lockKey string, fn func() error) error {
+    dedicated, err := conn.Conn(context.Background())
+    if err != nil {
+        return fmt.Errorf("could not acquire schema database connection: %w", err)
+    }
+    defer dedicated.Close()
+
+    if _, err := dedicated.ExecContext(context.Background(),
+        `SELECT pg_advisory_lock(hashtext($1)::bigint)`, lockKey); err != nil {
+        return fmt.Errorf("could not acquire schema lock: %w", err)
+    }
+    defer func() {
+        _, _ = dedicated.ExecContext(context.Background(),
+            `SELECT pg_advisory_unlock(hashtext($1)::bigint)`, lockKey)
+    }()
+
+    return fn()
+}
+
+func initializeSchema(conn *sql.DB, dir, lockKey string) error {
+    return withSchemaLock(conn, lockKey, func() error {
+        if err := ensureSchemaVersionsTable(conn); err != nil {
+            return err
+        }
+
+        files, err := discoverSchemaDefinitions(dir)
+        if err != nil {
+            return err
+        }
+
+        applied, err := appliedSchemaVersions(conn)
+        if err != nil {
+            return err
+        }
+
+        filesByVersion := make(map[int]schemaDefinition, len(files))
+        for _, f := range files {
+            filesByVersion[f.version] = f
+        }
+
+        for version, recorded := range applied {
+            f, exists := filesByVersion[version]
+            if !exists {
+                return fmt.Errorf("applied schema definition %d (%s) is missing", version, recorded.name)
+            }
+            if f.name != recorded.name {
+                return fmt.Errorf("schema definition %d filename mismatch: database records %q, filesystem contains %q", version, recorded.name, f.name)
+            }
+            checksum, err := schemaDefinitionChecksum(f.path)
+            if err != nil {
+                return fmt.Errorf("schema definition %d (%s): checksum calculation failed: %w", version, f.name, err)
+            }
+            if checksum != recorded.checksum {
+                return fmt.Errorf("schema definition %d (%s) checksum mismatch: database=%s filesystem=%s", version, f.name, recorded.checksum, checksum)
+            }
+        }
+
+        for _, f := range files {
+            if _, alreadyApplied := applied[f.version]; alreadyApplied {
+                continue
+            }
+            if err := applySchemaDefinition(conn, f); err != nil {
+                return err
+            }
+            fmt.Printf("Applied schema definition %d (%s) from %s\n", f.version, f.name, dir)
+        }
+        return nil
+    })
+}
+
+func applySchemaDefinition(conn *sql.DB, f schemaDefinition) error {
+    data, err := os.ReadFile(f.path)
+    if err != nil {
+        return fmt.Errorf("schema definition %d (%s): could not read file: %w", f.version, f.name, err)
+    }
+
+    sum := sha256.Sum256(data)
+    checksum := hex.EncodeToString(sum[:])
+
+    tx, err := conn.Begin()
+    if err != nil {
+        return fmt.Errorf("schema definition %d (%s): could not start transaction: %w", f.version, f.name, err)
+    }
+
+    if _, err := tx.Exec(string(data)); err != nil {
+        _ = tx.Rollback()
+        return fmt.Errorf("schema definition %d (%s) failed: %w", f.version, f.name, err)
+    }
+
+    if _, err := tx.Exec(
+        `INSERT INTO schema_versions(version, name, checksum) VALUES($1, $2, $3)`,
+        f.version, f.name, checksum); err != nil {
+        _ = tx.Rollback()
+        return fmt.Errorf("schema definition %d (%s): could not record success: %w", f.version, f.name, err)
+    }
+
+    if err := tx.Commit(); err != nil {
+        return fmt.Errorf("schema definition %d (%s): could not commit: %w", f.version, f.name, err)
+    }
+    return nil
+}
+
+// InitializeSchema initializes the authoritative control-plane schema.
 func InitializeSchema() error {
-	dir, err := schemaDefinitionsDir()
-	if err != nil {
-		return err
-	}
-	return initializeSchemaFromDir(dir)
+    dir, err := schemaDefinitionsDir("control-plane")
+    if err != nil {
+        return err
+    }
+    return initializeSchema(DB, dir, controlSchemaLockKey)
 }
 
-func initializeSchemaFromDir(dir string) error {
-	return withSchemaLock(func() error {
-		if err := ensureSchemaVersionsTable(); err != nil {
-			return err
-		}
-
-		files, err := discoverSchemaDefinitions(dir)
-		if err != nil {
-			return err
-		}
-
-		applied, err := appliedSchemaVersions()
-		if err != nil {
-			return err
-		}
-
-		filesByVersion := make(map[int]schemaDefinition, len(files))
-		for _, f := range files {
-			filesByVersion[f.version] = f
-		}
-
-		for version, recorded := range applied {
-			f, exists := filesByVersion[version]
-			if !exists {
-				return fmt.Errorf("applied schema definition %d (%s) is missing", version, recorded.name)
-			}
-			if f.name != recorded.name {
-				return fmt.Errorf("schema definition %d filename mismatch: database records %q, filesystem contains %q", version, recorded.name, f.name)
-			}
-
-			checksum, err := schemaDefinitionChecksum(f.path)
-			if err != nil {
-				return fmt.Errorf("schema definition %d (%s): could not calculate checksum: %w", version, f.name, err)
-			}
-			if checksum != recorded.checksum {
-				return fmt.Errorf("schema definition %d (%s) checksum mismatch: database=%s filesystem=%s", version, f.name, recorded.checksum, checksum)
-			}
-		}
-
-		for _, f := range files {
-			if _, alreadyApplied := applied[f.version]; alreadyApplied {
-				continue
-			}
-			if err := applySchemaDefinition(f); err != nil {
-				return err
-			}
-			fmt.Printf("Applied schema definition %d (%s)\n", f.version, f.name)
-		}
-
-		return nil
-	})
+// InitializeControlSchema is the explicit name for control-plane initialization.
+func InitializeControlSchema() error {
+    return InitializeSchema()
 }
 
-func applySchemaDefinition(f schemaDefinition) error {
-	data, err := os.ReadFile(f.path)
-	if err != nil {
-		return fmt.Errorf("schema definition %d (%s): could not read file: %w", f.version, f.name, err)
-	}
-
-	sum := sha256.Sum256(data)
-	checksum := hex.EncodeToString(sum[:])
-
-	tx, err := DB.Begin()
-	if err != nil {
-		return fmt.Errorf("schema definition %d (%s): could not start transaction: %w", f.version, f.name, err)
-	}
-
-	if _, err := tx.Exec(string(data)); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("schema definition %d (%s) failed: %w", f.version, f.name, err)
-	}
-
-	if _, err := tx.Exec(
-		`INSERT INTO schema_versions (version, name, checksum) VALUES ($1, $2, $3)`,
-		f.version, f.name, checksum,
-	); err != nil {
-		_ = tx.Rollback()
-		return fmt.Errorf("schema definition %d (%s): could not record success: %w", f.version, f.name, err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("schema definition %d (%s): could not commit: %w", f.version, f.name, err)
-	}
-
-	return nil
-}
-
-// InitializeTenantSchema applies only tenant-owned schema definitions.
-// Control-plane definitions (035+) intentionally remain in the control-plane database.
+// InitializeTenantSchema initializes the authoritative tenant-plane schema
+// against the supplied tenant database. It never consults the control DB schema.
 func InitializeTenantSchema(tenantDB *sql.DB) error {
-	dir, err := schemaDefinitionsDir()
-	if err != nil {
-		return err
-	}
-	files, err := discoverSchemaDefinitions(dir)
-	if err != nil {
-		return err
-	}
-
-	_, err = tenantDB.Exec(`
-		CREATE TABLE IF NOT EXISTS schema_versions (
-			version INTEGER PRIMARY KEY,
-			name VARCHAR(255) NOT NULL,
-			checksum VARCHAR(64) NOT NULL,
-			applied_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)`)
-	if err != nil {
-		return fmt.Errorf("could not create tenant schema_versions: %w", err)
-	}
-
-	for _, f := range files {
-		if f.version > 34 {
-			continue
-		}
-
-		var recorded string
-		err := tenantDB.QueryRow(
-			`SELECT checksum FROM schema_versions WHERE version=$1`,
-			f.version,
-		).Scan(&recorded)
-
-		if err == nil {
-			checksum, checksumErr := schemaDefinitionChecksum(f.path)
-			if checksumErr != nil {
-				return checksumErr
-			}
-			if checksum != recorded {
-				return fmt.Errorf("tenant schema definition %d checksum mismatch", f.version)
-			}
-			continue
-		}
-		if err != sql.ErrNoRows {
-			return err
-		}
-
-		data, err := os.ReadFile(f.path)
-		if err != nil {
-			return fmt.Errorf("could not read tenant schema definition %d: %w", f.version, err)
-		}
-		sum := sha256.Sum256(data)
-		checksum := hex.EncodeToString(sum[:])
-
-		tx, err := tenantDB.Begin()
-		if err != nil {
-			return fmt.Errorf("could not start tenant schema transaction: %w", err)
-		}
-		if _, err := tx.Exec(string(data)); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("tenant schema definition %d failed: %w", f.version, err)
-		}
-		if _, err := tx.Exec(
-			`INSERT INTO schema_versions(version,name,checksum) VALUES($1,$2,$3)`,
-			f.version, f.name, checksum,
-		); err != nil {
-			_ = tx.Rollback()
-			return fmt.Errorf("could not record tenant schema definition %d: %w", f.version, err)
-		}
-		if err := tx.Commit(); err != nil {
-			return fmt.Errorf("could not commit tenant schema definition %d: %w", f.version, err)
-		}
-	}
-	// Tenant databases are physically isolated, so tenant_id is the only
-	// customer identity they need. Remove the obsolete companies entity and
-	// any legacy foreign keys that pointed to it.
-	if _, err := tenantDB.Exec(`
-		DO $$
-		DECLARE r RECORD;
-		BEGIN
-			FOR r IN
-				SELECT conrelid::regclass AS table_name, conname
-				FROM pg_constraint
-				WHERE contype='f' AND confrelid='companies'::regclass
-			LOOP
-				EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.table_name, r.conname);
-			END LOOP;
-		END $$;
-		DROP TABLE IF EXISTS companies CASCADE;
-	`); err != nil {
-		return fmt.Errorf("remove obsolete companies entity: %w", err)
-	}
-	return nil
+    if tenantDB == nil {
+        return fmt.Errorf("tenant database connection is required")
+    }
+    dir, err := schemaDefinitionsDir("tenant-plane")
+    if err != nil {
+        return err
+    }
+    return initializeSchema(tenantDB, dir, tenantSchemaLockKey)
 }
