@@ -1,6 +1,6 @@
 -- 043_registration_email_uniqueness.sql
--- A trial email is a unique customer identity at registration time.
--- Enforce uniqueness in the database as well as in the API.
+-- Registration email addresses must be unique while pending or active.
+-- The permanent registration identity is enforced by migration 044.
 
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_email_lower
     ON users (LOWER(email));
