@@ -171,3 +171,37 @@ The implementation should be retained in the clean baseline, with its concurrenc
 ## Audit principle
 
 **Do not patch the historical architecture. Extract the intended final system and rebuild it cleanly.**
+
+## Implementation progress — final boundary pass
+
+The greenfield reconstruction has now started.
+
+### Completed
+- Final control-plane architecture frozen in `docs/architecture/final-control-plane.md`.
+- Final tenant-plane architecture frozen in `docs/architecture/final-tenant-plane.md`.
+- Added `backend/database/control-plane/001_baseline.sql`.
+- Added `backend/database/tenant-plane/001_baseline.sql`.
+- Migration runner no longer uses historical numeric cutoffs. Control and tenant schemas are initialized from explicit schema roots with independent `schema_versions`.
+- Tenant provisioning no longer mirrors users from the control database.
+- Tenant-local login now resolves platform routing/subscription first, then authenticates against the tenant database.
+- Admin user management now creates/updates/deletes tenant-local users and maintains only the control-plane routing record.
+- Phone verification now belongs to the control-plane platform account, not tenant `users`.
+- Razorpay subscription webhook idempotency now uses PostgreSQL `ON CONFLICT DO NOTHING` as the concurrency arbiter and records the event in the same transaction as subscription state.
+- Subscription webhook writes the required subscription user limit.
+- Interview persistence no longer requires legacy `job_id` or `company_name`.
+
+### Remaining RED work
+1. Remove remaining runtime tenant queries that select/insert `company_name`.
+2. Remove remaining Resume AI compatibility columns/queries that depend on `company_name`.
+3. Replace legacy activity/reporting reads with tenant `audit_events` and explicit application-generated events.
+4. Complete atomic user-limit enforcement under concurrent user creation.
+5. Complete atomic registration-email claim and verification replay handling.
+6. Complete tenant provisioning retry/recovery without requiring a tenant user to exist before the tenant DB is ready.
+7. Complete explicit tenant deletion sequence; no lifecycle meaning should depend on control-plane cascades.
+8. Move remaining tests from the historical shared schema to clean control/tenant databases.
+9. Remove legacy schema bootstrap assumptions and retire the historical migration chain from runtime execution.
+10. Run the full CI/UAT gate only after the clean baseline and handler/query audit are complete.
+
+### Current rule
+
+Do not add compatibility migrations to make the historical shared schema look like the new architecture. The final baselines are the target; Go code and tests are being brought to those contracts.
