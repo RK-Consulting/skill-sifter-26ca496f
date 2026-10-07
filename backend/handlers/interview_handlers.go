@@ -60,7 +60,7 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := interviewTenant(r)
 	var i models.Interview
-	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.JobID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName)
+	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName)
 	if err != nil {
 		respondWithError(w, 404, "Interview not found")
 		return
@@ -219,7 +219,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	name, jobID, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
+	name, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
 	if err != nil {
 		respondWithError(w, 404, "Candidate or requirement not found")
 		return
@@ -227,8 +227,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	i.ID = id
 	i.TenantID = tenantID
 	i.CandidateName = name
-	i.JobID = jobID
-	i.RequirementTitle = title
+		i.RequirementTitle = title
 	i.Position = title
 	_, err = db.RequestDB(r).Exec(`UPDATE interviews SET round=$1,interview_date=$2,status=$3,outcome=$4,feedback=$5,candidate_feedback=$6,next_action=$7,last_modified=NOW() WHERE id=$8 AND tenant_id=$9`, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, id, tenantID)
 	if err != nil {
