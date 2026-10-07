@@ -3,7 +3,6 @@ package handlers
 import (
 	"database/sql"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
@@ -20,41 +19,17 @@ type resumeAITestFixture struct {
 
 func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 	t.Helper()
-
-	connStr := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		getenvResumeAITest("TEST_DB_HOST", "localhost"),
-		getenvResumeAITest("TEST_DB_PORT", "5432"),
-		getenvResumeAITest("TEST_DB_USER", "postgres"),
-		getenvResumeAITest("TEST_DB_PASSWORD", "postgres"),
-		getenvResumeAITest("TEST_DB_NAME", "skillsifter_test"),
-	)
-
-	testDB, err := sql.Open("postgres", connStr)
-	if err != nil {
-		t.Skipf("Resume AI persistence test skipped: could not open test DB: %v", err)
-	}
-	if err := testDB.Ping(); err != nil {
-		t.Skipf("Resume AI persistence test skipped: test DB not reachable: %v", err)
-	}
-
-	var exists bool
-	if err := testDB.QueryRow("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'candidate_professional_profiles')").Scan(&exists); err != nil {
-		testDB.Close()
-		t.Fatalf("could not inspect Resume AI schema: %v", err)
-	}
-	if !exists {
-		testDB.Close()
-		t.Skip("Resume AI persistence test skipped: RAI-03 schema is not initialized")
+	testDB := handlerTenantDB
+	if testDB == nil {
+		t.Fatal("tenant test database is not initialized")
 	}
 
 	tenantID := fmt.Sprintf("rai03_test_%d", time.Now().UnixNano())
-		var candidateID int
+	var candidateID int
 	if err := testDB.QueryRow(
-		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id, company_name) VALUES ($1, $2, $3, '', '', '', '', '', '', '', 'active', $4, $5) RETURNING id",
-		"RAI-03 Test Candidate", "rai03-"+tenantID+"@example.com", "9000000000", tenantID, tenantID+" Company",
+		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ($1, $2, $3, '', '', '', '', '', '', '', 'active', $4) RETURNING id",
+		"RAI-03 Test Candidate", "rai03-"+tenantID+"@example.com", "9000000000", tenantID,
 	).Scan(&candidateID); err != nil {
-		testDB.Close()
 		t.Fatalf("could not create test candidate: %v", err)
 	}
 
@@ -63,28 +38,15 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 		"INSERT INTO resumes (tenant_id, candidate_id, file_name, file_path, file_hash, mime_type, extracted_text, parsing_status, parser_model) VALUES ($1, $2, 'rai03-test.txt', '/tmp/rai03-test.txt', $3, 'text/plain', 'test resume', 'processing', 'test-model') RETURNING id",
 		tenantID, candidateID, fmt.Sprintf("%064d", candidateID),
 	).Scan(&resumeID); err != nil {
-		testDB.Close()
 		t.Fatalf("could not create test resume: %v", err)
 	}
 
 	t.Cleanup(func() {
 		_, _ = testDB.Exec("DELETE FROM resumes WHERE id = $1", resumeID)
 		_, _ = testDB.Exec("DELETE FROM candidates WHERE id = $1", candidateID)
-		_, _ = testDB.Exec("DELETE FROM companies WHERE id = $1", tenantID)
-		testDB.Close()
-		if db.DB == testDB {
-			db.DB = nil
-		}
 	})
 
 	return resumeAITestFixture{db: testDB, tenantID: tenantID, candidateID: candidateID, resumeID: resumeID}
-}
-
-func getenvResumeAITest(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }
 
 func TestResumeDatePreservesPrecision(t *testing.T) {
@@ -118,7 +80,7 @@ func TestPersistResumeIntelligence(t *testing.T) {
 		Projects:            []resumeProject{{ProjectName: "Project Atlas", Role: "Lead", Technologies: []string{"golang", "Postgres"}, StartDate: "2023", EndYear: 2024}},
 	}
 
-	if err := persistResumeIntelligence(db.DB, fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
+	if err := persistResumeIntelligence(fx.db, fx.resumeID, fx.candidateID, fx.tenantID, ai); err != nil {
 		t.Fatalf("persistResumeIntelligence failed: %v", err)
 	}
 
@@ -203,17 +165,10 @@ func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	otherTenant := fmt.Sprintf("rai03_other_%d", time.Now().UnixNano())
-	if _, err := fx.db.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", otherTenant, otherTenant+" Company"); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		_, _ = fx.db.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", otherTenant)
-	}()
-
-	var otherCandidateID int
+	if _, err := fx.db.Exec("	var otherCandidateID int
 	if err := fx.db.QueryRow(
-		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id, company_name) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', '', 'active', $1, $2) RETURNING id",
-		otherTenant, otherTenant+" Company",
+		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', '', 'active', $1) RETURNING id",
+		otherTenant,
 	).Scan(&otherCandidateID); err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +178,7 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	got, err := upsertResumeCandidate(db.DB, "Fixture Company", fx.tenantID, resumeAIResult{
+	got, err := upsertResumeCandidate(fx.db, "Fixture Company", fx.tenantID, resumeAIResult{
 		Name:  "Tenant A Candidate",
 		Email: "shared@example.com",
 		Phone: "9222222222",
