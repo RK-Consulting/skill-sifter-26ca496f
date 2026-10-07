@@ -47,6 +47,14 @@ CREATE UNIQUE INDEX uq_platform_plans_provider_ref
     ON platform_plans(provider, provider_plan_ref)
     WHERE provider_plan_ref IS NOT NULL;
 
+INSERT INTO platform_plans (code,name,amount_minor,currency,billing_period,billing_interval,user_limit,total_count,provider,active)
+VALUES
+    ('starter_monthly','Starter Monthly',99900,'INR','month',1,3,NULL,'razorpay',TRUE),
+    ('starter_annual','Starter Annual',999000,'INR','year',1,3,NULL,'razorpay',TRUE),
+    ('professional_monthly','Professional Monthly',249900,'INR','month',1,10,NULL,'razorpay',TRUE),
+    ('professional_annual','Professional Annual',2499000,'INR','year',1,10,NULL,'razorpay',TRUE)
+ON CONFLICT (code) DO NOTHING;
+
 CREATE TABLE platform_subscriptions (
     id BIGSERIAL PRIMARY KEY,
     tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
