@@ -229,7 +229,7 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
 		return
 	}
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE LOWER(email)=LOWER($1)) OR EXISTS(SELECT 1 FROM users WHERE LOWER(email)=LOWER($1)) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE LOWER(email)=LOWER($1) AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
+	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not validate email")
 		return
 	}
@@ -352,7 +352,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not complete registration")
 		return
 	}
-	if _, err = tx.Exec("INSERT INTO platform_registration_registry(email,last_tenant_id,status) VALUES($1,$2,'REGISTERED')", email, tenantID); err != nil {
+	if _, err = tx.Exec("INSERT INTO platform_registration_registry(email_id,first_registered,last_tenant_id) VALUES($1,NOW(),$2)", email, tenantID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not record registration")
 		return
 	}
