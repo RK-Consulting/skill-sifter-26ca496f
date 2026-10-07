@@ -396,32 +396,25 @@ func ExpireDueSubscriptions() {
 
 func CleanupExpiredTrials() {
 	ExpireDueSubscriptions()
-	rows, err := db.DB.Query("SELECT t.tenant_id FROM platform_tenants t WHERE t.data_deletion_at IS NOT NULL AND t.data_deletion_at<=NOW() AND NOT EXISTS (SELECT 1 FROM platform_subscriptions s WHERE s.tenant_id=t.tenant_id AND s.status IN ('ACTIVE','PAST_DUE'))")
+	rows, err := db.DB.Query("SELECT tenant_id FROM platform_tenants WHERE data_deletion_at IS NOT NULL AND data_deletion_at<=NOW() AND NOT EXISTS (SELECT 1 FROM platform_subscriptions WHERE tenant_id=platform_tenants.tenant_id AND status IN ('ACTIVE','PAST_DUE'))")
 	if err != nil {
 		return
 	}
 	defer rows.Close()
+
 	for rows.Next() {
 		var tenantID string
 		if err := rows.Scan(&tenantID); err != nil {
 			continue
 		}
+
+		// The tenant database is outside PostgreSQL FK transactions, so remove
+		// it first. The control-plane root deletion below then cascades all
+		// tenant-owned control records, users, and compatibility company data.
 		if err := db.DeleteTenantDatabase(db.DB, tenantID); err != nil {
 			continue
 		}
-		tx, err := db.DB.Begin()
-		if err != nil {
-			continue
-		}
-		_, _ = tx.Exec("DELETE FROM platform_pending_registrations WHERE email IN (SELECT email FROM users WHERE tenant_id=$1)", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_verification_codes WHERE user_id IN (SELECT id FROM users WHERE tenant_id=$1)", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_user_accounts WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_subscription_events WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_subscription_checkouts WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_subscriptions WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM users WHERE tenant_id=$1", tenantID)
-		_, _ = tx.Exec("DELETE FROM companies WHERE id=$1", tenantID)
-		_ = tx.Commit()
+
+		_, _ = db.DB.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenantID)
 	}
 }
