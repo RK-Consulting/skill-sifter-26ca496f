@@ -7,13 +7,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 )
 
 // setupTestDB uses the authoritative tenant-plane baseline prepared by TestMain.
@@ -41,11 +39,6 @@ func withAuthContext(req *http.Request, companyName string) *http.Request {
 // loudly instead of silently reaching production.
 func TestAddCandidateAndGetCandidates(t *testing.T) {
 	testDB := setupTestDB(t)
-	defer testDB.Close()
-	if _, err := testDB.Exec("", "test_company", "Test Company"); err != nil {
-		t.Fatal(err)
-	}
-
 	candidate := models.Candidate{
 		Name:         "Test Candidate",
 		Email:        "test.candidate@example.com",
