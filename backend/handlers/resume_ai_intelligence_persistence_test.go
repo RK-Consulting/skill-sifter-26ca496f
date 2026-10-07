@@ -35,7 +35,6 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 		t.Skipf("Resume AI persistence test skipped: could not open test DB: %v", err)
 	}
 	if err := testDB.Ping(); err != nil {
-		testDB.Close()
 		t.Skipf("Resume AI persistence test skipped: test DB not reachable: %v", err)
 	}
 
@@ -49,15 +48,8 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 		t.Skip("Resume AI persistence test skipped: RAI-03 schema is not initialized")
 	}
 
-	db.DB = testDB
-
 	tenantID := fmt.Sprintf("rai03_test_%d", time.Now().UnixNano())
-	if _, err := testDB.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", tenantID, tenantID+" Company"); err != nil {
-		testDB.Close()
-		t.Fatalf("could not create test tenant: %v", err)
-	}
-
-	var candidateID int
+		var candidateID int
 	if err := testDB.QueryRow(
 		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id, company_name) VALUES ($1, $2, $3, '', '', '', '', '', '', '', 'active', $4, $5) RETURNING id",
 		"RAI-03 Test Candidate", "rai03-"+tenantID+"@example.com", "9000000000", tenantID, tenantID+" Company",
@@ -68,8 +60,8 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 
 	var resumeID int
 	if err := testDB.QueryRow(
-		"INSERT INTO resumes (tenant_id, company_name, candidate_id, file_name, file_path, file_hash, mime_type, extracted_text, parsing_status, parser_model) VALUES ($1, $2, $3, 'rai03-test.txt', '/tmp/rai03-test.txt', $4, 'text/plain', 'test resume', 'processing', 'test-model') RETURNING id",
-		tenantID, tenantID+" Company", candidateID, fmt.Sprintf("%064d", candidateID),
+		"INSERT INTO resumes (tenant_id, candidate_id, file_name, file_path, file_hash, mime_type, extracted_text, parsing_status, parser_model) VALUES ($1, $2, 'rai03-test.txt', '/tmp/rai03-test.txt', $3, 'text/plain', 'test resume', 'processing', 'test-model') RETURNING id",
+		tenantID, candidateID, fmt.Sprintf("%064d", candidateID),
 	).Scan(&resumeID); err != nil {
 		testDB.Close()
 		t.Fatalf("could not create test resume: %v", err)
