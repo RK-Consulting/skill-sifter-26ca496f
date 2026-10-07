@@ -34,6 +34,26 @@ func generateOTP() string {
 	return fmt.Sprintf("%06d", n.Int64())
 }
 
+type smtpLoginAuth struct {
+	username string
+	password string
+}
+
+func (a *smtpLoginAuth) Start(*smtp.ServerInfo) (string, []byte, error) {
+	return "LOGIN", []byte(a.username), nil
+}
+
+func (a *smtpLoginAuth) Next(challenge []byte, more bool) ([]byte, error) {
+	if !more {
+		return nil, nil
+	}
+	// Exim may issue either a username or password challenge.
+	if strings.Contains(strings.ToLower(string(challenge)), "user") {
+		return []byte(a.username), nil
+	}
+	return []byte(a.password), nil
+}
+
 func sendEmailOTP(to, code string) error {
 	host := os.Getenv("SMTP_HOST")
 	port := os.Getenv("SMTP_PORT")
@@ -50,7 +70,7 @@ func sendEmailOTP(to, code string) error {
 
 	msg := []byte("From: " + from + "\r\nTo: " + to + "\r\nSubject: Your SkillSifter verification code\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nYour SkillSifter verification code is " + code + ". It expires in 10 minutes.\r\n")
 	var auth smtp.Auth
-	if user != "" {
+	if user != "" && port != "465" {
 		auth = smtp.PlainAuth("", user, password, host)
 	}
 
@@ -72,7 +92,17 @@ func sendEmailOTP(to, code string) error {
 		}
 		defer client.Close()
 
-		if auth != nil {
+		if user != "" {
+			// Exim commonly advertises AUTH PLAIN and/or LOGIN on implicit TLS.
+			// Prefer PLAIN; fall back to LOGIN when PLAIN is unavailable.
+			if ok, mechanisms := client.Extension("AUTH"); ok && strings.Contains(strings.ToUpper(mechanisms), "PLAIN") {
+				auth = smtp.PlainAuth("", user, password, host)
+			} else if ok && strings.Contains(strings.ToUpper(mechanisms), "LOGIN") {
+				auth = &smtpLoginAuth{username: user, password: password}
+			}
+			if auth == nil {
+				return fmt.Errorf("SMTP server does not advertise a supported AUTH mechanism")
+			}
 			if err := client.Auth(auth); err != nil {
 				return err
 			}
