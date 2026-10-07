@@ -48,7 +48,6 @@ func UploadCandidateResume(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
 		return
 	}
-	company, _ := r.Context().Value("companyName").(string)
 	userID, _ := r.Context().Value("userID").(int)
 
 	// Confirm the candidate actually belongs to this tenant before
@@ -89,7 +88,7 @@ func UploadCandidateResume(w http.ResponseWriter, r *http.Request) {
 	hash := sha256.Sum256(data)
 	hashHex := hex.EncodeToString(hash[:])
 
-	root := filepath.Join(resumeStoragePath(), safeResumeName(company))
+	root := filepath.Join(resumeStoragePath(), safeResumeName(tenantID))
 	if err := os.MkdirAll(root, 0750); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create resume storage")
 		return
@@ -106,12 +105,12 @@ func UploadCandidateResume(w http.ResponseWriter, r *http.Request) {
 	var resumeID int
 	err = db.RequestDB(r).QueryRow(`
 		INSERT INTO resumes (
-			company_name, candidate_id, file_name, file_path, file_hash,
+			tenant_id, candidate_id, file_name, file_path, file_hash,
 			mime_type, parsing_status, uploaded_by
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, 'completed', $7)
 		RETURNING id`,
-		company, candidateID, safeName, path, hashHex, header.Header.Get("Content-Type"), userID,
+		tenantID, candidateID, safeName, path, hashHex, header.Header.Get("Content-Type"), userID,
 	).Scan(&resumeID)
 
 	if err != nil {
