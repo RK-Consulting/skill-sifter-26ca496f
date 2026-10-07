@@ -229,7 +229,7 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
 		return
 	}
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
+	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM users WHERE LOWER(email)=LOWER($1)) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not validate email")
 		return
 	}
@@ -327,6 +327,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 
 	var userID int
 	if err = tx.QueryRow("INSERT INTO users(username,email,password,role,tenant_id,company_name,email_verified_at,created_at) VALUES($1,$2,$3,'admin',$4,$5,NOW(),NOW()) RETURNING id", username, email, passwordHash, tenantID, company).Scan(&userID); err != nil {
+		log.Printf("registration user creation failed for %s: %v", email, err)
 		respondWithError(w, http.StatusInternalServerError, "Could not create account")
 		return
 	}
