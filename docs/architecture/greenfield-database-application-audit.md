@@ -225,9 +225,18 @@ Do not add compatibility migrations to make the historical shared schema look li
 ### Remaining RED work
 1. Remove remaining compatibility fields from API/domain models where they represent deleted physical columns.
 2. Add explicit audit-event writes to the successful recruitment transactions; the report reader is already on the final `audit_events` model.
-3. Rewrite handler/domain tests against clean control-plane and tenant-plane baselines.
-4. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
-5. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+3. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
+4. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+
+### Completed — clean-baseline test reconstruction
+- Handler integration tests now initialize separate control-plane and tenant-plane PostgreSQL databases from the authoritative baselines.
+- Tenant-owned handler tests receive the tenant DB through request context, matching production routing.
+- Domain service fixtures initialize only the tenant baseline and no longer manufacture `platform_tenants` or tenant `company_name` columns.
+- Retired `business_dev` and `daily_jobs` isolation tests were removed from the runtime test suite.
+- Added a final-plane contract test verifying required tables, forbidden legacy tables, and absence of tenant-to-control-plane foreign keys.
+- Requirements tests no longer use `job_id`/legacy `required_skills` fixtures.
+- Final verification through the full local/CI test gate remains pending; no workflow run was exposed for the latest commits yet.
+
 
 ### Completed — tenant deletion lifecycle
 - Tenant deletion now acquires a per-tenant advisory lock and re-checks retention/subscription eligibility under a row lock.
