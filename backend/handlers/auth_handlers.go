@@ -87,26 +87,33 @@ func legacyLoginUser(w http.ResponseWriter, r *http.Request) {
 // GetUsers fetches all users for a tenant (admin only). Scoped by the
 // authenticated tenant_id (ADR 0001), not by company_name.
 func GetUsers(w http.ResponseWriter, r *http.Request) {
-	tenantID := r.Context().Value("tenantID").(string)
+	tenantID, tenantDB, err := tenantUserDB(r)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
+		return
+	}
 
 	users := []models.User{}
-	rows, err := db.DB.Query(`
-		SELECT id, username, email, role, tenant_id, company_name, created_at
-		FROM users 
-		WHERE tenant_id = $1`, tenantID)
-
+	rows, err := tenantDB.Query(`
+		SELECT id, username, email, role, tenant_id, created_at
+		FROM users
+		WHERE tenant_id=$1
+		ORDER BY id
+	`, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error fetching users")
 		return
 	}
 	defer rows.Close()
 
+	companyName, _ := r.Context().Value("companyName").(string)
 	for rows.Next() {
 		var u models.User
-		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.TenantID, &u.CompanyName, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.Username, &u.Email, &u.Role, &u.TenantID, &u.CreatedAt); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning user row")
 			return
 		}
+		u.CompanyName = companyName
 		users = append(users, u)
 	}
 
