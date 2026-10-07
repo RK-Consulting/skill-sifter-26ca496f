@@ -85,17 +85,6 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		if !exists {
 			return nil, ErrClientNotFound
 		}
-	case RecipientHiringManager:
-		if input.RecipientUserID == nil {
-			return nil, ErrInvalidRecipient
-		}
-		var exists bool
-		if err := s.db.QueryRow(`SELECT EXISTS(SELECT 1 FROM users WHERE id=$1 AND tenant_id=$2)`, *input.RecipientUserID, tenantID).Scan(&exists); err != nil {
-			return nil, err
-		}
-		if !exists {
-			return nil, ErrRecipientNotFound
-		}
 	}
 
 	var candidateSnapshot, requirementSnapshot []byte
