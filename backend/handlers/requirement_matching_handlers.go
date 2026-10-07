@@ -137,7 +137,7 @@ func loadCandidateForMatching(r *http.Request, tenantID string, candidateID int)
 func buildRequirementMatch(req models.Requirement, candidate requirementMatchCandidate) matching.MatchResult {
 	return matching.Evaluate(
 		matching.RequirementEvidence{
-			RequiredSkills:         req.RequiredSkills,
+			RequiredSkills:         req.MandatoryRequirements,
 			MandatoryRequirements:  req.MandatoryRequirements,
 			ExperienceRequired:     req.ExperienceRequired,
 			LanguageRequirements:   req.LanguageRequirements,
