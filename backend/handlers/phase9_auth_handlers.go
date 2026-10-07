@@ -66,15 +66,6 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	role := "admin"
 
-	if _, err = tx.Exec(`
-		INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status)
-		VALUES($1, $2, 'ACTIVE', 'PENDING')
-		ON CONFLICT (tenant_id) DO NOTHING
-	`, companyID, creds.CompanyName); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
-		return
-	}
-
 	var planLimit int
 	if err = tx.QueryRow(
 		"SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE",
@@ -101,7 +92,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseName, userID, err := db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName, &db.TenantUser{Username: creds.Username, Email: creds.Email, Password: hashedPassword, Role: role})
+	_, userID, err := db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName, &db.TenantUser{Username: creds.Username, Email: creds.Email, Password: hashedPassword, Role: role})
 	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed; administrator can retry provisioning")
 		return
@@ -196,17 +187,6 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	user.CompanyName = ""
 	user.Role = platformRole
 
-	user.Password = ""
-	access, err := platformaccess.ResolveLoginAccess(db.DB, user.ID, user.TenantID)
-	if err != nil {
-		access, err = platformaccess.ResolveProvisioningAccess(db.DB, user.ID, user.TenantID)
-		if err != nil {
-			respondWithError(w, http.StatusForbidden, "Tenant subscription or access is not active")
-			return
-		}
-	}
-	user.Role = access.Role
-	user.TenantID = access.TenantID
 
 	tokenString, err := auth.GenerateToken(user, user.Role)
 	if err != nil {
