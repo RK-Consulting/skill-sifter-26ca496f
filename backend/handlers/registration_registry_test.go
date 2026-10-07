@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"strings"
 	"testing"
-
 )
 
 func openRegistryTestDB(t *testing.T) *sql.DB {
