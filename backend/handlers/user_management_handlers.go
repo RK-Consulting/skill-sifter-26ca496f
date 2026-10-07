@@ -112,6 +112,29 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The control plane is the authentication source, while the tenant database
+	// owns recruitment-domain user references. Keep the mirrored user row in
+	// sync immediately after creating the control-plane account.
+	tenantDB := db.RequestDB(r)
+	if tenantDB != db.DB {
+		if _, err = tenantDB.Exec(`
+			INSERT INTO users(id,username,email,password,role,tenant_id,company_name,created_at)
+			SELECT id,username,email,password,role,tenant_id,company_name,created_at
+			FROM users WHERE id=$1
+			ON CONFLICT(id) DO UPDATE
+			SET username=EXCLUDED.username,
+			    email=EXCLUDED.email,
+			    password=EXCLUDED.password,
+			    role=EXCLUDED.role,
+			    tenant_id=EXCLUDED.tenant_id,
+			    company_name=EXCLUDED.company_name
+		`, userID); err != nil {
+			_, _ = db.DB.Exec("DELETE FROM users WHERE id=$1 AND tenant_id=$2", userID, tenantID)
+			respondWithError(w, http.StatusInternalServerError, "Could not synchronize tenant user")
+			return
+		}
+	}
+
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
 		Success: true,
 		Message: "User created successfully",
@@ -132,11 +155,11 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 	targetID := vars["id"]
 	tenantID := r.Context().Value("tenantID").(string)
 
-	var currentRole string
+	var currentUsername, currentEmail, currentRole string
 	err := db.DB.QueryRow(
-		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
+		`SELECT username, email, role FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
-	).Scan(&currentRole)
+	).Scan(&currentUsername, &currentEmail, &currentRole)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
@@ -196,6 +219,26 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantDB := db.RequestDB(r)
+	if tenantDB != db.DB {
+		_, tenantErr := tenantDB.Exec(
+			`UPDATE users SET
+				username = COALESCE(NULLIF($1, ''), username),
+				email = COALESCE(NULLIF($2, ''), email),
+				role = COALESCE(NULLIF($3, ''), role)
+			WHERE id = $4 AND tenant_id = $5`,
+			update.Username, update.Email, update.Role, targetID, tenantID,
+		)
+		if tenantErr != nil {
+			_, _ = db.DB.Exec(
+				`UPDATE users SET username=$1,email=$2,role=$3 WHERE id=$4 AND tenant_id=$5`,
+				currentUsername, currentEmail, currentRole, targetID, tenantID,
+			)
+			respondWithError(w, http.StatusInternalServerError, "Could not synchronize tenant user")
+			return
+		}
+	}
+
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "User updated successfully",
@@ -207,11 +250,13 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 	targetID := vars["id"]
 	tenantID := r.Context().Value("tenantID").(string)
 
-	var targetRole string
+	var targetUsername, targetEmail, targetPassword, targetRole, targetCompany string
+	var targetCreatedAt time.Time
 	err := db.DB.QueryRow(
-		`SELECT role FROM users WHERE id = $1 AND tenant_id = $2`,
+		`SELECT username, email, password, role, company_name, created_at
+		 FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
-	).Scan(&targetRole)
+	).Scan(&targetUsername, &targetEmail, &targetPassword, &targetRole, &targetCompany, &targetCreatedAt)
 	if err == sql.ErrNoRows {
 		respondWithError(w, http.StatusNotFound, "User not found")
 		return
@@ -225,11 +270,32 @@ func DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantDB := db.RequestDB(r)
+	if tenantDB != db.DB {
+		if _, tenantErr := tenantDB.Exec(
+			`DELETE FROM users WHERE id=$1 AND tenant_id=$2`,
+			targetID, tenantID,
+		); tenantErr != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not synchronize tenant user deletion")
+			return
+		}
+	}
+
 	_, err = db.DB.Exec(
 		`DELETE FROM users WHERE id = $1 AND tenant_id = $2`,
 		targetID, tenantID,
 	)
 	if err != nil {
+		if tenantDB != db.DB {
+			_, _ = tenantDB.Exec(
+				`INSERT INTO users(id,username,email,password,role,tenant_id,company_name,created_at)
+				 VALUES($1,$2,$3,$4,$5,$6,$7,$8)
+				 ON CONFLICT(id) DO UPDATE SET username=EXCLUDED.username,email=EXCLUDED.email,
+				 password=EXCLUDED.password,role=EXCLUDED.role,tenant_id=EXCLUDED.tenant_id,
+				 company_name=EXCLUDED.company_name`,
+				targetID, targetUsername, targetEmail, targetPassword, targetRole, tenantID, targetCompany, targetCreatedAt,
+			)
+		}
 		respondWithError(w, http.StatusInternalServerError, "Error deleting user")
 		return
 	}
