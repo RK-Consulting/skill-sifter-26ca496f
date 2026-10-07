@@ -59,7 +59,14 @@ func setupTestDB(t *testing.T) *sql.DB {
 	}
 
 	testDB.Exec(`
-		CREATE TABLE IF NOT EXISTS companies (
+		CREATE TABLE IF NOT EXISTS platform_tenants (
+			tenant_id VARCHAR(255) PRIMARY KEY,
+			company_name VARCHAR(255) NOT NULL,
+			account_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+			provisioning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
+		)
+		-- 
 			id VARCHAR(255) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL UNIQUE,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -79,7 +86,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 			noticeperiod VARCHAR(100),
 			jobdescription VARCHAR(500),
 			status VARCHAR(50) NOT NULL DEFAULT 'active',
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW(),
 			CONSTRAINT candidates_status_valid CHECK (
@@ -91,7 +98,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	testDB.Exec(`
 		CREATE TABLE IF NOT EXISTS candidate_language_expertise (
 			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
 			candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
 			language VARCHAR(100) NOT NULL,
 			proficiency_framework VARCHAR(50) NOT NULL,
@@ -106,7 +113,7 @@ func setupTestDB(t *testing.T) *sql.DB {
 	testDB.Exec(`
 		CREATE TABLE IF NOT EXISTS candidate_expertise (
 			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
 			candidate_id INTEGER NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
 			skill VARCHAR(100) NOT NULL,
 			category VARCHAR(100) NOT NULL,
@@ -120,10 +127,10 @@ func setupTestDB(t *testing.T) *sql.DB {
 
 	testDB.Exec(`CREATE INDEX IF NOT EXISTS idx_candidate_language_expertise_tenant_candidate ON candidate_language_expertise(tenant_id, candidate_id)`)
 	testDB.Exec(`CREATE INDEX IF NOT EXISTS idx_candidate_expertise_tenant_candidate ON candidate_expertise(tenant_id, candidate_id)`)
-	testDB.Exec(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`)
+	testDB.Exec(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`)
 
-	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('test_company', 'test_company') ON CONFLICT (id) DO NOTHING`)
-	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('other_company', 'other_company') ON CONFLICT (id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, provisioning_status, account_status) VALUES ('test_company', 'test_company', 'READY', 'ACTIVE') ON CONFLICT (tenant_id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, provisioning_status, account_status) VALUES ('other_company', 'other_company', 'READY', 'ACTIVE') ON CONFLICT (tenant_id) DO NOTHING`)
 
 	// Clean slate for this test run.
 	testDB.Exec(`DELETE FROM candidate_language_expertise WHERE tenant_id IN ('test_company', 'other_company')`)
