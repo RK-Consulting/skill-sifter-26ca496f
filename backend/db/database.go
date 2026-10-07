@@ -258,26 +258,139 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID string, initialUser *Te
     return databaseName, tenantUserID, nil
 }
 
-// DeleteTenantDatabase permanently removes the tenant database and is intended
-// only for expired, unsubscribed trial tenants after the retention window.
+// DeleteTenantDatabase performs the complete application-owned tenant deletion lifecycle.
+//
+// The control plane is updated first so authentication/provisioning paths can no
+// longer admit the tenant. The tenant connection pool is then invalidated, the
+// physical database is dropped, and only after that succeeds are the operational
+// control-plane records removed. The permanent registration registry is retained.
+//
+// Deletion is deliberately retryable: if the physical drop or final control-plane
+// cleanup fails, the tenant remains TERMINATED and a later invocation can resume.
 func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 	if tenantID == "" {
 		return fmt.Errorf("tenant id is required")
 	}
-	databaseName := TenantDatabaseName(tenantID)
+
+	lockConn, err := controlDB.Conn(context.Background())
+	if err != nil {
+		return fmt.Errorf("acquire tenant deletion connection: %w", err)
+	}
+	defer lockConn.Close()
+
+	if _, err = lockConn.ExecContext(context.Background(),
+		"SELECT pg_advisory_lock(hashtext($1)::bigint)", "skill-sifter:delete:"+tenantID); err != nil {
+		return fmt.Errorf("acquire tenant deletion lock: %w", err)
+	}
+	defer func() {
+		_, _ = lockConn.ExecContext(context.Background(),
+			"SELECT pg_advisory_unlock(hashtext($1)::bigint)", "skill-sifter:delete:"+tenantID)
+	}()
+
+	// Phase 1: disable the tenant atomically and re-check deletion eligibility
+	// while holding the tenant row lock. A concurrent renewal cannot race this
+	// decision without observing the TERMINATED state.
+	tx, err := controlDB.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tenant deletion: %w", err)
+	}
+	defer tx.Rollback()
+
+	var accountStatus, provisioningStatus, databaseName string
+	var deletionAt *time.Time
+	var hasActiveSubscription bool
+	err = tx.QueryRow(
+		`SELECT account_status, provisioning_status, COALESCE(tenant_database,''), data_deletion_at,
+				EXISTS(SELECT 1 FROM platform_subscriptions s
+					WHERE s.tenant_id=platform_tenants.tenant_id
+					  AND s.status IN ('ACTIVE','PAST_DUE'))
+		 FROM platform_tenants
+		 WHERE tenant_id=$1
+		 FOR UPDATE`, tenantID,
+	).Scan(&accountStatus, &provisioningStatus, &databaseName, &deletionAt, &hasActiveSubscription)
+	if err == sql.ErrNoRows {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("read tenant deletion state: %w", err)
+	}
+	if hasActiveSubscription {
+		return fmt.Errorf("tenant has an active subscription")
+	}
+	if deletionAt != nil && deletionAt.After(time.Now()) {
+		return fmt.Errorf("tenant retention window has not expired")
+	}
+
+	if accountStatus != "TERMINATED" {
+		if _, err = tx.Exec(
+			`UPDATE platform_tenants
+			 SET account_status='TERMINATED', updated_at=NOW()
+			 WHERE tenant_id=$1`, tenantID); err != nil {
+			return fmt.Errorf("disable tenant access: %w", err)
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		return fmt.Errorf("commit tenant access shutdown: %w", err)
+	}
+
+	// Phase 2: invalidate the process-local tenant pool before DROP DATABASE.
+	// Closing database/sql prevents new work from being scheduled on the pool;
+	// DROP DATABASE WITH (FORCE) handles any remaining PostgreSQL sessions.
 	if cached, ok := tenantDBs.Load(tenantID); ok {
 		cached.(*sql.DB).Close()
 		tenantDBs.Delete(tenantID)
 	}
 
+	if databaseName == "" {
+		databaseName = TenantDatabaseName(tenantID)
+	}
+
+	// Phase 3: physically retire the tenant database. PostgreSQL requires DROP
+	// DATABASE to run outside a transaction and not while connected to the
+	// target database, so this uses the control/maintenance database.
 	adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
 	if err != nil {
 		return fmt.Errorf("open control database for tenant deletion: %w", err)
 	}
 	defer adminDB.Close()
 
-	if _, err := adminDB.Exec("DROP DATABASE IF EXISTS " + databaseName + " WITH (FORCE)"); err != nil {
+	if _, err = adminDB.Exec("DROP DATABASE IF EXISTS " + databaseName + " WITH (FORCE)"); err != nil {
+		_, _ = controlDB.Exec(
+			`UPDATE platform_tenants
+			 SET provisioning_status='FAILED', updated_at=NOW()
+			 WHERE tenant_id=$1`, tenantID)
 		return fmt.Errorf("drop tenant database: %w", err)
 	}
+
+	// Phase 4: remove operational control-plane records explicitly. Do not rely
+	// on PostgreSQL cascades to define tenant lifecycle semantics. The permanent
+	// platform_registration_registry record is intentionally retained.
+	cleanupTx, err := controlDB.Begin()
+	if err != nil {
+		return fmt.Errorf("begin tenant control cleanup: %w", err)
+	}
+	defer cleanupTx.Rollback()
+
+	cleanup := []string{
+		`DELETE FROM platform_verification_codes
+		 WHERE platform_account_id IN (
+			 SELECT id FROM platform_user_accounts WHERE tenant_id=$1
+		 )`,
+		`DELETE FROM platform_user_accounts WHERE tenant_id=$1`,
+		`DELETE FROM platform_subscription_events WHERE tenant_id=$1`,
+		`DELETE FROM platform_subscription_checkouts WHERE tenant_id=$1`,
+		`DELETE FROM platform_subscriptions WHERE tenant_id=$1`,
+		`DELETE FROM platform_tenants WHERE tenant_id=$1`,
+	}
+	for _, statement := range cleanup {
+		if _, err = cleanupTx.Exec(statement, tenantID); err != nil {
+			return fmt.Errorf("remove tenant control record: %w", err)
+		}
+	}
+	if err = cleanupTx.Commit(); err != nil {
+		return fmt.Errorf("commit tenant control cleanup: %w", err)
+	}
+
+	_ = provisioningStatus
 	return nil
 }
