@@ -23,7 +23,7 @@ type requirementMatchCandidate struct {
 func loadRequirementForMatching(r *http.Request, tenantID string, id int) (models.Requirement, error) {
 	var req models.Requirement
 	err := db.RequestDB(r).QueryRow(`
-		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
+		SELECT id, client_id, COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
 			COALESCE(work_arrangement, ''), COALESCE(mandatory_requirements, ''),
@@ -32,7 +32,7 @@ func loadRequirementForMatching(r *http.Request, tenantID string, id int) (model
 		FROM requirements WHERE id = $1 AND tenant_id = $2`,
 		id, tenantID,
 	).Scan(
-		&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
+		&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
 		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
 		&req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
@@ -190,7 +190,6 @@ func GetRequirementCandidateMatch(w http.ResponseWriter, r *http.Request) {
 		Message: "Requirement match evidence retrieved",
 		Data: map[string]interface{}{
 			"requirementId": req.ID,
-			"jobId":         req.JobID,
 			"candidateId":   candidate.ID,
 			"match":         result,
 		},
@@ -247,7 +246,6 @@ func GetRequirementMatches(w http.ResponseWriter, r *http.Request) {
 		Message: "Requirement match evidence retrieved",
 		Data: map[string]interface{}{
 			"requirementId": req.ID,
-			"jobId":         req.JobID,
 			"matches":       results,
 		},
 	})
