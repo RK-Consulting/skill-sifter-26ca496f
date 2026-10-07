@@ -3,13 +3,14 @@ package screening
 import (
 	"database/sql"
 	"fmt"
-	appdb "github.com/RK-Consulting/skill-sifter/db"
-	_ "github.com/lib/pq"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
+
+	appdb "github.com/RK-Consulting/skill-sifter/db"
+	_ "github.com/lib/pq"
 )
 
 func testDB(t *testing.T) *sql.DB {
