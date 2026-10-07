@@ -153,6 +153,9 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 	testDB := setupTestDB(t)
 	defer testDB.Close()
 	db.DB = testDB // substitute the package-level connection used by the real handlers
+	if _, err := testDB.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE') ON CONFLICT (tenant_id) DO NOTHING", "test_company", "Test Company"); err != nil {
+		t.Fatal(err)
+	}
 
 	candidate := models.Candidate{
 		Name:         "Test Candidate",
