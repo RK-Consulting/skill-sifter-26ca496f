@@ -35,104 +35,125 @@ func validOperationalRole(role string) bool {
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
-    tenantID, tenantDB, err := tenantUserDB(r)
-    if err != nil {
-        respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
-        return
-    }
-    companyName, _ := r.Context().Value("companyName").(string)
+	tenantID, tenantDB, err := tenantUserDB(r)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
+		return
+	}
+	companyName, _ := r.Context().Value("companyName").(string)
 
-    var input struct {
-        Username string `json:"username"`
-        Email    string `json:"email"`
-        Password string `json:"password"`
-        Role     string `json:"role"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-        return
-    }
-    defer r.Body.Close()
+	var input struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Password string `json:"password"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
 
-    input.Username = strings.TrimSpace(input.Username)
-    input.Email = strings.ToLower(strings.TrimSpace(input.Email))
-    if input.Username == "" || input.Email == "" || input.Password == "" {
-        respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
-        return
-    }
-    if !validOperationalRole(input.Role) {
-        respondWithError(w, http.StatusBadRequest, "Additional users must have role manager, recruiter, or team_leader")
-        return
-    }
+	input.Username = strings.TrimSpace(input.Username)
+	input.Email = strings.ToLower(strings.TrimSpace(input.Email))
+	if input.Username == "" || input.Email == "" || input.Password == "" {
+		respondWithError(w, http.StatusBadRequest, "Username, email and password are required")
+		return
+	}
+	if !validOperationalRole(input.Role) {
+		respondWithError(w, http.StatusBadRequest, "Additional users must have role manager, recruiter, or team_leader")
+		return
+	}
 
-    var userLimit int
-    if err := db.DB.QueryRow(`
-        SELECT user_limit
-        FROM platform_subscriptions
-        WHERE tenant_id=$1
-          AND status IN ('TRIAL','ACTIVE')
-          AND (ends_at IS NULL OR ends_at >= NOW())
-        ORDER BY starts_at DESC, id DESC
-        LIMIT 1
-    `, tenantID).Scan(&userLimit); err != nil {
-        if err == sql.ErrNoRows {
-            respondWithError(w, http.StatusForbidden, "No active subscription for this tenant")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Could not read subscription user limit")
-        return
-    }
+	// User-limit enforcement is a cross-database operation. Serialize it per
+	// tenant with a PostgreSQL advisory transaction lock so two simultaneous
+	// requests cannot both observe the same free slot.
+	controlTx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not start user creation")
+		return
+	}
+	defer controlTx.Rollback()
 
-    var userCount int
-    if err := tenantDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount); err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not count tenant users")
-        return
-    }
-    if userCount >= userLimit {
-        respondWithError(w, http.StatusConflict, "Subscription user limit reached")
-        return
-    }
+	if _, err = controlTx.Exec("SELECT pg_advisory_xact_lock(hashtext($1)::bigint)", "skill-sifter:user-limit:"+tenantID); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not lock tenant user limit")
+		return
+	}
 
-    hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
-    if err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not hash password")
-        return
-    }
+	var userLimit int
+	if err = controlTx.QueryRow(`
+		SELECT user_limit
+		FROM platform_subscriptions
+		WHERE tenant_id=$1
+		  AND status IN ('TRIAL','ACTIVE')
+		  AND (ends_at IS NULL OR ends_at >= NOW())
+		ORDER BY starts_at DESC, id DESC
+		LIMIT 1
+	`, tenantID).Scan(&userLimit); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusForbidden, "No active subscription for this tenant")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not read subscription user limit")
+		return
+	}
 
-    var userID int
-    if err := tenantDB.QueryRow(`
-        INSERT INTO users(username,email,password,role,tenant_id)
-        VALUES($1,$2,$3,$4,$5)
-        RETURNING id
-    `, input.Username, input.Email, string(hashedPassword), input.Role, tenantID).Scan(&userID); err != nil {
-        if strings.Contains(err.Error(), "unique") {
-            respondWithError(w, http.StatusConflict, "Email already exists")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Could not create tenant user")
-        return
-    }
+	var userCount int
+	if err = tenantDB.QueryRow("SELECT COUNT(*) FROM users").Scan(&userCount); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not count tenant users")
+		return
+	}
+	if userCount >= userLimit {
+		respondWithError(w, http.StatusConflict, "Subscription user limit reached")
+		return
+	}
 
-    if _, err := db.DB.Exec(`
-        INSERT INTO platform_user_accounts(tenant_id,user_id,email,role)
-        VALUES($1,$2,$3,$4)
-        ON CONFLICT (tenant_id,user_id) DO UPDATE
-        SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()
-    `, tenantID, userID, input.Email, input.Role); err != nil {
-        _, _ = tenantDB.Exec("DELETE FROM users WHERE id=$1", userID)
-        respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
-        return
-    }
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not hash password")
+		return
+	}
 
-    respondWithJSON(w, http.StatusCreated, models.ApiResponse{
-        Success: true,
-        Message: "User created successfully",
-        Data: models.User{
-            ID: userID, Username: input.Username, Email: input.Email,
-            Role: input.Role, TenantID: tenantID, CompanyName: companyName,
-            CreatedAt: time.Now(),
-        },
-    })
+	var userID int
+	if err = tenantDB.QueryRow(`
+		INSERT INTO users(username,email,password,role,tenant_id)
+		VALUES($1,$2,$3,$4,$5)
+		RETURNING id
+	`, input.Username, input.Email, string(hashedPassword), input.Role, tenantID).Scan(&userID); err != nil {
+		if strings.Contains(err.Error(), "unique") {
+			respondWithError(w, http.StatusConflict, "Email already exists")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not create tenant user")
+		return
+	}
+
+	if _, err = controlTx.Exec(`
+		INSERT INTO platform_user_accounts(tenant_id,user_id,email,role)
+		VALUES($1,$2,$3,$4)
+		ON CONFLICT (tenant_id,user_id) DO UPDATE
+		SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()
+	`, tenantID, userID, input.Email, input.Role); err != nil {
+		_, _ = tenantDB.Exec("DELETE FROM users WHERE id=$1", userID)
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
+		return
+	}
+
+	if err = controlTx.Commit(); err != nil {
+		_, _ = tenantDB.Exec("DELETE FROM users WHERE id=$1", userID)
+		respondWithError(w, http.StatusInternalServerError, "Could not commit user creation")
+		return
+	}
+
+	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
+		Success: true,
+		Message: "User created successfully",
+		Data: models.User{
+			ID: userID, Username: input.Username, Email: input.Email,
+			Role: input.Role, TenantID: tenantID, CompanyName: companyName,
+			CreatedAt: time.Now(),
+		},
+	})
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
