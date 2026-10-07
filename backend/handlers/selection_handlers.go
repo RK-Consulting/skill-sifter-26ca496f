@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
@@ -174,6 +175,11 @@ func CreateCandidateRequirementSelection(w http.ResponseWriter, r *http.Request)
 
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing selection")
+		return
+	}
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "selection", selection.ID, "created", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "decision": req.Decision}); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error recording selection audit event")
 		return
 	}
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{
