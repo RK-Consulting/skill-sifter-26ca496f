@@ -57,6 +57,13 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 
 	companyID := fmt.Sprintf("comp_%s", strings.ReplaceAll(strings.ToLower(creds.CompanyName), " ", "_"))
 	if _, err = tx.Exec(
+		"INSERT INTO platform_tenants(tenant_id, company_name, account_status, provisioning_status) VALUES($1, $2, 'ACTIVE', 'PENDING') ON CONFLICT (tenant_id) DO NOTHING",
+		companyID, creds.CompanyName,
+	); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform tenant")
+		return
+	}
+	if _, err = tx.Exec(
 		"INSERT INTO companies(id, name, created_at) VALUES($1, $2, $3)",
 		companyID, creds.CompanyName, time.Now(),
 	); err != nil {
