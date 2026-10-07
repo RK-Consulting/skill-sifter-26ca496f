@@ -89,11 +89,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager")(http.HandlerFunc(handlers.DeleteCandidate)).ServeHTTP).Methods("DELETE", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UploadCandidateResume)).ServeHTTP).Methods("POST", "OPTIONS")
 	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
-	api.HandleFunc("/daily-jobs", handlers.GetDailyJobs).Methods("GET", "OPTIONS")
-	api.HandleFunc("/daily-jobs", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddDailyJob)).ServeHTTP).Methods("POST", "OPTIONS")
-	api.HandleFunc("/daily-jobs/{id}", handlers.GetDailyJobByID).Methods("GET", "OPTIONS")
-	api.HandleFunc("/daily-jobs/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateDailyJob)).ServeHTTP).Methods("PUT", "OPTIONS")
-	api.HandleFunc("/daily-jobs/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.DeleteDailyJob)).ServeHTTP).Methods("DELETE", "OPTIONS")
 
 	// Client and Requirement are the authoritative V1 recruitment-demand domain.
 	// Requirements replace the legacy Jobs resource.
@@ -130,7 +125,6 @@ func setupProtectedRoutes(r *mux.Router) {
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/billing", handlers.GetCandidateRequirementBilling).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidateRequirementSubmission)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/candidates/{candidateId}/requirements/{requirementId}/submissions", handlers.GetCandidateRequirementSubmissions).Methods("GET", "OPTIONS")
-	setupResourceRoutes(api, "/business-dev", handlers.GetBusinessDevs, managerOnly(handlers.AddBusinessDev), handlers.GetBusinessDevByID, managerOnly(handlers.UpdateBusinessDev), managerOnly(handlers.DeleteBusinessDev))
 	api.HandleFunc("/reports/hiring", handlers.GetHiringReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/pipeline", handlers.GetPipelineReport).Methods("GET", "OPTIONS")
 	api.HandleFunc("/reports/sources", handlers.GetSourceReport).Methods("GET", "OPTIONS")
