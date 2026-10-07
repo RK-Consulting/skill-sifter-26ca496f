@@ -60,7 +60,7 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := interviewTenant(r)
 	var i models.Interview
-	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName)
+	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID)
 	if err != nil {
 		respondWithError(w, 404, "Interview not found")
 		return
