@@ -131,3 +131,17 @@ Those changes must be implemented through separate, explicitly scoped issues der
 - Temporary compatibility fields increase implementation complexity during the transition.
 - Existing handlers that manually filter by `company_name` must eventually be migrated.
 - Cross-tenant security testing becomes a mandatory part of the V1 quality gate.
+
+
+## Phase 9 Tenant Root Identity
+
+The SaaS customer has exactly one customer identity: `tenant_id`.
+
+- `platform_tenants.tenant_id` is the canonical customer root and primary key.
+- `users.id`, subscription IDs, candidate IDs, requirement IDs, and other `id` columns identify records, not customers.
+- Tenant-owned rows reference `platform_tenants(tenant_id)` with `ON DELETE CASCADE` where the data is in the control/shared database.
+- `companies` remains only as a compatibility representation during this migration. Its `id` is equal to `tenant_id` and is cascade-owned by the tenant root.
+- The physical tenant database cannot participate in PostgreSQL foreign-key cascades. Trial cleanup therefore drops the tenant database first and then deletes the `platform_tenants` root row.
+- The trial lifecycle remains unchanged: 2-day trial, retention through day 9, then physical tenant database deletion and root tenant deletion.
+
+This establishes the architectural rule: **one SaaS customer = one tenant_id**.
