@@ -229,7 +229,7 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
 		return
 	}
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM users WHERE LOWER(email)=LOWER($1)) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
+	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not validate email")
 		return
 	}
@@ -325,13 +325,6 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var userID int
-	if err = tx.QueryRow("INSERT INTO users(username,email,password,role,tenant_id,company_name,email_verified_at,created_at) VALUES($1,$2,$3,'admin',$4,$5,NOW(),NOW()) RETURNING id", username, email, passwordHash, tenantID, company).Scan(&userID); err != nil {
-		log.Printf("registration user creation failed for %s: %v", email, err)
-		respondWithError(w, http.StatusInternalServerError, "Could not create account")
-		return
-	}
-
 	var userLimit int
 	if err = tx.QueryRow("SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE", planCode).Scan(&userLimit); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
@@ -339,10 +332,6 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	if _, err = tx.Exec("INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,ends_at,user_limit) VALUES($1,$2,'TRIAL',NOW(),NOW()+INTERVAL '2 days',$3)", tenantID, planCode, userLimit); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create trial")
-		return
-	}
-	if _, err = tx.Exec("INSERT INTO platform_user_accounts(user_id,tenant_id,email,role) VALUES($1,$2,$3,'admin')", userID, tenantID, email); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
 		return
 	}
 	if _, err = tx.Exec("UPDATE platform_verification_codes SET consumed_at=NOW() WHERE id=$1", verificationID); err != nil {
@@ -362,9 +351,15 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit registration")
 		return
 	}
-	if _, err = db.ProvisionTenantDatabase(db.DB, tenantID, company); err != nil {
+	_, tenantUserID, err := db.ProvisionTenantDatabase(db.DB, tenantID, company, &db.TenantUser{Username: username, Email: email, Password: passwordHash, Role: "admin"})
+	if err != nil {
 		_, _ = db.DB.Exec("UPDATE platform_tenants SET provisioning_status='FAILED' WHERE tenant_id=$1", tenantID)
 		respondWithError(w, http.StatusServiceUnavailable, "Account created but tenant provisioning failed; please retry provisioning")
+		return
+	}
+
+	if _, err = db.DB.Exec(`INSERT INTO platform_user_accounts(tenant_id,user_id,email,role) VALUES($1,$2,$3,$4) ON CONFLICT (tenant_id,user_id) DO UPDATE SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()`, tenantID, tenantUserID, email, "admin"); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
 		return
 	}
 
