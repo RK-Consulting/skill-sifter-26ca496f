@@ -92,7 +92,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, userID, err := db.ProvisionTenantDatabase(db.DB, companyID, creds.CompanyName, &db.TenantUser{Username: creds.Username, Email: creds.Email, Password: hashedPassword, Role: role})
+	_, userID, err := db.ProvisionTenantDatabase(db.DB, companyID, &db.TenantUser{Username: creds.Username, Email: creds.Email, Password: hashedPassword, Role: role})
 	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed; administrator can retry provisioning")
 		return
@@ -271,7 +271,7 @@ func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseName, _, err := db.ProvisionTenantDatabase(db.DB, tenantID, companyName, nil)
+	databaseName, _, err := db.ProvisionTenantDatabase(db.DB, tenantID, nil)
 	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed")
 		return
