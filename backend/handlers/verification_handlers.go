@@ -37,18 +37,19 @@ func generateOTP() string {
 type smtpLoginAuth struct {
 	username string
 	password string
+	step     int
 }
 
 func (a *smtpLoginAuth) Start(*smtp.ServerInfo) (string, []byte, error) {
-	return "LOGIN", []byte(a.username), nil
+	return "LOGIN", nil, nil
 }
 
-func (a *smtpLoginAuth) Next(challenge []byte, more bool) ([]byte, error) {
+func (a *smtpLoginAuth) Next(_ []byte, more bool) ([]byte, error) {
 	if !more {
 		return nil, nil
 	}
-	// Exim may issue either a username or password challenge.
-	if strings.Contains(strings.ToLower(string(challenge)), "user") {
+	a.step++
+	if a.step == 1 {
 		return []byte(a.username), nil
 	}
 	return []byte(a.password), nil
