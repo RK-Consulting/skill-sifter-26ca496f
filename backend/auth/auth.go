@@ -182,7 +182,7 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 }
 
 // GenerateToken creates a JWT token for a user. user.TenantID must be the
-// authoritative companies.id for the user's tenant (ADR 0001) — callers must
+// authoritative tenant_id for the user's tenant (ADR 0001) — callers must
 // never pass a client-supplied value here.
 func GenerateToken(user models.User, roleName string) (string, error) {
 	expirationTime := time.Now().Add(24 * time.Hour)
