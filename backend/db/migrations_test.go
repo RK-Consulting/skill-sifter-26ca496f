@@ -245,3 +245,92 @@ func TestSchemaLockSerializesInitializers(t *testing.T) {
 		t.Fatal("second schema initializer did not finish")
 	}
 }
+
+
+func TestFinalPlaneBaselines_ArePhysicallySeparated(t *testing.T) {
+	host := getenvDefault("TEST_DB_HOST", "localhost")
+	port := getenvDefault("TEST_DB_PORT", "5432")
+	user := getenvDefault("TEST_DB_USER", "postgres")
+	password := getenvDefault("TEST_DB_PASSWORD", "postgres")
+
+	openTestDB := func(name string) *sql.DB {
+		t.Helper()
+		if err := ensureSchemaTestDatabase(name); err != nil {
+			t.Skipf("final-plane baseline test skipped: could not create %s: %v", name, err)
+		}
+		dsn := "host=" + host + " port=" + port + " user=" + user + " password=" + password + " dbname=" + name + " sslmode=disable"
+		d, err := sql.Open("postgres", dsn)
+		if err != nil {
+			t.Skipf("final-plane baseline test skipped: %v", err)
+		}
+		if err := d.Ping(); err != nil {
+			d.Close()
+			t.Skipf("final-plane baseline test skipped: %v", err)
+		}
+		if _, err := d.Exec("DROP SCHEMA public CASCADE; CREATE SCHEMA public;"); err != nil {
+			d.Close()
+			t.Fatalf("reset %s failed: %v", name, err)
+		}
+		return d
+	}
+
+	controlDB := openTestDB(getenvDefault("SKILLSIFTER_CONTROL_SCHEMA_TEST_DB", "skillsifter_control_schema_test"))
+	defer controlDB.Close()
+	tenantDB := openTestDB(getenvDefault("SKILLSIFTER_TENANT_SCHEMA_TEST_DB", "skillsifter_tenant_schema_test"))
+	defer tenantDB.Close()
+
+	DB = controlDB
+	if err := InitializeControlSchema(); err != nil {
+		t.Fatalf("control-plane baseline initialization failed: %v", err)
+	}
+	if err := InitializeTenantSchema(tenantDB); err != nil {
+		t.Fatalf("tenant-plane baseline initialization failed: %v", err)
+	}
+
+	assertTables := func(d *sql.DB, plane string, expected []string, forbidden []string) {
+		t.Helper()
+		for _, table := range expected {
+			var exists bool
+			if err := d.QueryRow("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1)", table).Scan(&exists); err != nil {
+				t.Fatalf("%s table check %s failed: %v", plane, table, err)
+			}
+			if !exists {
+				t.Errorf("%s baseline missing required table %q", plane, table)
+			}
+		}
+		for _, table := range forbidden {
+			var exists bool
+			if err := d.QueryRow("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name=$1)", table).Scan(&exists); err != nil {
+				t.Fatalf("%s forbidden-table check %s failed: %v", plane, table, err)
+			}
+			if exists {
+				t.Errorf("%s baseline contains forbidden table %q", plane, table)
+			}
+		}
+	}
+
+	assertTables(controlDB, "control-plane",
+		[]string{"schema_versions", "platform_tenants", "platform_plans", "platform_subscriptions", "platform_subscription_checkouts", "platform_subscription_events", "platform_registration_registry", "platform_pending_registrations", "platform_verification_codes", "platform_user_accounts"},
+		[]string{"users", "candidates", "clients", "requirements", "interviews", "recruitment_offers", "recruitment_joinings", "recruitment_billings", "companies", "jobs"})
+
+	assertTables(tenantDB, "tenant-plane",
+		[]string{"schema_versions", "roles", "users", "clients", "requirements", "candidates", "interviews", "recruitment_screenings", "recruitment_submissions", "recruitment_selections", "recruitment_offers", "recruitment_joinings", "recruitment_billings", "audit_events"},
+		[]string{"platform_tenants", "platform_plans", "platform_subscriptions", "platform_user_accounts", "companies", "jobs", "daily_jobs", "business_dev"})
+
+	var crossPlaneFKCount int
+	if err := tenantDB.QueryRow(`
+		SELECT COUNT(*)
+		FROM information_schema.table_constraints tc
+		JOIN information_schema.constraint_column_usage ccu
+		  ON ccu.constraint_name=tc.constraint_name
+		 AND ccu.table_schema=tc.table_schema
+		WHERE tc.constraint_type='FOREIGN KEY'
+		  AND ccu.table_schema='public'
+		  AND ccu.table_name LIKE 'platform_%'
+	`).Scan(&crossPlaneFKCount); err != nil {
+		t.Fatalf("cross-plane FK check failed: %v", err)
+	}
+	if crossPlaneFKCount != 0 {
+		t.Errorf("tenant baseline contains %d cross-plane platform foreign keys", crossPlaneFKCount)
+	}
+}
