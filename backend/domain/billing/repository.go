@@ -77,7 +77,7 @@ func (r *PostgresRepository) ListWorklist(tenantID string) ([]WorklistItem, erro
 			c.id,
 			c.name,
 			r.id,
-			COALESCE(r.job_id, ''),
+
 			r.title,
 			cl.id,
 			cl.name,
@@ -112,7 +112,6 @@ func (r *PostgresRepository) ListWorklist(tenantID string) ([]WorklistItem, erro
 	items := make([]WorklistItem, 0)
 	for rows.Next() {
 		var item WorklistItem
-		var requirementJobID string
 		var billingID sql.NullInt64
 		var billingDate sql.NullTime
 		var amount, currency, invoiceReference sql.NullString
@@ -121,7 +120,6 @@ func (r *PostgresRepository) ListWorklist(tenantID string) ([]WorklistItem, erro
 			&item.CandidateID,
 			&item.CandidateName,
 			&item.RequirementID,
-			&requirementJobID,
 			&item.RequirementTitle,
 			&item.ClientID,
 			&item.ClientName,
@@ -136,7 +134,6 @@ func (r *PostgresRepository) ListWorklist(tenantID string) ([]WorklistItem, erro
 			return nil, err
 		}
 
-		item.RequirementJobID = requirementJobID
 		item.Billed = billingID.Valid
 		if billingID.Valid {
 			id := int(billingID.Int64)
