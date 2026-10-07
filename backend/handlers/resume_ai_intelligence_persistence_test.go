@@ -165,9 +165,9 @@ func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	otherTenant := fmt.Sprintf("rai03_other_%d", time.Now().UnixNano())
-	if _, err := fx.db.Exec("	var otherCandidateID int
+	var otherCandidateID int
 	if err := fx.db.QueryRow(
-		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', '', 'active', $1) RETURNING id",
+		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', 'active', $1) RETURNING id",
 		otherTenant,
 	).Scan(&otherCandidateID); err != nil {
 		t.Fatal(err)
