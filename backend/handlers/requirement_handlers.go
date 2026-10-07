@@ -36,7 +36,7 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 	tenantID := r.Context().Value("tenantID").(string)
 
 	rows, err := db.RequestDB(r).Query(`
-		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
+		SELECT id, client_id, COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
 			COALESCE(work_arrangement, ''), COALESCE(required_skills, ''), COALESCE(mandatory_requirements, ''),
@@ -52,7 +52,7 @@ func GetRequirements(w http.ResponseWriter, r *http.Request) {
 	requirements := []models.Requirement{}
 	for rows.Next() {
 		var req models.Requirement
-		err := rows.Scan(&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
+		err := rows.Scan(&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
 			&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 			&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
 			&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
@@ -86,14 +86,14 @@ func GetRequirementByID(w http.ResponseWriter, r *http.Request) {
 
 	var req models.Requirement
 	err = db.RequestDB(r).QueryRow(`
-		SELECT id, client_id, COALESCE(job_id, ''), COALESCE(job_type, ''), title, COALESCE(department, ''),
+		SELECT id, client_id, COALESCE(job_type, ''), title, COALESCE(department, ''),
 			COALESCE(experience_required, ''), COALESCE(budget, ''), COALESCE(language_requirement, ''),
 			COALESCE(certifications_required, ''), COALESCE(notice_period, ''),
 			COALESCE(work_arrangement, ''), COALESCE(required_skills, ''), COALESCE(mandatory_requirements, ''),
 			COALESCE(description, ''), status, COALESCE(location, ''),
 			headcount, COALESCE(opened_date, created_at), created_at, last_modified, tenant_id
 		FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID,
-	).Scan(&req.ID, &req.ClientID, &req.JobID, &req.JobType, &req.Title, &req.Department,
+	).Scan(&req.ID, &req.ClientID, &req.JobType, &req.Title, &req.Department,
 		&req.ExperienceRequired, &req.Budget, &req.LanguageRequirements,
 		&req.CertificationsRequired, &req.NoticePeriod, &req.WorkArrangement,
 		&req.RequiredSkills, &req.MandatoryRequirements, &req.Description, &req.Status, &req.Location,
@@ -181,12 +181,12 @@ func AddRequirement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = db.RequestDB(r).QueryRow(`
-		INSERT INTO requirements (client_id, job_id, job_type, title, department, experience_required, budget,
+		INSERT INTO requirements (client_id, job_type, title, department, experience_required, budget,
 			language_requirement, certifications_required, notice_period, work_arrangement,
 			required_skills, mandatory_requirements, description, status, location, headcount, opened_date, tenant_id)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
 		RETURNING id, created_at, last_modified`,
-		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
+		req.ClientID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
 		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
 		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
@@ -250,15 +250,7 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	req.ID = id
 	req.TenantID = tenantID
 
-	var existingJobID string
-	if err := db.RequestDB(r).QueryRow(`SELECT COALESCE(job_id, '') FROM requirements WHERE id = $1 AND tenant_id = $2`, id, tenantID).Scan(&existingJobID); err != nil {
-		respondWithError(w, http.StatusNotFound, "Requirement not found")
-		return
-	}
-	if existingJobID != "" && existingJobID != req.JobID {
-		respondWithError(w, http.StatusConflict, "Job ID cannot be changed once assigned")
-		return
-	}
+	
 
 	belongs, err := clientBelongsToTenant(r, req.ClientID, tenantID)
 	if err != nil {
@@ -276,13 +268,13 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	}
 
 	result, err := db.RequestDB(r).Exec(`
-		UPDATE requirements SET client_id = $1, job_id = $2, job_type = $3, title = $4, department = $5,
+		UPDATE requirements SET client_id = $1, job_type = $2, title = $4, department = $5,
 			experience_required = $6, budget = $7, language_requirement = $8,
 			certifications_required = $9, notice_period = $10, work_arrangement = $11,
 			required_skills = $12, mandatory_requirements = $13, description = $14, status = $15, location = $16,
 			headcount = $17, opened_date = $18, last_modified = NOW()
 		WHERE id = $19 AND tenant_id = $20`,
-		req.ClientID, req.JobID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
+		req.ClientID, nullableRequirementField(req.JobType), req.Title, nullableRequirementField(req.Department),
 		nullableRequirementField(req.ExperienceRequired), nullableRequirementField(req.Budget),
 		nullableRequirementField(req.LanguageRequirements), nullableRequirementField(req.CertificationsRequired),
 		nullableRequirementField(req.NoticePeriod), nullableRequirementField(req.WorkArrangement),
