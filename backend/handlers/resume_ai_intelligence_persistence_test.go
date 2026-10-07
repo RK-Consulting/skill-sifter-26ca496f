@@ -52,7 +52,7 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 	db.DB = testDB
 
 	tenantID := fmt.Sprintf("rai03_test_%d", time.Now().UnixNano())
-	if _, err := testDB.Exec("INSERT INTO companies (id, name) VALUES ($1, $2)", tenantID, tenantID+" Company"); err != nil {
+	if _, err := testDB.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", tenantID, tenantID+" Company"); err != nil {
 		testDB.Close()
 		t.Fatalf("could not create test tenant: %v", err)
 	}
@@ -211,11 +211,11 @@ func TestPersistResumeIntelligenceProvenance(t *testing.T) {
 func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 	fx := setupResumeAITestFixture(t)
 	otherTenant := fmt.Sprintf("rai03_other_%d", time.Now().UnixNano())
-	if _, err := fx.db.Exec("INSERT INTO companies (id, name) VALUES ($1, $2)", otherTenant, otherTenant+" Company"); err != nil {
+	if _, err := fx.db.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", otherTenant, otherTenant+" Company"); err != nil {
 		t.Fatal(err)
 	}
 	defer func() {
-		_, _ = fx.db.Exec("DELETE FROM companies WHERE id=$1", otherTenant)
+		_, _ = fx.db.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", otherTenant)
 	}()
 
 	var otherCandidateID int
