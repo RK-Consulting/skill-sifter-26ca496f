@@ -336,5 +336,24 @@ func InitializeTenantSchema(tenantDB *sql.DB) error {
 			return fmt.Errorf("could not commit tenant schema definition %d: %w", f.version, err)
 		}
 	}
+	// Tenant databases are physically isolated, so tenant_id is the only
+	// customer identity they need. Remove the obsolete companies entity and
+	// any legacy foreign keys that pointed to it.
+	if _, err := tenantDB.Exec(`
+		DO $$
+		DECLARE r RECORD;
+		BEGIN
+			FOR r IN
+				SELECT conrelid::regclass AS table_name, conname
+				FROM pg_constraint
+				WHERE contype='f' AND confrelid='companies'::regclass
+			LOOP
+				EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', r.table_name, r.conname);
+			END LOOP;
+		END $$;
+		DROP TABLE IF EXISTS companies CASCADE;
+	`); err != nil {
+		return fmt.Errorf("remove obsolete companies entity: %w", err)
+	}
 	return nil
 }
