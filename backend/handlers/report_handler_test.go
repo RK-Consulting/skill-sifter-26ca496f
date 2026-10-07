@@ -5,17 +5,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/RK-Consulting/skill-sifter/db"
 )
 
 func TestGetPipelineReportIsTenantScoped(t *testing.T) {
 	testDB := setupIsolationTestDB(t)
-	defer testDB.Close()
-	db.DB = testDB
-
-	if _, err := testDB.Exec(`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS pipeline_stage VARCHAR(50) NOT NULL DEFAULT 'new'`); err != nil {
-		t.Fatalf("pipeline schema setup failed: %v", err)
-	}
 	if _, err := testDB.Exec(`DELETE FROM candidates WHERE tenant_id IN ('tenant_a', 'tenant_b')`); err != nil {
 		t.Fatalf("candidate cleanup failed: %v", err)
 	}
