@@ -318,10 +318,6 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not create tenant")
 		return
 	}
-	if _, err = tx.Exec("INSERT INTO companies(id,name,created_at) VALUES($1,$2,NOW())", tenantID, company); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create company")
-		return
-	}
 
 	var userID int
 	if err = tx.QueryRow("INSERT INTO users(username,email,password,role,tenant_id,company_name,email_verified_at,created_at) VALUES($1,$2,$3,'admin',$4,$5,NOW(),NOW()) RETURNING id", username, email, passwordHash, tenantID, company).Scan(&userID); err != nil {
