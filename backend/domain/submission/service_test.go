@@ -50,7 +50,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 			t.Fatal(e)
 		}
 	}
-	_, e := d.Exec("INSERT INTO companies (id,name) VALUES ($1,$2)", tenant, tenant)
+	_, e := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", tenant, tenant)
 	must(e)
 	var uid, cid, rid, client int
 	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id,company_name) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant, tenant).Scan(&uid))
@@ -65,7 +65,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM users WHERE tenant_id=$1", tenant)
-		d.Exec("DELETE FROM companies WHERE id=$1", tenant)
+		d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenant)
 	}
 	return tenant, cid, rid, uid, client, clean
 }
@@ -113,10 +113,10 @@ func TestService_SubmitRejectsCrossTenantCandidate(t *testing.T) {
 	tenant, cid, rid, uid, client, clean := subFixture(t, d)
 	defer clean()
 	other := tenant + "_other"
-	if _, e := d.Exec("INSERT INTO companies (id,name) VALUES ($1,$2)", other, other); e != nil {
+	if _, e := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", other, other); e != nil {
 		t.Fatal(e)
 	}
-	defer d.Exec("DELETE FROM companies WHERE id=$1", other)
+	defer d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", other)
 	s := NewService(NewPostgresRepository(d), d)
 	_, err := s.Submit(other, CreateInput{CandidateID: cid, RequirementID: rid, SubmittedByUserID: uid, RecipientType: RecipientClient, RecipientClientID: &client})
 	if err != ErrCandidateNotFound {
