@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"strings"
 )
 
@@ -81,6 +82,9 @@ func (s *Service) CreateFeedback(tenantID string, input CreateInput) (*Feedback,
 
 	if err := s.repo.Create(f); err != nil {
 		return nil, err
+	}
+	if err := audit.Write(s.db, tenantID, input.FeedbackByUserID, "feedback", f.ID, "created", map[string]interface{}{"submissionId": input.SubmissionID, "outcome": input.Outcome}); err != nil {
+		return nil, fmt.Errorf("write feedback audit event: %w", err)
 	}
 	return f, nil
 }
