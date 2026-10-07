@@ -61,7 +61,7 @@ func legacyRegisterUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Resolve the authoritative tenant identity (companies.id, per ADR 0001)
+	// Resolve the authoritative tenant identity (tenant_id, per ADR 0001)
 	// for this registration. This used to only be computed for brand-new
 	// companies — an existing company's id was never looked up, so a
 	// second user joining an existing company had no way to be linked to
