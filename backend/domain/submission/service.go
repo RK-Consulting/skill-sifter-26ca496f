@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 )
 
 var (
@@ -110,8 +111,11 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		RecipientUserID: input.RecipientUserID, RecipientName: input.RecipientName, RecipientEmail: input.RecipientEmail,
 		SubmissionContext: input.SubmissionContext, RecruiterNotes: input.RecruiterNotes,
 		CandidateSnapshot: candidateSnapshot, RequirementSnapshot: requirementSnapshot}
-	if err := s.repo.Create(record); err != nil {
+ 	if err := s.repo.Create(record); err != nil {
 		return nil, err
+	}
+	if err := audit.Write(s.db, tenantID, input.SubmittedByUserID, "submission", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+		return nil, fmt.Errorf("write submission audit event: %w", err)
 	}
 	_ = candidateName
 	_ = requirementTitle
