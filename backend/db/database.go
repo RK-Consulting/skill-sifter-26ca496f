@@ -175,15 +175,6 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID, companyName string) (d
 		return "", err
 	}
 
-	if _, err = tenantDB.Exec(
-		`INSERT INTO companies(id,name)
-		 VALUES($1,$2)
-		 ON CONFLICT(id) DO UPDATE SET name=EXCLUDED.name`,
-		tenantID, companyName,
-	); err != nil {
-		return "", fmt.Errorf("seed tenant company: %w", err)
-	}
-
 	rows, err := controlDB.Query(
 		`SELECT id, username, email, password, role, tenant_id, company_name, created_at
 		 FROM users WHERE tenant_id=$1 ORDER BY id`,
