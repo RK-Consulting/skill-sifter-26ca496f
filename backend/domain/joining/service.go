@@ -102,8 +102,11 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 	}
 	j.JoiningDate = input.JoiningDate
 	j.Joined = input.Joined
-	if err := s.repo.Update(j); err != nil {
+ 	if err := s.repo.Update(j); err != nil {
 		return nil, err
+	}
+	if err := audit.Write(s.db, tenantID, 0, "joining", j.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "joined": input.Joined}); err != nil {
+		return nil, fmt.Errorf("write joining audit event: %w", err)
 	}
 	return j, nil
 }
