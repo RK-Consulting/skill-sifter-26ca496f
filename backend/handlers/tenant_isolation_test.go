@@ -47,11 +47,6 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			account_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
 			provisioning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
-		)
-		-- 
-			id VARCHAR(255) PRIMARY KEY,
-			name VARCHAR(255) NOT NULL UNIQUE,
-			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)`,
 		`CREATE TABLE IF NOT EXISTS users (
 			id SERIAL PRIMARY KEY,
