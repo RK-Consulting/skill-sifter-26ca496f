@@ -309,6 +309,16 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	var tenantAccountStatus string
+	if err = db.DB.QueryRow("SELECT account_status FROM platform_tenants WHERE tenant_id=$1", tenantID).Scan(&tenantAccountStatus); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not resolve tenant account status")
+		return
+	}
+	if tenantAccountStatus == "TERMINATED" {
+		respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Webhook ignored for terminated tenant"})
+		return
+	}
+
 	status, accountStatus := "ACTIVE", "ACTIVE"
 	switch event.Event {
 	case "subscription.pending":
@@ -382,14 +392,6 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not update tenant access")
 		return
 	}
-	_, err = tx.Exec(
-		"INSERT INTO platform_subscription_events(provider,provider_event_ref,tenant_id,provider_subscription_ref,event_type) VALUES('razorpay',$1,$2,$3,$4)",
-		eventRef, tenantID, sub.ID, event.Event,
-	)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not record webhook event")
-		return
-	}
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit webhook state")
 		return
@@ -417,13 +419,12 @@ func CleanupExpiredTrials() {
 			continue
 		}
 
-		// The tenant database is outside PostgreSQL FK transactions, so remove
-		// it first. The control-plane root deletion below then cascades all
-		// tenant-owned control records, users, and compatibility company data.
+		// DeleteTenantDatabase owns the complete lifecycle: disable access,
+		// invalidate the tenant pool, drop the tenant DB, then remove control
+		// records explicitly. A failure leaves the tenant TERMINATED/FAILED so
+		// the next cleanup pass can retry safely.
 		if err := db.DeleteTenantDatabase(db.DB, tenantID); err != nil {
 			continue
 		}
-
-		_, _ = db.DB.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenantID)
 	}
 }
