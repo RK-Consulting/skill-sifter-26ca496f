@@ -123,7 +123,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// remaining usable until JWT expiry and makes the platform layer
 		// authoritative for tenant + RBAC.
 		var access platformaccess.LoginAccess
-		var err error
 		if r.URL.Path == "/api/admin/tenant/provision" {
 			access, err = platformaccess.ResolveProvisioningAccess(db.DB, claims.UserID, claims.TenantID)
 		} else {
