@@ -1,15 +1,26 @@
 package handlers
 
 import (
+	"database/sql"
 	"strings"
 	"testing"
 
-	"github.com/RK-Consulting/skill-sifter/db"
 )
 
+func openRegistryTestDB(t *testing.T) *sql.DB {
+	t.Helper()
+	testDB, err := openHandlerTestDB(getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName))
+	if err != nil {
+		t.Fatalf("open registration registry test database: %v", err)
+	}
+	return testDB
+}
+
 func TestPermanentRegistrationRegistrySchema(t *testing.T) {
+	testDB := openRegistryTestDB(t)
+	defer testDB.Close()
 	var exists bool
-	if err := db.DB.QueryRow(`
+	if err := testDB.QueryRow(`
 		SELECT EXISTS (
 			SELECT 1
 			FROM information_schema.tables
@@ -24,7 +35,7 @@ func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 	}
 
 	var columns int
-	if err := db.DB.QueryRow(`
+	if err := testDB.QueryRow(`
 		SELECT COUNT(*)
 		FROM information_schema.columns
 		WHERE table_schema = 'public'
@@ -39,22 +50,24 @@ func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 }
 
 func TestPermanentRegistrationRegistryRejectsDuplicateEmail(t *testing.T) {
+	testDB := openRegistryTestDB(t)
+	defer testDB.Close()
 	const email = "registry-test@example.com"
 
-	_, _ = db.DB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
+	_, _ = testDB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
 
-	if _, err := db.DB.Exec(`
+	if _, err := testDB.Exec(`
 		INSERT INTO platform_registration_registry(email_id, first_registered, last_tenant_id)
 		VALUES($1, NOW(), $2)
 	`, email, "tenant_registry_test"); err != nil {
 		t.Fatalf("insert registration identity: %v", err)
 	}
 	t.Cleanup(func() {
-		_, _ = db.DB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
+		_, _ = testDB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
 	})
 
 	var registered bool
-	if err := db.DB.QueryRow(`
+	if err := testDB.QueryRow(`
 		SELECT EXISTS(
 			SELECT 1
 			FROM platform_registration_registry
@@ -67,7 +80,7 @@ func TestPermanentRegistrationRegistryRejectsDuplicateEmail(t *testing.T) {
 		t.Fatal("registered email was not retained")
 	}
 
-	_, err := db.DB.Exec(`
+	_, err := testDB.Exec(`
 		INSERT INTO platform_registration_registry(email_id, first_registered, last_tenant_id)
 		VALUES($1, NOW(), $2)
 	`, email, "tenant_registry_test_2")
