@@ -29,7 +29,7 @@ func submissionDB(t *testing.T) *sql.DB {
 		d.Close()
 		t.Skip(err)
 	}
-	if err = appdb.InitializeSchema(); err != nil {
+	if err = appdb.InitializeTenantSchema(d); err != nil {
 		d.Close()
 		t.Fatal(err)
 	}
@@ -50,8 +50,8 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 		}
 	}
 		var uid, cid, rid, client int
-	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
-	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id,company_name) VALUES ($1,$2,$3,$4) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
+	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
+	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
 	must(d.QueryRow("INSERT INTO clients (name,status,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Client", "active", tenant).Scan(&client))
 	must(d.QueryRow("INSERT INTO requirements (client_id,title,status,tenant_id) VALUES ($1,$2,$3,$4) RETURNING id", client, "Requirement", "open", tenant).Scan(&rid))
 	clean := func() {
@@ -62,7 +62,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM users WHERE tenant_id=$1", tenant)
-			}
+	}
 	return tenant, cid, rid, uid, client, clean
 }
 func completedScreening(t *testing.T, d *sql.DB, tenant string, cid, rid, uid int) {
