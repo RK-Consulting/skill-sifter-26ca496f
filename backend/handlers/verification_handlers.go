@@ -352,6 +352,10 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not complete registration")
 		return
 	}
+	if _, err = tx.Exec("INSERT INTO platform_registration_registry(email,last_tenant_id,status) VALUES($1,$2,'REGISTERED')", email, tenantID); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not record registration")
+		return
+	}
 
 	if err = tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not commit registration")
