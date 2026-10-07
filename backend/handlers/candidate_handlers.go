@@ -24,7 +24,7 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.RequestDB(r).Query(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id, company_name
+		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id
 		FROM candidates
 		WHERE tenant_id = $1
 		ORDER BY id`, tenantID)
@@ -57,7 +57,6 @@ func GetCandidates(w http.ResponseWriter, r *http.Request) {
 			&c.ScreeningLimit,
 			&c.CreatedAt,
 			&c.TenantID,
-			&c.CompanyName,
 		); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Error scanning candidate row")
 			return
@@ -103,7 +102,7 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 	err = db.RequestDB(r).QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id, company_name
+		       status, pipeline_stage, screening_count, screening_limit, created_at, tenant_id
 		FROM candidates
 		WHERE id = $1 AND tenant_id = $2`,
 		id,
@@ -126,7 +125,6 @@ func GetCandidateByID(w http.ResponseWriter, r *http.Request) {
 		&c.ScreeningLimit,
 		&c.CreatedAt,
 		&c.TenantID,
-		&c.CompanyName,
 	)
 
 	if err != nil {
@@ -162,7 +160,6 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyName, _ := r.Context().Value("companyName").(string)
 
 	if c.Status == "" {
 		c.Status = "active"
@@ -174,7 +171,6 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	c.TenantID = tenantID
-	c.CompanyName = companyName
 
 	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
@@ -187,7 +183,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		INSERT INTO candidates (
 			name, email, phone, position, location, experience,
 			currentctc, expectedctc, noticeperiod, jobdescription,
-			status, tenant_id, company_name
+			status, tenant_id
 		)
 		VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
