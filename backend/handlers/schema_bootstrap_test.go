@@ -16,33 +16,55 @@ const handlerTestDBName = "skillsifter_handler_test"
 // TestMain gives the handler integration suite its own PostgreSQL database.
 // This prevents package-level integration tests from racing with the db and
 // assignment packages when `go test ./...` runs packages concurrently.
-func TestMain(m *testing.M) {
-	handlerDBName := getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName)
-	if err := os.Setenv("TEST_DB_NAME", handlerDBName); err != nil {
-		fmt.Fprintf(os.Stderr, "handler test database environment setup failed: %v\n", err)
-		os.Exit(1)
-	}
+var handlerControlDB *sql.DB
+var handlerTenantDB *sql.DB
 
-	testDB, err := openHandlerTestDB(handlerDBName)
+func TestMain(m *testing.M) {
+	controlName := getenvOr("SKILLSIFTER_CONTROL_TEST_DB", "skillsifter_control_test")
+	tenantName := getenvOr("SKILLSIFTER_TENANT_TEST_DB", "skillsifter_tenant_test")
+
+	controlDB, err := openHandlerTestDB(controlName)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "handler test database bootstrap failed: %v\n", err)
+		fmt.Fprintf(os.Stderr, "control-plane test database bootstrap failed: %v\n", err)
 		os.Exit(1)
 	}
-	defer testDB.Close()
+	defer controlDB.Close()
+
+	tenantDB, err := openHandlerTestDB(tenantName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "tenant-plane test database bootstrap failed: %v\n", err)
+		os.Exit(1)
+	}
+	defer tenantDB.Close()
 
 	if err := chdirHandlerTestToBackendRoot(); err != nil {
 		fmt.Fprintf(os.Stderr, "handler test schema bootstrap: %v\n", err)
 		os.Exit(1)
 	}
 
-	if _, err := testDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
-		fmt.Fprintf(os.Stderr, "handler test database reset failed: %v\n", err)
+	if _, err := controlDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+		fmt.Fprintf(os.Stderr, "control-plane test database reset failed: %v\n", err)
+		os.Exit(1)
+	}
+	if _, err := tenantDB.Exec(`DROP SCHEMA public CASCADE; CREATE SCHEMA public;`); err != nil {
+		fmt.Fprintf(os.Stderr, "tenant-plane test database reset failed: %v\n", err)
 		os.Exit(1)
 	}
 
-	db.DB = testDB
-	if err := db.InitializeSchema(); err != nil {
-		fmt.Fprintf(os.Stderr, "handler test schema bootstrap failed: %v\n", err)
+	db.DB = controlDB
+	if err := db.InitializeControlSchema(); err != nil {
+		fmt.Fprintf(os.Stderr, "control-plane schema bootstrap failed: %v\n", err)
+		os.Exit(1)
+	}
+	if err := db.InitializeTenantSchema(tenantDB); err != nil {
+		fmt.Fprintf(os.Stderr, "tenant-plane schema bootstrap failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	handlerControlDB = controlDB
+	handlerTenantDB = tenantDB
+	if err := os.Setenv("TEST_DB_NAME", tenantName); err != nil {
+		fmt.Fprintf(os.Stderr, "handler test database environment setup failed: %v\n", err)
 		os.Exit(1)
 	}
 
