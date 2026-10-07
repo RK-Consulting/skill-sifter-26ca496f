@@ -17,28 +17,18 @@ var interviewStatuses = map[string]bool{"scheduled": true, "completed": true, "c
 func interviewTenant(r *http.Request) string     { return r.Context().Value("tenantID").(string) }
 func validateInterviewStatus(status string) bool { return interviewStatuses[status] }
 
-type errMissingJobID struct{}
-
-func (errMissingJobID) Error() string { return "selected requirement does not have a Job ID" }
-
-func validateInterviewReferences(r *http.Request, candidateID, requirementID int, tenantID string) (string, string, string, error) {
-	var candidateName, jobID, requirementTitle string
-	err := db.RequestDB(r).QueryRow(`SELECT c.name,r.job_id,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
-		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, candidateID, requirementID, tenantID).Scan(&candidateName, &jobID, &requirementTitle)
-	if err != nil {
-		return "", "", "", err
-	}
-	if strings.TrimSpace(jobID) == "" {
-		return "", "", "", errMissingJobID{}
-	}
-	return candidateName, jobID, requirementTitle, nil
+func validateInterviewReferences(r *http.Request, candidateID, requirementID int, tenantID string) (string, string, error) {
+	var candidateName, requirementTitle string
+	err := db.RequestDB(r).QueryRow(`SELECT c.name,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
+		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, candidateID, requirementID, tenantID).Scan(&candidateName, &requirementTitle)
+	return candidateName, requirementTitle, err
 }
 
 func scanInterviewRows(rows *sql.Rows) ([]models.Interview, error) {
 	result := []models.Interview{}
 	for rows.Next() {
 		var i models.Interview
-		if err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.JobID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName); err != nil {
+		if err := rows.Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID); err != nil {
 			return nil, err
 		}
 		result = append(result, i)
@@ -48,7 +38,7 @@ func scanInterviewRows(rows *sql.Rows) ([]models.Interview, error) {
 
 func GetInterviews(w http.ResponseWriter, r *http.Request) {
 	tenantID := interviewTenant(r)
-	rows, err := db.RequestDB(r).Query(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.job_id,''),COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id,i.company_name FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.tenant_id=$1 ORDER BY i.interview_date DESC,i.id DESC`, tenantID)
+	rows, err := db.RequestDB(r).Query(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.tenant_id=$1 ORDER BY i.interview_date DESC,i.id DESC`, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching interviews")
 		return
@@ -70,7 +60,7 @@ func GetInterviewByID(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := interviewTenant(r)
 	var i models.Interview
-	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.job_id,''),COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id,i.company_name FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.JobID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName)
+	err = db.RequestDB(r).QueryRow(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.id=$1 AND i.tenant_id=$2`, id, tenantID).Scan(&i.ID, &i.CandidateID, &i.CandidateName, &i.RequirementID, &i.JobID, &i.RequirementTitle, &i.Position, &i.Round, &i.InterviewDate, &i.Status, &i.Outcome, &i.Feedback, &i.CandidateFeedback, &i.NextAction, &i.LastModified, &i.TenantID, &i.CompanyName)
 	if err != nil {
 		respondWithError(w, 404, "Interview not found")
 		return
@@ -85,7 +75,7 @@ func GetCandidateInterviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := interviewTenant(r)
-	rows, err := db.RequestDB(r).Query(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.job_id,''),COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id,i.company_name FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.candidate_id=$1 AND i.tenant_id=$2 ORDER BY i.interview_date DESC,i.id DESC`, candidateID, tenantID)
+	rows, err := db.RequestDB(r).Query(`SELECT i.id,i.candidate_id,i.candidate_name,i.requirement_id,COALESCE(r.title,''),i.position,i.round,i.interview_date,i.status,i.outcome,i.feedback,i.candidate_feedback,i.next_action,i.last_modified,i.tenant_id FROM interviews i LEFT JOIN requirements r ON r.id=i.requirement_id AND r.tenant_id=i.tenant_id WHERE i.candidate_id=$1 AND i.tenant_id=$2 ORDER BY i.interview_date DESC,i.id DESC`, candidateID, tenantID)
 	if err != nil {
 		respondWithError(w, 500, "Error fetching candidate interview history")
 		return
@@ -107,7 +97,6 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	tenantID := interviewTenant(r)
-	companyName, _ := r.Context().Value("companyName").(string)
 	if i.CandidateID <= 0 || i.RequirementID == nil || *i.RequirementID <= 0 {
 		respondWithError(w, 400, "candidateId and requirementId are required")
 		return
@@ -126,12 +115,8 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 400, "Invalid interview status")
 		return
 	}
-	candidateName, jobID, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
+	candidateName, title, err := validateInterviewReferences(r, i.CandidateID, *i.RequirementID, tenantID)
 	if err != nil {
-		if _, ok := err.(errMissingJobID); ok {
-			respondWithError(w, 422, "Selected requirement does not have a Job ID")
-			return
-		}
 		respondWithError(w, 404, "Candidate or requirement not found")
 		return
 	}
@@ -172,12 +157,10 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	i.CandidateName = candidateName
-	i.JobID = jobID
 	i.RequirementTitle = title
 	i.Position = title
 	i.TenantID = tenantID
-	i.CompanyName = companyName
-	err = db.RequestDB(r).QueryRow(`INSERT INTO interviews(candidate_id,candidate_name,requirement_id,position,round,interview_date,status,outcome,feedback,candidate_feedback,next_action,tenant_id,company_name) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id,last_modified`, i.CandidateID, i.CandidateName, *i.RequirementID, i.Position, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, tenantID, companyName).Scan(&i.ID, &i.LastModified)
+	err = db.RequestDB(r).QueryRow(`INSERT INTO interviews(candidate_id,candidate_name,requirement_id,position,round,interview_date,status,outcome,feedback,candidate_feedback,next_action,tenant_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,last_modified`, i.CandidateID, i.CandidateName, *i.RequirementID, i.Position, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, tenantID).Scan(&i.ID, &i.LastModified)
 	if err != nil {
 		respondWithError(w, 500, "Error scheduling interview")
 		return
