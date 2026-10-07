@@ -372,6 +372,11 @@ func SendPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
 	var input struct{ Phone string }
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || strings.TrimSpace(input.Phone) == "" {
 		respondWithError(w, http.StatusBadRequest, "Phone number is required")
@@ -379,9 +384,16 @@ func SendPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 	}
 	phone := strings.TrimSpace(input.Phone)
 	code := generateOTP()
-	_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE purpose='PHONE_SUBSCRIPTION' AND user_id=$1 AND consumed_at IS NULL", userID)
+
+	var accountID int64
+	if err := db.DB.QueryRow("SELECT id FROM platform_user_accounts WHERE tenant_id=$1 AND user_id=$2", tenantID, userID).Scan(&accountID); err != nil {
+		respondWithError(w, http.StatusForbidden, "Platform account not found")
+		return
+	}
+	_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE purpose='PHONE_SUBSCRIPTION' AND platform_account_id=$1 AND consumed_at IS NULL", accountID)
+
 	var verificationID int64
-	if err := db.DB.QueryRow("INSERT INTO platform_verification_codes(purpose,user_id,destination,code_hash,expires_at) VALUES('PHONE_SUBSCRIPTION',$1,$2,$3,NOW()+INTERVAL '10 minutes') RETURNING id", userID, phone, otpHash(code)).Scan(&verificationID); err != nil {
+	if err := db.DB.QueryRow("INSERT INTO platform_verification_codes(purpose,platform_account_id,destination,code_hash,expires_at) VALUES('PHONE_SUBSCRIPTION',$1,$2,$3,NOW()+INTERVAL '10 minutes') RETURNING id", accountID, phone, otpHash(code)).Scan(&verificationID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create phone verification")
 		return
 	}
@@ -390,7 +402,6 @@ func SendPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusServiceUnavailable, "SMS verification is temporarily unavailable")
 		return
 	}
-	_, _ = db.DB.Exec("UPDATE users SET phone=$1 WHERE id=$2", phone, userID)
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Phone verification code sent"})
 }
 
@@ -400,15 +411,25 @@ func VerifyPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
+		return
+	}
 	var input struct{ Code string }
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil || strings.TrimSpace(input.Code) == "" {
 		respondWithError(w, http.StatusBadRequest, "Verification code is required")
 		return
 	}
+	var accountID int64
+	if err := db.DB.QueryRow("SELECT id FROM platform_user_accounts WHERE tenant_id=$1 AND user_id=$2", tenantID, userID).Scan(&accountID); err != nil {
+		respondWithError(w, http.StatusForbidden, "Platform account not found")
+		return
+	}
 	var id int64
 	var hash string
 	var attempts int
-	err := db.DB.QueryRow("SELECT id,code_hash,attempts FROM platform_verification_codes WHERE purpose='PHONE_SUBSCRIPTION' AND user_id=$1 AND consumed_at IS NULL AND expires_at>NOW() ORDER BY id DESC LIMIT 1", userID).Scan(&id, &hash, &attempts)
+	err := db.DB.QueryRow("SELECT id,code_hash,attempts FROM platform_verification_codes WHERE purpose='PHONE_SUBSCRIPTION' AND platform_account_id=$1 AND consumed_at IS NULL AND expires_at>NOW() ORDER BY id DESC LIMIT 1", accountID).Scan(&id, &hash, &attempts)
 	if err != nil || attempts >= 5 {
 		respondWithError(w, http.StatusBadRequest, "Verification code is invalid or expired")
 		return
@@ -418,7 +439,7 @@ func VerifyPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Incorrect verification code")
 		return
 	}
-	if _, err = db.DB.Exec("UPDATE users SET phone_verified_at=NOW() WHERE id=$1", userID); err != nil {
+	if _, err = db.DB.Exec("UPDATE platform_user_accounts SET phone_verified_at=NOW(), updated_at=NOW() WHERE id=$1", accountID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not verify phone")
 		return
 	}
