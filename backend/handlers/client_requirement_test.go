@@ -157,7 +157,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Req Test Client', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
 
 	t.Run("AddRequirement defaults status to open and headcount to 1", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]interface{}{"jobId": "REQ-TEST-001", "title": "Backend Engineer", "clientId": clientID})
+		body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Backend Engineer", "clientId": clientID})
 		req := isoCtx(httptest.NewRequest("POST", "/api/v1/requirements", bytes.NewReader(body)), "tenant_a")
 		rec := httptest.NewRecorder()
 		AddRequirement(rec, req)
@@ -173,7 +173,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 	})
 
 	t.Run("AddRequirement rejects invalid status", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]interface{}{"jobId": "REQ-TEST-002", "title": "Bad Status Req", "clientId": clientID, "status": "vibing"})
+		body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Bad Status Req", "clientId": clientID, "status": "vibing"})
 		req := isoCtx(httptest.NewRequest("POST", "/api/v1/requirements", bytes.NewReader(body)), "tenant_a")
 		rec := httptest.NewRecorder()
 		AddRequirement(rec, req)
@@ -196,7 +196,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 		var otherClientID int
 		testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Tenant B Client', 'active', 'tenant_b') RETURNING id`).Scan(&otherClientID)
 
-		body, _ := json.Marshal(map[string]interface{}{"jobId": "REQ-TEST-003", "title": "Cross Tenant Client Req", "clientId": otherClientID})
+		body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Cross Tenant Client Req", "clientId": otherClientID})
 		req := isoCtx(httptest.NewRequest("POST", "/api/v1/requirements", bytes.NewReader(body)), "tenant_a")
 		rec := httptest.NewRecorder()
 		AddRequirement(rec, req)
@@ -207,10 +207,10 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 
 	t.Run("UpdateRequirement can transition status open -> on_hold -> closed", func(t *testing.T) {
 		var id int
-		testDB.QueryRow(`INSERT INTO requirements (client_id, job_id, title, status, tenant_id) VALUES ($1, 'REQ-TEST-004', 'Transition Req', 'open', 'tenant_a') RETURNING id`, clientID).Scan(&id)
+		testDB.QueryRow(`INSERT INTO requirements (client_id, job_type, title, status, tenant_id) VALUES ($1, 'fulltime', 'Transition Req', 'open', 'tenant_a') RETURNING id`, clientID).Scan(&id)
 
 		for _, status := range []string{"on_hold", "closed"} {
-			body, _ := json.Marshal(map[string]interface{}{"jobId": "REQ-TEST-004", "title": "Transition Req", "clientId": clientID, "status": status, "headcount": 1})
+			body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Transition Req", "clientId": clientID, "status": status, "headcount": 1})
 			req := isoCtx(httptest.NewRequest("PUT", "/api/v1/requirements/x", bytes.NewReader(body)), "tenant_a")
 			req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
 			rec := httptest.NewRecorder()
@@ -255,7 +255,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 	})
 
 	t.Run("cross-tenant update affects zero rows", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]interface{}{"jobId": "REQ-TEST-005", "title": "Hijacked", "clientId": tenantBClientID, "status": "cancelled", "headcount": 1})
+		body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Hijacked", "clientId": tenantBClientID, "status": "cancelled", "headcount": 1})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/requirements/x", bytes.NewReader(body)), "tenant_a")
 		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBReqID)})
 		rec := httptest.NewRecorder()
