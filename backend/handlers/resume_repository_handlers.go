@@ -158,8 +158,7 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 	if candidateID.Valid {
 		candidate, err = resumeExistingCandidate(r, int(candidateID.Int64), tenantID, ai)
 	} else {
-		company, _ := r.Context().Value("companyName").(string)
-		candidate, err = upsertResumeCandidate(db.RequestDB(r), company, tenantID, ai)
+		candidate, err = upsertResumeCandidate(db.RequestDB(r), tenantID, ai)
 	}
 	if err != nil {
 		_, _ = db.RequestDB(r).Exec("UPDATE resumes SET parsing_status='failed',parse_error=$1 WHERE id=$2 AND tenant_id=$3", err.Error(), id, tenantID)
