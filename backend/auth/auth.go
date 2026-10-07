@@ -122,7 +122,13 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// request. This prevents a suspended/expired subscription from
 		// remaining usable until JWT expiry and makes the platform layer
 		// authoritative for tenant + RBAC.
-		access, err := platformaccess.ResolveLoginAccess(db.DB, claims.UserID, claims.TenantID)
+		var access platformaccess.LoginAccess
+		var err error
+		if r.URL.Path == "/api/admin/tenant/provision" {
+			access, err = platformaccess.ResolveProvisioningAccess(db.DB, claims.UserID, claims.TenantID)
+		} else {
+			access, err = platformaccess.ResolveLoginAccess(db.DB, claims.UserID, claims.TenantID)
+		}
 		if err != nil {
 			http.Error(w, "Tenant subscription or access is not active", http.StatusForbidden)
 			return
