@@ -46,7 +46,7 @@ func RegisterUser(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var exists bool
-	if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name = $1)", creds.CompanyName).Scan(&exists); err != nil {
+	if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_tenants WHERE company_name = $1)", creds.CompanyName).Scan(&exists); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Database error")
 		return
 	}
