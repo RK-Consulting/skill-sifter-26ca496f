@@ -64,7 +64,7 @@ func billingFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 		}
 	}
 
-	exec("INSERT INTO companies(id,name) VALUES($1,$2)", tenant, tenant)
+	exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", tenant, tenant)
 
 	var candidateID, clientID, requirementID, selectionID int
 	if err := d.QueryRow(
@@ -117,7 +117,7 @@ func billingFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 		d.Exec("DELETE FROM requirements WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
-		d.Exec("DELETE FROM companies WHERE id=$1", tenant)
+		d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", tenant)
 	}
 
 	return tenant, candidateID, requirementID, cleanup
@@ -209,10 +209,10 @@ func TestService_TenantIsolation(t *testing.T) {
 	defer cleanup()
 
 	other := tenant + "_other"
-	if _, err := d.Exec("INSERT INTO companies(id,name) VALUES($1,$2)", other, other); err != nil {
+	if _, err := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", other, other); err != nil {
 		t.Fatal(err)
 	}
-	defer d.Exec("DELETE FROM companies WHERE id=$1", other)
+	defer d.Exec("DELETE FROM platform_tenants WHERE tenant_id=$1", other)
 
 	if _, err := NewService(NewPostgresRepository(d), d).Get(other, candidateID, requirementID); err != ErrNotFound {
 		t.Fatalf("got %v, want ErrNotFound", err)
