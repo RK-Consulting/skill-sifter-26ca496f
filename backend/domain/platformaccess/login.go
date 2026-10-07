@@ -63,7 +63,6 @@ func resolveAccess(dbConn *sql.DB, userID int, tenantID string, requireReady boo
 	return access, nil
 }
 
-
 func ResolveLoginAccess(dbConn *sql.DB, userID int, tenantID string) (LoginAccess, error) {
 	return resolveAccess(dbConn, userID, tenantID, true)
 }
