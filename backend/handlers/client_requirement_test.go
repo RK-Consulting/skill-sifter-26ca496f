@@ -24,7 +24,7 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 	statements := []string{
 		`CREATE TABLE IF NOT EXISTS clients (
 			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
 			name VARCHAR(255) NOT NULL,
 			status VARCHAR(50) NOT NULL DEFAULT 'prospect',
 			contact_email VARCHAR(255),
@@ -35,7 +35,7 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 		)`,
 		`CREATE TABLE IF NOT EXISTS requirements (
 			id SERIAL PRIMARY KEY,
-			tenant_id VARCHAR(255) NOT NULL REFERENCES companies(id),
+			tenant_id VARCHAR(255) NOT NULL REFERENCES platform_tenants(tenant_id),
 			client_id INTEGER NOT NULL REFERENCES clients(id),
 			job_id VARCHAR(100),
 			title VARCHAR(255) NOT NULL,
