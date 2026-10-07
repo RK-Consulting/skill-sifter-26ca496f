@@ -282,7 +282,6 @@ Resume text:
 
 func upsertResumeCandidate(
 	database *sql.DB,
-	company string,
 	tenantID string,
 	ai resumeAIResult,
 ) (*models.Candidate, error) {
@@ -295,7 +294,7 @@ func upsertResumeCandidate(
 	err := database.QueryRow(`
 		SELECT id, name, email, phone, position, location, experience,
 		       currentctc, expectedctc, noticeperiod, jobdescription,
-		       status, created_at, tenant_id, company_name
+		       status, created_at, tenant_id
 		FROM candidates
 		WHERE tenant_id = $1
 		  AND (
@@ -322,7 +321,6 @@ func upsertResumeCandidate(
 		&existing.Status,
 		&existing.CreatedAt,
 		&existing.TenantID,
-		&existing.CompanyName,
 	)
 
 	if err == nil {
@@ -360,15 +358,13 @@ func upsertResumeCandidate(
 			phone,
 			status,
 			tenant_id,
-			company_name
 		)
-		VALUES ($1, $2, $3, 'active', $4, $5)
+		VALUES ($1, $2, $3, 'active', $4)
 		RETURNING id, created_at`,
 		firstNonEmpty(ai.Name, "Unknown Candidate"),
 		ai.Email,
 		ai.Phone,
 		tenantID,
-		company,
 	).Scan(
 		&existing.ID,
 		&existing.CreatedAt,
@@ -382,7 +378,6 @@ func upsertResumeCandidate(
 	existing.Phone = ai.Phone
 	existing.Status = "active"
 	existing.TenantID = tenantID
-	existing.CompanyName = company
 
 	return &existing, nil
 }
@@ -437,7 +432,6 @@ func saveCandidateTechnicalExpertise(
 }
 
 func UploadResumes(w http.ResponseWriter, r *http.Request) {
-	company, _ := r.Context().Value("companyName").(string)
 	tenantID, _ := r.Context().Value("tenantID").(string)
 	userID, _ := r.Context().Value("userID").(int)
 
@@ -571,7 +565,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		err = db.RequestDB(r).QueryRow(`
 			INSERT INTO resumes (
 				tenant_id,
-				company_name,
+				tenant_id,
 				file_name,
 				file_path,
 				file_hash,
@@ -587,7 +581,6 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 			)
 			RETURNING id`,
 			tenantID,
-			company,
 			fh.Filename,
 			path,
 			hashHex,
@@ -638,7 +631,7 @@ func UploadResumes(w http.ResponseWriter, r *http.Request) {
 		}
 
 		candidate, err := upsertResumeCandidate(
-			db.RequestDB(r), company,
+			db.RequestDB(r),
 			tenantID,
 			ai,
 		)
@@ -764,7 +757,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN resumes r
 			ON r.candidate_id = c.id
 		   AND r.tenant_id = c.tenant_id
-		   AND r.company_name = c.company_name
+		   
 		WHERE c.tenant_id = $1
 		  AND (
 			   lower(c.name) LIKE $2
@@ -845,7 +838,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 
 	_, _ = db.RequestDB(r).Exec(`
 		INSERT INTO resume_search_logs (
-			company_name,
+			tenant_id,
 			actor_user_id,
 			query_text,
 			resumes_searched,
@@ -860,36 +853,14 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 			$4,
 			$5
 		FROM resumes
-		WHERE company_name = $1`,
-		r.Context().Value("companyName"),
+		WHERE tenant_id = $1`,
+		tenantID,
 		actor,
 		q,
 		len(out),
 		duration,
 	)
 
-	_, _ = db.RequestDB(r).Exec(`
-		INSERT INTO activity_logs (
-			company_name,
-			actor_user_id,
-			action,
-			entity_type,
-			description,
-			metadata
-		)
-		VALUES (
-			$1,
-			$2,
-			'RESUME_SEARCHED',
-			'resume_search',
-			$3,
-			$4
-		)`,
-		r.Context().Value("companyName"),
-		actor,
-		"Resume search: "+q,
-		`{"results":`+strconv.Itoa(len(out))+`}`,
-	)
 
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
@@ -900,9 +871,7 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 
 func ListResumes(w http.ResponseWriter, r *http.Request) {
 	tenantID, _ := r.Context().Value("tenantID").(string)
-	companyName, _ := r.Context().Value("companyName").(string)
-
-	if tenantID == "" || companyName == "" {
+	if tenantID == "" {
 		respondWithError(w, http.StatusUnauthorized, "Tenant context missing")
 		return
 	}
@@ -937,12 +906,9 @@ func ListResumes(w http.ResponseWriter, r *http.Request) {
 		LEFT JOIN candidates c
 			ON c.id = r.candidate_id
 		   AND c.tenant_id = $1
-		   AND c.company_name = $2
 		WHERE r.tenant_id = $1
-		  AND r.company_name = $2
 		ORDER BY r.uploaded_at DESC`,
 		tenantID,
-		companyName,
 	)
 	if err != nil {
 		respondWithError(
