@@ -149,7 +149,7 @@ func StartSubscriptionCheckout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var phoneVerified bool
-	if err := db.DB.QueryRow("SELECT phone_verified_at IS NOT NULL FROM users WHERE id = (SELECT MIN(id) FROM users WHERE tenant_id=$1 AND role='admin')", tenantID).Scan(&phoneVerified); err != nil {
+	if err := db.DB.QueryRow("SELECT phone_verified_at IS NOT NULL FROM platform_user_accounts WHERE tenant_id=$1 AND role='admin' ORDER BY id LIMIT 1", tenantID).Scan(&phoneVerified); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not verify subscription phone status")
 		return
 	}
@@ -308,19 +308,6 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	var exists bool
-	if err := db.DB.QueryRow(
-		"SELECT EXISTS(SELECT 1 FROM platform_subscription_events WHERE provider='razorpay' AND provider_event_ref=$1)",
-		eventRef,
-	).Scan(&exists); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not inspect webhook event")
-		return
-	}
-	if exists {
-		respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Webhook already processed"})
-		return
-	}
-
 	status, accountStatus := "ACTIVE", "ACTIVE"
 	switch event.Event {
 	case "subscription.pending":
@@ -348,6 +335,13 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 		ends = &t
 	}
 
+
+	var userLimit int
+	if err = db.DB.QueryRow("SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE", planCode).Scan(&userLimit); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not resolve subscription plan")
+		return
+	}
+
 	tx, err := db.DB.Begin()
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not start webhook transaction")
@@ -355,9 +349,23 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer tx.Rollback()
 
+	var eventID int64
+	if err = tx.QueryRow(
+		"INSERT INTO platform_subscription_events(provider,provider_event_ref,tenant_id,provider_subscription_ref,event_type) VALUES('razorpay',$1,$2,$3,$4) ON CONFLICT(provider,provider_event_ref) DO NOTHING RETURNING id",
+		eventRef, tenantID, sub.ID, event.Event,
+	).Scan(&eventID); err == sql.ErrNoRows {
+		_ = tx.Rollback()
+		respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Webhook already processed"})
+		return
+	} else if err != nil {
+		_ = tx.Rollback()
+		respondWithError(w, http.StatusInternalServerError, "Could not record webhook event")
+		return
+	}
+
 	_, err = tx.Exec(
-		"INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,ends_at,provider,provider_subscription_ref) VALUES($1,$2,$3,$4,$5,'razorpay',$6) ON CONFLICT(provider,provider_subscription_ref) DO UPDATE SET status=EXCLUDED.status,starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,updated_at=NOW()",
-		tenantID, planCode, status, starts, ends, sub.ID,
+		"INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,ends_at,provider,provider_subscription_ref,user_limit) VALUES($1,$2,$3,$4,$5,'razorpay',$6) ON CONFLICT(provider,provider_subscription_ref) DO UPDATE SET status=EXCLUDED.status,starts_at=EXCLUDED.starts_at,ends_at=EXCLUDED.ends_at,updated_at=NOW()",
+		tenantID, planCode, status, starts, ends, sub.ID, userLimit,
 	)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not update subscription")
