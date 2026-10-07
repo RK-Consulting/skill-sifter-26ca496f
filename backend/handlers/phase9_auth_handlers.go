@@ -227,20 +227,20 @@ func GetCurrentAccount(w http.ResponseWriter, r *http.Request) {
 	companyName, _ := r.Context().Value("companyName").(string)
 
 	var userCount, userLimit int
-	if err := db.DB.QueryRow(`
-		SELECT COUNT(*), s.user_limit
-		FROM users u
-		JOIN platform_subscriptions s ON s.tenant_id = u.tenant_id
-		WHERE u.tenant_id = $1
-		  AND s.status IN ('TRIAL', 'ACTIVE')
-		  AND (s.ends_at IS NULL OR s.ends_at >= NOW())
-		GROUP BY s.id, s.user_limit
-		ORDER BY s.starts_at DESC
-		LIMIT 1
-	`, tenantID).Scan(&userCount, &userLimit); err != nil {
+	tenantDB, err := db.TenantDB(db.DB, tenantID)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
+		return
+	}
+	if err := tenantDB.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&userCount); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not read tenant users")
+		return
+	}
+	if err := db.DB.QueryRow(`SELECT user_limit FROM platform_subscriptions WHERE tenant_id=$1 AND status IN ('TRIAL','ACTIVE') AND (ends_at IS NULL OR ends_at >= NOW()) ORDER BY starts_at DESC LIMIT 1`, tenantID).Scan(&userLimit); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not read subscription user limit")
 		return
 	}
+
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Account access retrieved successfully",
@@ -271,7 +271,7 @@ func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseName, err := db.ProvisionTenantDatabase(db.DB, tenantID, companyName)
+	databaseName, _, err := db.ProvisionTenantDatabase(db.DB, tenantID, companyName, nil)
 	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed")
 		return
