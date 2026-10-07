@@ -149,7 +149,7 @@ const Register = () => {
               inputMode="numeric"
               maxLength={6}
               autoFocus
-              className="text-center text-2xl tracking-[0.4em]"
+              className="bg-white text-center text-2xl tracking-[0.4em] text-slate-900 placeholder:text-slate-400"
               placeholder="000000"
             />
             <Button onClick={verifyEmail} variant="primary" className="w-full mt-5" disabled={isLoading}>
