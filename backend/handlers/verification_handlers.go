@@ -229,14 +229,6 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
 		return
 	}
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_registration_registry WHERE email_id=$1) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE email=$1 AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not validate email")
-		return
-	}
-	if ok {
-		respondWithError(w, http.StatusConflict, "This email is already registered or has a pending verification")
-		return
-	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(input.Password), bcrypt.DefaultCost)
 	if err != nil {
@@ -245,9 +237,26 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var registrationID int64
-	err = db.DB.QueryRow("INSERT INTO platform_pending_registrations(username,email,company_name,password_hash,plan_code) VALUES($1,$2,$3,$4,$5) RETURNING id", input.Username, input.Email, input.CompanyName, string(passwordHash), input.PlanCode).Scan(&registrationID)
+	tx, err := db.DB.Begin()
 	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not start registration")
+		return
+	}
+	defer tx.Rollback()
+	if _, err = tx.Exec("DELETE FROM platform_pending_registrations WHERE expires_at <= NOW() AND email_verified_at IS NULL AND lower(email)=lower($1)", input.Email); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not prepare registration")
+		return
+	}
+	if err = tx.QueryRow("INSERT INTO platform_pending_registrations(username,email,company_name,password_hash,plan_code) VALUES($1,$2,$3,$4,$5) RETURNING id", input.Username, input.Email, input.CompanyName, string(passwordHash), input.PlanCode).Scan(&registrationID); err != nil {
+		if strings.Contains(strings.ToLower(err.Error()), "unique") {
+			respondWithError(w, http.StatusConflict, "This email is already registered or has a pending verification")
+			return
+		}
 		respondWithError(w, http.StatusInternalServerError, "Could not create registration")
+		return
+	}
+	if err = tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not commit registration")
 		return
 	}
 
@@ -334,7 +343,12 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not create trial")
 		return
 	}
-	if _, err = tx.Exec("UPDATE platform_verification_codes SET consumed_at=NOW() WHERE id=$1", verificationID); err != nil {
+	var consumedVerificationID int64
+	if err = tx.QueryRow("UPDATE platform_verification_codes SET consumed_at=NOW() WHERE id=$1 AND consumed_at IS NULL AND expires_at>NOW() RETURNING id", verificationID).Scan(&consumedVerificationID); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusConflict, "Verification code has already been used or expired")
+			return
+		}
 		respondWithError(w, http.StatusInternalServerError, "Could not complete verification")
 		return
 	}
@@ -342,7 +356,12 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not complete registration")
 		return
 	}
-	if _, err = tx.Exec("INSERT INTO platform_registration_registry(email_id,first_registered,last_tenant_id) VALUES($1,NOW(),$2)", email, tenantID); err != nil {
+	var claimedEmail string
+	if err = tx.QueryRow("INSERT INTO platform_registration_registry(email_id,first_registered,last_tenant_id) VALUES($1,NOW(),$2) ON CONFLICT(email_id) DO NOTHING RETURNING email_id", email, tenantID).Scan(&claimedEmail); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusConflict, "This email is already registered")
+			return
+		}
 		respondWithError(w, http.StatusInternalServerError, "Could not record registration")
 		return
 	}
