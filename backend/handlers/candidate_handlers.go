@@ -187,7 +187,7 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		)
 		VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-			$11, $12, $13
+			$11, $12
 		)
 		RETURNING id, screening_count, screening_limit, created_at`,
 		c.Name,
@@ -202,7 +202,6 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		c.JobDescription,
 		c.Status,
 		c.TenantID,
-		c.CompanyName,
 	).Scan(&c.ID, &c.ScreeningCount, &c.ScreeningLimit, &c.CreatedAt)
 
 	if err != nil {
