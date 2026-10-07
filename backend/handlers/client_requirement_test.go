@@ -8,9 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 )
 
 // setupClientRequirementTestDB uses the authoritative tenant-plane baseline.
@@ -23,7 +21,6 @@ func setupClientRequirementTestDB(t *testing.T) *sql.DB {
 
 func TestClient_LifecycleAndValidation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	t.Run("AddClient defaults status to prospect", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Acme Corp"})
@@ -96,7 +93,6 @@ func TestClient_LifecycleAndValidation(t *testing.T) {
 
 func TestClient_CrossTenantIsolation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	var tenantBClientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('B Client Co', 'active', 'tenant_b') RETURNING id`).Scan(&tenantBClientID)
@@ -156,7 +152,6 @@ func TestClient_CrossTenantIsolation(t *testing.T) {
 
 func TestRequirement_LifecycleAndValidation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Req Test Client', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
@@ -235,7 +230,6 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 
 func TestRequirement_CrossTenantIsolation(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	var tenantBClientID, tenantBReqID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('B Client', 'active', 'tenant_b') RETURNING id`).Scan(&tenantBClientID)
@@ -309,7 +303,6 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 // must still be readable.
 func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, tenant_id) VALUES ('Minimal Client', 'tenant_a') RETURNING id`).Scan(&clientID)
@@ -346,7 +339,6 @@ func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 // into its requirements.
 func TestDeleteClient_WithRequirements_IsRejected(t *testing.T) {
 	testDB := setupClientRequirementTestDB(t)
-	defer testDB.Close()
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Client With Reqs', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
