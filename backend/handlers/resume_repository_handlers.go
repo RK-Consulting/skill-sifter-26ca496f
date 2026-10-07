@@ -181,8 +181,8 @@ func RetryResume(w http.ResponseWriter, r *http.Request) {
 
 func resumeExistingCandidate(r *http.Request, candidateID int, tenantID string, ai resumeAIResult) (*models.Candidate, error) {
 	var c models.Candidate
-	err := db.RequestDB(r).QueryRow("SELECT id,name,email,phone,position,location,experience,currentctc,expectedctc,noticeperiod,jobdescription,status,created_at,tenant_id,company_name FROM candidates WHERE id=$1 AND tenant_id=$2", candidateID, tenantID).
-		Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location, &c.Experience, &c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JobDescription, &c.Status, &c.CreatedAt, &c.TenantID, &c.CompanyName)
+	err := db.RequestDB(r).QueryRow("SELECT id,name,email,phone,position,location,experience,currentctc,expectedctc,noticeperiod,jobdescription,status,created_at,tenant_id FROM candidates WHERE id=$1 AND tenant_id=$2", candidateID, tenantID).
+		Scan(&c.ID, &c.Name, &c.Email, &c.Phone, &c.Position, &c.Location, &c.Experience, &c.CurrentCTC, &c.ExpectedCTC, &c.NoticePeriod, &c.JobDescription, &c.Status, &c.CreatedAt, &c.TenantID)
 	if err == sql.ErrNoRows {
 		return nil, fmt.Errorf("candidate not found")
 	}
