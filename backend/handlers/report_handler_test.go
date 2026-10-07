@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"net/http/httptest"
 	"testing"
-
 )
 
 func TestGetPipelineReportIsTenantScoped(t *testing.T) {
@@ -14,11 +13,11 @@ func TestGetPipelineReportIsTenantScoped(t *testing.T) {
 	}
 
 	if _, err := testDB.Exec(`
-		INSERT INTO candidates (name, email, status, pipeline_stage, tenant_id, company_name)
+		INSERT INTO candidates (name, email, status, pipeline_stage, tenant_id)
 		VALUES
-			('A Screening', 'a-screening@test.com', 'active', 'screening', 'tenant_a', 'Tenant A Co'),
-			('A Interview', 'a-interview@test.com', 'active', 'interview', 'tenant_a', 'Tenant A Co'),
-			('B Rejected', 'b-rejected@test.com', 'active', 'rejected', 'tenant_b', 'Tenant B Co')
+			('A Screening', 'a-screening@test.com', 'active', 'screening', 'tenant_a'),
+			('A Interview', 'a-interview@test.com', 'active', 'interview', 'tenant_a'),
+			('B Rejected', 'b-rejected@test.com', 'active', 'rejected', 'tenant_b')
 	`); err != nil {
 		t.Fatalf("candidate seed failed: %v", err)
 	}
