@@ -41,7 +41,14 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	}
 
 	statements := []string{
-		`CREATE TABLE IF NOT EXISTS companies (
+		`CREATE TABLE IF NOT EXISTS platform_tenants (
+			tenant_id VARCHAR(255) PRIMARY KEY,
+			company_name VARCHAR(255) NOT NULL,
+			account_status VARCHAR(30) NOT NULL DEFAULT 'ACTIVE',
+			provisioning_status VARCHAR(30) NOT NULL DEFAULT 'READY',
+			created_at TIMESTAMP NOT NULL DEFAULT NOW()
+		)
+		-- 
 			id VARCHAR(255) PRIMARY KEY,
 			name VARCHAR(255) NOT NULL UNIQUE,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
@@ -52,7 +59,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			email VARCHAR(255) NOT NULL UNIQUE,
 			password VARCHAR(255) NOT NULL,
 			role VARCHAR(100) NOT NULL,
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)`,
@@ -64,7 +71,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			experience VARCHAR(100), currentctc VARCHAR(100), expectedctc VARCHAR(100),
 			noticeperiod VARCHAR(100),
 			jobdescription VARCHAR(500),
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP NOT NULL DEFAULT NOW()
 		)`,
@@ -73,7 +80,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			jd_no INTEGER NOT NULL, instructions TEXT,
 			assigned_user INTEGER REFERENCES users(id),
 			assigned_date TIMESTAMP DEFAULT NOW(), last_modified TIMESTAMP DEFAULT NOW(),
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS interviews (
@@ -82,7 +89,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			candidate_name VARCHAR(255) NOT NULL, position VARCHAR(100),
 			interview_date TIMESTAMP NOT NULL, status VARCHAR(50) DEFAULT 'scheduled',
 			feedback TEXT, last_modified TIMESTAMP DEFAULT NOW(),
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS business_dev (
@@ -91,7 +98,7 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 			contact_person VARCHAR(255) NOT NULL, contact_number VARCHAR(50),
 			contact_email VARCHAR(255) NOT NULL,
 			created_at TIMESTAMP DEFAULT NOW(), last_modified TIMESTAMP DEFAULT NOW(),
-			tenant_id VARCHAR(255) REFERENCES companies(id),
+			tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id),
 			company_name VARCHAR(255) NOT NULL
 		)`,
 		`CREATE TABLE IF NOT EXISTS activity_logs (
@@ -113,11 +120,11 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	}
 	// Older local dev databases may pre-date tenant_id.
 	for _, alter := range []string{
-		`ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
-		`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
-		`ALTER TABLE daily_jobs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
-		`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
-		`ALTER TABLE business_dev ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES companies(id)`,
+		`ALTER TABLE users ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`,
+		`ALTER TABLE candidates ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`,
+		`ALTER TABLE daily_jobs ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`,
+		`ALTER TABLE interviews ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`,
+		`ALTER TABLE business_dev ADD COLUMN IF NOT EXISTS tenant_id VARCHAR(255) REFERENCES platform_tenants(tenant_id)`,
 	} {
 		testDB.Exec(alter)
 	}
@@ -127,8 +134,8 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 		testDB.Exec("DELETE FROM " + t + " WHERE tenant_id IN ('tenant_a', 'tenant_b')")
 	}
 	testDB.Exec("DELETE FROM activity_logs WHERE company_name IN ('Tenant A Co', 'Tenant B Co')")
-	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_a', 'Tenant A Co') ON CONFLICT (id) DO NOTHING`)
-	testDB.Exec(`INSERT INTO companies (id, name) VALUES ('tenant_b', 'Tenant B Co') ON CONFLICT (id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_a', 'Tenant A Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
+	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_b', 'Tenant B Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_a', 'Tenant A Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
 	testDB.Exec(`INSERT INTO platform_subscriptions (tenant_id, plan_code, status, user_limit) VALUES ('tenant_a', 'test', 'ACTIVE', 10) ON CONFLICT DO NOTHING`)
 	testDB.Exec(`INSERT INTO platform_tenants (tenant_id, company_name, account_status, provisioning_status) VALUES ('tenant_b', 'Tenant B Co', 'ACTIVE', 'READY') ON CONFLICT (tenant_id) DO NOTHING`)
