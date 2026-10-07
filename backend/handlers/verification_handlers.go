@@ -309,7 +309,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	defer tx.Rollback()
 
 	var companyExists bool
-	if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM companies WHERE name=$1)", company).Scan(&companyExists); err != nil || companyExists {
+	if err = tx.QueryRow("SELECT EXISTS(SELECT 1 FROM platform_tenants WHERE company_name=$1)", company).Scan(&companyExists); err != nil || companyExists {
 		respondWithError(w, http.StatusConflict, "Company already has a SkillSifter account")
 		return
 	}
