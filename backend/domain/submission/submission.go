@@ -5,11 +5,10 @@ import "time"
 type RecipientType string
 
 const (
-	RecipientClient        RecipientType = "client"
-	RecipientHiringManager RecipientType = "hiring_manager"
+	RecipientClient RecipientType = "client"
 )
 
-func (t RecipientType) Valid() bool { return t == RecipientClient || t == RecipientHiringManager }
+func (t RecipientType) Valid() bool { return t == RecipientClient }
 
 type Submission struct {
 	ID                  int
