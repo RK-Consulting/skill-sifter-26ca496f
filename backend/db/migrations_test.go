@@ -67,7 +67,7 @@ func TestInitializeSchema_FreshInstall(t *testing.T) {
 	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
 	writeScratchSchemaDefinition(t, dir, "002_seed_probe.sql", `INSERT INTO migration_runner_probe (note) VALUES ('seeded by 002');`)
 
-	if err := initializeSchemaFromDir(dir); err != nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err != nil {
 		t.Fatalf("initializeSchemaFromDir failed on fresh install: %v", err)
 	}
 
@@ -96,13 +96,13 @@ func TestInitializeSchema_OnlyRunsPending(t *testing.T) {
 	dir := t.TempDir()
 	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY, note TEXT);`)
 
-	if err := initializeSchemaFromDir(dir); err != nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err != nil {
 		t.Fatalf("first run failed: %v", err)
 	}
 
 	writeScratchSchemaDefinition(t, dir, "002_add_column.sql", `ALTER TABLE migration_runner_probe ADD COLUMN extra TEXT;`)
 
-	if err := initializeSchemaFromDir(dir); err != nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err != nil {
 		t.Fatalf("second run failed: %v", err)
 	}
 
@@ -114,7 +114,7 @@ func TestInitializeSchema_OnlyRunsPending(t *testing.T) {
 		t.Errorf("schema version count = %d, want 2", count)
 	}
 
-	if err := initializeSchemaFromDir(dir); err != nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err != nil {
 		t.Fatalf("no-op restart failed: %v", err)
 	}
 }
@@ -128,7 +128,7 @@ func TestInitializeSchema_ChecksumMismatchFails(t *testing.T) {
 	path := filepath.Join(dir, "001_create_probe.sql")
 	writeScratchSchemaDefinition(t, dir, "001_create_probe.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
 
-	if err := initializeSchemaFromDir(dir); err != nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err != nil {
 		t.Fatalf("initial schema initialization failed: %v", err)
 	}
 
@@ -136,7 +136,7 @@ func TestInitializeSchema_ChecksumMismatchFails(t *testing.T) {
 		t.Fatalf("could not modify schema definition: %v", err)
 	}
 
-	if err := initializeSchemaFromDir(dir); err == nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err == nil {
 		t.Fatal("schema initializer accepted modified applied definition")
 	}
 }
@@ -160,7 +160,7 @@ func TestInitializeSchema_FailureStopsAndDoesNotRecord(t *testing.T) {
 	writeScratchSchemaDefinition(t, dir, "001_broken.sql", `SELECT * FROM this_table_does_not_exist;`)
 	writeScratchSchemaDefinition(t, dir, "002_would_succeed.sql", `CREATE TABLE migration_runner_probe (id SERIAL PRIMARY KEY);`)
 
-	if err := initializeSchemaFromDir(dir); err == nil {
+	if err := initializeSchema(DB, dir, "skill-sifter:test-schema"); err == nil {
 		t.Fatal("initializeSchemaFromDir succeeded despite a failing definition")
 	}
 
@@ -193,7 +193,7 @@ func TestSchemaLockSerializesInitializers(t *testing.T) {
 	secondDone := make(chan error, 1)
 
 	go func() {
-		firstDone <- withSchemaLock(func() error {
+		firstDone <- withSchemaLock(testDB, "skill-sifter:test-lock", func() error {
 			close(firstEntered)
 			<-releaseFirst
 			return nil
@@ -207,7 +207,7 @@ func TestSchemaLockSerializesInitializers(t *testing.T) {
 	}
 
 	go func() {
-		secondDone <- withSchemaLock(func() error {
+		secondDone <- withSchemaLock(testDB, "skill-sifter:test-lock", func() error {
 			close(secondEntered)
 			return nil
 		})
