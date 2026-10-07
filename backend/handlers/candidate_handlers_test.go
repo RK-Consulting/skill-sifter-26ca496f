@@ -108,7 +108,6 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 // handling doesn't regress.
 func TestDeleteCandidateNonexistentReturnsNotFound(t *testing.T) {
 	testDB := setupTestDB(t)
-	defer testDB.Close()
 
 	req := httptest.NewRequest("DELETE", "/api/candidates/999999", nil)
 	req = withAuthContext(req, "test_company")
