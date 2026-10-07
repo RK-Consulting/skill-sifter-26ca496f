@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math/big"
 	"net"
 	"net/http"
@@ -60,7 +61,6 @@ func sendEmailOTP(to, code string) error {
 	port := os.Getenv("SMTP_PORT")
 	user := os.Getenv("SMTP_USERNAME")
 	if user == "" {
-		// Keep SMTP_USER as a backwards-compatible fallback for existing deployments.
 		user = os.Getenv("SMTP_USER")
 	}
 	password := os.Getenv("SMTP_PASSWORD")
@@ -70,67 +70,116 @@ func sendEmailOTP(to, code string) error {
 	}
 
 	msg := []byte("From: " + from + "\r\nTo: " + to + "\r\nSubject: Your SkillSifter verification code\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\n\r\nYour SkillSifter verification code is " + code + ". It expires in 10 minutes.\r\n")
-	var auth smtp.Auth
-	if user != "" && port != "465" {
-		auth = smtp.PlainAuth("", user, password, host)
+
+	// Port 465 is implicit TLS. Exim/cPanel installations commonly authenticate
+	// either with the mailbox name or the complete mailbox address. Try the
+	// configured identity first, then the sender address as a safe fallback.
+	users := []string{}
+	if user != "" {
+		users = append(users, user)
+	}
+	if from != "" && !strings.EqualFold(from, user) {
+		users = append(users, from)
 	}
 
-	// Port 465 uses implicit TLS. smtp.SendMail expects a plaintext connection
-	// and negotiates STARTTLS, so it cannot be used directly for port 465.
-	if port == "465" {
-		tlsConfig := &tls.Config{
-			ServerName: host,
-			MinVersion: tls.VersionTLS12,
-		}
-		conn, err := tls.Dial("tcp", net.JoinHostPort(host, port), tlsConfig)
-		if err != nil {
-			return err
-		}
-		client, err := smtp.NewClient(conn, host)
-		if err != nil {
-			_ = conn.Close()
-			return err
-		}
-		defer client.Close()
+	var lastErr error
+	for _, authUser := range users {
+		if port == "465" {
+			tlsConfig := &tls.Config{
+				ServerName: host,
+				MinVersion: tls.VersionTLS12,
+			}
+			conn, err := tls.Dial("tcp", net.JoinHostPort(host, port), tlsConfig)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			client, err := smtp.NewClient(conn, host)
+			if err != nil {
+				_ = conn.Close()
+				lastErr = err
+				continue
+			}
 
-		if user != "" {
-			// Exim commonly advertises AUTH PLAIN and/or LOGIN on implicit TLS.
-			// Prefer PLAIN; fall back to LOGIN when PLAIN is unavailable.
-			if ok, mechanisms := client.Extension("AUTH"); ok && strings.Contains(strings.ToUpper(mechanisms), "PLAIN") {
-				auth = smtp.PlainAuth("", user, password, host)
-			} else if ok && strings.Contains(strings.ToUpper(mechanisms), "LOGIN") {
-				auth = &smtpLoginAuth{username: user, password: password}
+			authOK := false
+			if ok, mechanisms := client.Extension("AUTH"); ok {
+				mechanisms = strings.ToUpper(mechanisms)
+				if strings.Contains(mechanisms, "PLAIN") {
+					err = client.Auth(smtp.PlainAuth("", authUser, password, host))
+					if err == nil {
+						authOK = true
+					} else {
+						lastErr = err
+					}
+				}
+				if !authOK && strings.Contains(mechanisms, "LOGIN") {
+					auth := &smtpLoginAuth{username: authUser, password: password}
+					err = client.Auth(auth)
+					if err == nil {
+						authOK = true
+					} else {
+						lastErr = err
+					}
+				}
+			} else {
+				lastErr = fmt.Errorf("SMTP server does not advertise AUTH")
 			}
-			if auth == nil {
-				return fmt.Errorf("SMTP server does not advertise a supported AUTH mechanism")
+
+			if !authOK {
+				_ = client.Quit()
+				continue
 			}
-			if err := client.Auth(auth); err != nil {
-				return err
+			if err = client.Mail(from); err != nil {
+				lastErr = err
+				_ = client.Quit()
+				continue
 			}
+			if err = client.Rcpt(to); err != nil {
+				lastErr = err
+				_ = client.Quit()
+				continue
+			}
+			writer, err := client.Data()
+			if err != nil {
+				lastErr = err
+				_ = client.Quit()
+				continue
+			}
+			if _, err = writer.Write(msg); err != nil {
+				lastErr = err
+				_ = writer.Close()
+				_ = client.Quit()
+				continue
+			}
+			if err = writer.Close(); err != nil {
+				lastErr = err
+				_ = client.Quit()
+				continue
+			}
+			if err = client.Quit(); err != nil {
+				lastErr = err
+				continue
+			}
+			return nil
 		}
-		if err := client.Mail(from); err != nil {
-			return err
+
+		// Standard SMTP ports use the Go SMTP client's STARTTLS handling.
+		var auth smtp.Auth
+		if authUser != "" {
+			auth = smtp.PlainAuth("", authUser, password, host)
 		}
-		if err := client.Rcpt(to); err != nil {
-			return err
+		if err := smtp.SendMail(net.JoinHostPort(host, port), auth, from, []string{to}, msg); err != nil {
+			lastErr = err
+			continue
 		}
-		writer, err := client.Data()
-		if err != nil {
-			return err
-		}
-		if _, err := writer.Write(msg); err != nil {
-			_ = writer.Close()
-			return err
-		}
-		if err := writer.Close(); err != nil {
-			return err
-		}
-		return client.Quit()
+		return nil
 	}
 
-	return smtp.SendMail(host+":"+port, auth, from, []string{to}, msg)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("SMTP authentication failed")
+	}
+	return lastErr
 }
-
 func sendSMSOTP(phone, code string) error {
 	endpoint := os.Getenv("SMS_OTP_URL")
 	if endpoint == "" {
@@ -212,6 +261,7 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 
 	if err := sendEmailOTP(input.Email, code); err != nil {
 		_, _ = db.DB.Exec("DELETE FROM platform_pending_registrations WHERE id=$1", registrationID)
+		log.Printf("registration email OTP failed: %v", err)
 		respondWithError(w, http.StatusServiceUnavailable, "Email verification is temporarily unavailable")
 		return
 	}
