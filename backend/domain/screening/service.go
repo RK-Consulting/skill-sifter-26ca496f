@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 )
 
 var (
@@ -60,6 +61,9 @@ func (s *Service) CreateScreening(tenantID string, input CreateInput) (*Screenin
 	}
 	if err := s.repo.Create(record); err != nil {
 		return nil, err
+	}
+	if err := audit.Write(s.db, tenantID, input.RecruiterUserID, "screening", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+		return nil, fmt.Errorf("write screening audit event: %w", err)
 	}
 	return record, nil
 }
