@@ -229,12 +229,12 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
 		return
 	}
-	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email)=LOWER($1))", input.Email).Scan(&ok); err != nil {
+	if err := db.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE LOWER(email)=LOWER($1)) OR EXISTS(SELECT 1 FROM platform_pending_registrations WHERE LOWER(email)=LOWER($1) AND email_verified_at IS NULL AND expires_at>NOW())", input.Email).Scan(&ok); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not validate email")
 		return
 	}
 	if ok {
-		respondWithError(w, http.StatusConflict, "An account already exists for this email")
+		respondWithError(w, http.StatusConflict, "This email is already registered or has a pending verification")
 		return
 	}
 
