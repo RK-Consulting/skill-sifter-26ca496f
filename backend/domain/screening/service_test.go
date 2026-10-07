@@ -94,10 +94,7 @@ func TestService_TenantIsolation(t *testing.T) {
 	tenant, cid, rid, uid, clean := fixture(t, d)
 	defer clean()
 	other := tenant + "_other"
-	if _, err := d.Exec("INSERT INTO platform_tenants(tenant_id,company_name,provisioning_status,account_status) VALUES($1,$2,'READY','ACTIVE')", other, other); err != nil {
-		t.Fatal(err)
-	}
-		s := NewService(NewPostgresRepository(d), d)
+			s := NewService(NewPostgresRepository(d), d)
 	if _, err := s.CreateScreening(tenant, CreateInput{CandidateID: cid, RequirementID: rid, RecruiterUserID: uid}); err != nil {
 		t.Fatal(err)
 	}
