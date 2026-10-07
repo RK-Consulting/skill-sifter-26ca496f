@@ -35,7 +35,7 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	var candidateName, requirementTitle string
 	err := s.db.QueryRow(`SELECT c.name,r.title FROM candidates c JOIN requirements r ON r.tenant_id=c.tenant_id
 		WHERE c.id=$1 AND r.id=$2 AND c.tenant_id=$3 AND r.tenant_id=$3`, input.CandidateID, input.RequirementID, tenantID).
-		Scan(&candidateName, &jobID, &requirementTitle)
+		Scan(&candidateName, &requirementTitle)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrCandidateNotFound
