@@ -119,8 +119,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 	if tenantDB != db.DB {
 		if _, err = tenantDB.Exec(`
 			INSERT INTO users(id,username,email,password,role,tenant_id,company_name,created_at)
-			SELECT id,username,email,password,role,tenant_id,company_name,created_at
-			FROM users WHERE id=$1
+			VALUES($1,$2,$3,$4,$5,$6,$7,$8)
 			ON CONFLICT(id) DO UPDATE
 			SET username=EXCLUDED.username,
 			    email=EXCLUDED.email,
@@ -128,7 +127,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 			    role=EXCLUDED.role,
 			    tenant_id=EXCLUDED.tenant_id,
 			    company_name=EXCLUDED.company_name
-		`, userID); err != nil {
+		`, userID, input.Username, input.Email, string(hashedPassword), input.Role, tenantID, companyName, time.Now()); err != nil {
 			_, _ = db.DB.Exec("DELETE FROM users WHERE id=$1 AND tenant_id=$2", userID, tenantID)
 			respondWithError(w, http.StatusInternalServerError, "Could not synchronize tenant user")
 			return
@@ -233,6 +232,10 @@ func UpdateUser(w http.ResponseWriter, r *http.Request) {
 			_, _ = db.DB.Exec(
 				`UPDATE users SET username=$1,email=$2,role=$3 WHERE id=$4 AND tenant_id=$5`,
 				currentUsername, currentEmail, currentRole, targetID, tenantID,
+			)
+			_, _ = db.DB.Exec(
+				`UPDATE platform_user_accounts SET email=$1,role=$2,updated_at=NOW() WHERE user_id=$3 AND tenant_id=$4`,
+				currentEmail, currentRole, targetID, tenantID,
 			)
 			respondWithError(w, http.StatusInternalServerError, "Could not synchronize tenant user")
 			return
