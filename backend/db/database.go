@@ -140,10 +140,18 @@ type TenantUser struct {
 // ProvisionTenantDatabase creates or resumes a deterministic tenant database,
 // initializes the final tenant schema, and optionally creates the initial
 // tenant-local user. It never copies users from the control plane.
-func ProvisionTenantDatabase(controlDB *sql.DB, tenantID, companyName string, initialUser *TenantUser) (databaseName string, tenantUserID int, err error) {
-    if tenantID == "" || companyName == "" {
-        return "", 0, fmt.Errorf("tenant id and company name are required")
+func ProvisionTenantDatabase(controlDB *sql.DB, tenantID string, initialUser *TenantUser) (databaseName string, tenantUserID int, err error) {
+    if tenantID == "" {
+        return "", 0, fmt.Errorf("tenant id is required")
     }
+
+    lockConn, err := controlDB.Conn(context.Background())
+    if err != nil { return "", 0, fmt.Errorf("acquire provisioning connection: %w", err) }
+    defer lockConn.Close()
+    if _, err = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_lock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID); err != nil {
+        return "", 0, fmt.Errorf("acquire provisioning lock: %w", err)
+    }
+    defer func() { _, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID) }()
 
     databaseName = TenantDatabaseName(tenantID)
     if _, err = controlDB.Exec(
