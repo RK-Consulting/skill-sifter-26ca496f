@@ -92,8 +92,11 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 		return nil, err
 	}
 	o.Accepted = input.Accepted
-	if err := s.repo.Update(o); err != nil {
+ 	if err := s.repo.Update(o); err != nil {
 		return nil, err
+	}
+	if err := audit.Write(s.db, tenantID, 0, "offer", o.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "accepted": input.Accepted}); err != nil {
+		return nil, fmt.Errorf("write offer audit event: %w", err)
 	}
 	return o, nil
 }
