@@ -223,13 +223,22 @@ Do not add compatibility migrations to make the historical shared schema look li
 - Tenant provisioning remains retryable and records FAILED/READY state in the control plane.
 
 ### Remaining RED work
-1. Remove/retire legacy `daily_jobs` and `business_dev` runtime routes because neither belongs to the frozen tenant baseline.
-2. Remove remaining compatibility fields from API/domain models where they represent deleted physical columns.
-3. Add explicit audit-event writes to the successful recruitment transactions; the report reader is already on the final `audit_events` model.
-4. Complete tenant deletion as an explicit application-owned sequence, including connection-cache invalidation and database retirement.
-5. Rewrite handler/domain tests against clean control-plane and tenant-plane baselines.
-6. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
-7. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+1. Remove remaining compatibility fields from API/domain models where they represent deleted physical columns.
+2. Add explicit audit-event writes to the successful recruitment transactions; the report reader is already on the final `audit_events` model.
+3. Rewrite handler/domain tests against clean control-plane and tenant-plane baselines.
+4. Remove historical migration execution from deploy/test paths and make clean-baseline provisioning the authoritative integration-test setup.
+5. Run gofmt, build, vet, unit/integration tests and frontend CI after the code/schema contract is fully aligned.
+
+### Completed — tenant deletion lifecycle
+- Tenant deletion now acquires a per-tenant advisory lock and re-checks retention/subscription eligibility under a row lock.
+- Access is changed to `TERMINATED` before physical deletion, preventing authenticated and provisioning paths from admitting new work.
+- The process-local tenant connection pool is invalidated before database retirement.
+- The tenant database is dropped from the control/maintenance connection with `DROP DATABASE ... WITH (FORCE)`; failures leave the tenant TERMINATED/FAILED for deterministic retry.
+- Control-plane operational records are removed explicitly after physical deletion; no cascade is relied upon for lifecycle semantics.
+- `platform_registration_registry` is retained as the permanent registration identity.
+- Subscription webhooks ignore terminated tenants, preventing late provider events from resurrecting deleted tenants.
+- Duplicate webhook-event insertion was removed so the atomic idempotency insert remains the single event write.
+
 
 ### Current architectural rule
 
