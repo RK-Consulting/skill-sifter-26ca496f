@@ -320,6 +320,11 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	tenantID := "tenant_" + hex.EncodeToString(tenantBytes)
 
+	if _, err = tx.Exec("INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,trial_started_at,trial_expires_at,data_deletion_at) VALUES($1,$2,'ACTIVE','PENDING',NOW(),NOW()+INTERVAL '2 days',NOW()+INTERVAL '9 days')", tenantID, company); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not create tenant")
+		return
+	}
+
 	var userID int
 	if err = tx.QueryRow("INSERT INTO users(username,email,password,role,tenant_id,company_name,email_verified_at,created_at) VALUES($1,$2,$3,'admin',$4,$5,NOW(),NOW()) RETURNING id", username, email, passwordHash, tenantID, company).Scan(&userID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create account")
@@ -329,11 +334,6 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	var userLimit int
 	if err = tx.QueryRow("SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE", planCode).Scan(&userLimit); err != nil {
 		respondWithError(w, http.StatusBadRequest, "Selected plan is not available")
-		return
-	}
-
-	if _, err = tx.Exec("INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,trial_started_at,trial_expires_at,data_deletion_at) VALUES($1,$2,'ACTIVE','PENDING',NOW(),NOW()+INTERVAL '2 days',NOW()+INTERVAL '9 days')", tenantID, company); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create tenant")
 		return
 	}
 	if _, err = tx.Exec("INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,ends_at,user_limit) VALUES($1,$2,'TRIAL',NOW(),NOW()+INTERVAL '2 days',$3)", tenantID, planCode, userLimit); err != nil {
