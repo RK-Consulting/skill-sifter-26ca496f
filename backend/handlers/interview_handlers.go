@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
 )
@@ -165,6 +166,11 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, 500, "Error scheduling interview")
 		return
 	}
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "interview", i.ID, "scheduled", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID}); err != nil {
+		respondWithError(w, 500, "Error recording interview audit event")
+		return
+	}
 	respondWithJSON(w, 201, models.ApiResponse{Success: true, Message: "Interview scheduled successfully", Data: i})
 }
 
@@ -236,6 +242,11 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := db.RequestDB(r).QueryRow(`SELECT last_modified FROM interviews WHERE id=$1 AND tenant_id=$2`, id, tenantID).Scan(&i.LastModified); err != nil {
 		respondWithError(w, 500, "Error reading updated interview")
+		return
+	}
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "interview", i.ID, "updated", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID, "status": i.Status}); err != nil {
+		respondWithError(w, 500, "Error recording interview audit event")
 		return
 	}
 	respondWithJSON(w, 200, models.ApiResponse{Success: true, Message: "Interview updated successfully", Data: i})
