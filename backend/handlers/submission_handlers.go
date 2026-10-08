@@ -19,7 +19,6 @@ func submissionService(r *http.Request) *submission.Service {
 type submissionRequest struct {
 	RecipientType     string `json:"recipientType"`
 	RecipientClientID *int   `json:"recipientClientId,omitempty"`
-	RecipientUserID   *int   `json:"recipientUserId,omitempty"`
 	RecipientName     string `json:"recipientName,omitempty"`
 	RecipientEmail    string `json:"recipientEmail,omitempty"`
 	SubmissionContext string `json:"submissionContext,omitempty"`
@@ -34,7 +33,6 @@ type submissionResponse struct {
 	SubmittedByUserID   int             `json:"submittedByUserId"`
 	RecipientType       string          `json:"recipientType"`
 	RecipientClientID   *int            `json:"recipientClientId,omitempty"`
-	RecipientUserID     *int            `json:"recipientUserId,omitempty"`
 	RecipientName       string          `json:"recipientName,omitempty"`
 	RecipientEmail      string          `json:"recipientEmail,omitempty"`
 	SubmissionContext   string          `json:"submissionContext,omitempty"`
@@ -46,7 +44,7 @@ type submissionResponse struct {
 
 func toSubmissionResponse(s *submission.Submission) submissionResponse {
 	return submissionResponse{ID: s.ID, TenantID: s.TenantID, CandidateID: s.CandidateID, RequirementID: s.RequirementID, SubmittedByUserID: s.SubmittedByUserID,
-		RecipientType: string(s.RecipientType), RecipientClientID: s.RecipientClientID, RecipientUserID: s.RecipientUserID, RecipientName: s.RecipientName,
+		RecipientType: string(s.RecipientType), RecipientClientID: s.RecipientClientID, RecipientName: s.RecipientName,
 		RecipientEmail: s.RecipientEmail, SubmissionContext: s.SubmissionContext, RecruiterNotes: s.RecruiterNotes, CandidateSnapshot: s.CandidateSnapshot,
 		RequirementSnapshot: s.RequirementSnapshot, SubmittedAt: s.SubmittedAt.Format("2006-01-02T15:04:05Z07:00")}
 }
@@ -79,7 +77,7 @@ func AddCandidateRequirementSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 	record, err := submissionService(r).Submit(tenantID, submission.CreateInput{CandidateID: candidateID, RequirementID: requirementID, SubmittedByUserID: actorUserID,
-		RecipientType: submission.RecipientType(req.RecipientType), RecipientClientID: req.RecipientClientID, RecipientUserID: req.RecipientUserID, RecipientName: req.RecipientName,
+		RecipientType: submission.RecipientType(req.RecipientType), RecipientClientID: req.RecipientClientID, RecipientName: req.RecipientName,
 		RecipientEmail: req.RecipientEmail, SubmissionContext: req.SubmissionContext, RecruiterNotes: req.RecruiterNotes})
 	if err != nil {
 		switch {
