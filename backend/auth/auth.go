@@ -210,7 +210,6 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 	}
 }
 
-
 // GenerateProvisioningRecoveryToken creates a short-lived token that can only
 // be used to retry provisioning for a verified registration.
 func GenerateProvisioningRecoveryToken(tenantID, email, companyName string) (string, error) {
