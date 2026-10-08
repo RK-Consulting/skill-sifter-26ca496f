@@ -389,7 +389,16 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err = db.DB.Exec(`INSERT INTO platform_user_accounts(tenant_id,user_id,email,role) VALUES($1,$2,$3,$4) ON CONFLICT (tenant_id,user_id) DO UPDATE SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()`, tenantID, tenantUserID, email, "admin"); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
+		recoveryToken, tokenErr := auth.GenerateProvisioningRecoveryToken(tenantID, email, company)
+		if tokenErr != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
+			return
+		}
+		respondWithJSON(w, http.StatusServiceUnavailable, models.ApiResponse{
+			Success: false,
+			Message: "Tenant database is ready but platform account finalization failed; retry using the provisioning recovery token",
+			Data: map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
+		})
 		return
 	}
 
