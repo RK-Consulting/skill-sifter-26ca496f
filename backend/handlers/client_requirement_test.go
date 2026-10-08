@@ -233,7 +233,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 
 	var tenantBClientID, tenantBReqID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('B Client', 'active', 'tenant_b') RETURNING id`).Scan(&tenantBClientID)
-	testDB.QueryRow(`INSERT INTO requirements (client_id, title, status, tenant_id) VALUES ($1, 'B Requirement', 'open', 'tenant_b') RETURNING id`, tenantBClientID).Scan(&tenantBReqID)
+	testDB.QueryRow(`INSERT INTO requirements (client_id, job_type, title, status, tenant_id) VALUES ($1, 'fulltime', 'B Requirement', 'open', 'tenant_b') RETURNING id`, tenantBClientID).Scan(&tenantBReqID)
 
 	t.Run("cross-tenant read by known ID returns 404", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/v1/requirements/x", nil), "tenant_a")
@@ -342,7 +342,7 @@ func TestDeleteClient_WithRequirements_IsRejected(t *testing.T) {
 
 	var clientID int
 	testDB.QueryRow(`INSERT INTO clients (name, status, tenant_id) VALUES ('Client With Reqs', 'active', 'tenant_a') RETURNING id`).Scan(&clientID)
-	testDB.Exec(`INSERT INTO requirements (client_id, title, status, tenant_id) VALUES ($1, 'Dependent Req', 'open', 'tenant_a')`, clientID)
+	testDB.Exec(`INSERT INTO requirements (client_id, job_type, title, status, tenant_id) VALUES ($1, 'fulltime', 'Dependent Req', 'open', 'tenant_a')`, clientID)
 
 	req := isoCtx(httptest.NewRequest("DELETE", "/api/v1/clients/x", nil), "tenant_a")
 	req = mux.SetURLVars(req, map[string]string{"id": itoa(clientID)})
