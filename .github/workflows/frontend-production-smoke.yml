@@ -1,0 +1,88 @@
+name: Frontend Production Smoke
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: 'Deployed SkillSifter frontend URL'
+        required: true
+        default: 'https://skillsifter.in'
+        type: string
+  workflow_run:
+    workflows: ['Frontend CI']
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontend-production-smoke
+  cancel-in-progress: true
+
+jobs:
+  frontend-production-smoke:
+    name: Browser Frontend Production Smoke
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.base_url || 'https://skillsifter.in' }}
+      E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
+      E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Wait for deployed frontend
+        shell: bash
+        run: |
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error --location --max-time 15 "$PLAYWRIGHT_TEST_BASE_URL/" >/dev/null; then
+              echo "Frontend is reachable."
+              exit 0
+            fi
+            echo "Frontend not ready yet (attempt $attempt/20); waiting 15 seconds..."
+            sleep 15
+          done
+          echo "Frontend did not become reachable within 5 minutes."
+          exit 1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      - name: Install E2E dependencies
+        working-directory: e2e
+        run: npm ci
+
+      - name: Install Chromium
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify production smoke credentials
+        shell: bash
+        run: |
+          test -n "$E2E_ADMIN_EMAIL" || { echo "SKILLSIFTER_E2E_ADMIN_EMAIL is not configured."; exit 1; }
+          test -n "$E2E_ADMIN_PASSWORD" || { echo "SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."; exit 1; }
+          test "$E2E_ADMIN_EMAIL" = "e2e-admin@skillsifter.in" || { echo "Unexpected E2E smoke account."; exit 1; }
+
+      - name: Run frontend production smoke
+        working-directory: e2e
+        run: npx playwright test tests/frontend-production-smoke.spec.ts
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-smoke-report
+          path: e2e/playwright-report/
+          retention-days: 30
