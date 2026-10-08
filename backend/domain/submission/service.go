@@ -96,8 +96,7 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	}
 
 	record := &Submission{TenantID: tenantID, CandidateID: input.CandidateID, RequirementID: input.RequirementID,
-		SubmittedByUserID: input.SubmittedByUserID, RecipientType: input.RecipientType, RecipientClientID: input.RecipientClientID,
-		RecipientUserID: input.RecipientUserID, RecipientName: input.RecipientName, RecipientEmail: input.RecipientEmail,
+		SubmittedByUserID: input.SubmittedByUserID, RecipientType: input.RecipientType, RecipientClientID: input.RecipientClientID, RecipientName: input.RecipientName, RecipientEmail: input.RecipientEmail,
 		SubmissionContext: input.SubmissionContext, RecruiterNotes: input.RecruiterNotes,
 		CandidateSnapshot: candidateSnapshot, RequirementSnapshot: requirementSnapshot}
 	if err := s.repo.Create(record); err != nil {

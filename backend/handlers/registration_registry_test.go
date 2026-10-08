@@ -8,16 +8,14 @@ import (
 
 func openRegistryTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	testDB, err := openHandlerTestDB(getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName))
-	if err != nil {
-		t.Fatalf("open registration registry test database: %v", err)
+	if handlerControlDB == nil {
+		t.Fatal("control test database is not initialized")
 	}
-	return testDB
+	return handlerControlDB
 }
 
 func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	var exists bool
 	if err := testDB.QueryRow(`
 		SELECT EXISTS (
@@ -50,7 +48,6 @@ func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 
 func TestPermanentRegistrationRegistryRejectsDuplicateEmail(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	const email = "registry-test@example.com"
 
 	_, _ = testDB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)

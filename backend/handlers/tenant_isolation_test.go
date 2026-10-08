@@ -25,6 +25,36 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 		t.Fatal("handler test databases are not initialized")
 	}
 
+	// User-management handlers resolve tenant routing through the control plane.
+	// Seed deterministic READY routing and an active subscription for the two
+	// isolated test tenants, while pointing both at the authoritative tenant test DB.
+	_ = os.Setenv("DB_HOST", getenvOr("TEST_DB_HOST", "localhost"))
+	_ = os.Setenv("DB_PORT", getenvOr("TEST_DB_PORT", "5432"))
+	_ = os.Setenv("DB_USER", getenvOr("TEST_DB_USER", "postgres"))
+	_ = os.Setenv("DB_PASSWORD", getenvOr("TEST_DB_PASSWORD", "postgres"))
+	tenantDatabase := getenvOr("SKILLSIFTER_TENANT_TEST_DB", "skillsifter_tenant_test")
+	for _, tenant := range []string{"tenant_a", "tenant_b"} {
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_user_accounts WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_subscriptions WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_tenants WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(
+			`INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,tenant_database)
+			 VALUES($1,$2,'ACTIVE','READY',$3)`, tenant, tenant+" company", tenantDatabase); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(
+			`INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,user_limit)
+			 VALUES($1,'starter_monthly','ACTIVE',NOW(),3)`, tenant); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	cleanupTables := []string{
 		"recruitment_submission_feedback", "recruitment_submissions",
 		"recruitment_screenings", "recruitment_selections",
@@ -78,7 +108,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("cross-tenant read by known ID returns 404, not the record", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -101,7 +131,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	t.Run("cross-tenant update affects zero rows and returns 404", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Hijacked", "email": "hijacked@test.com"})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/candidates/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		UpdateCandidate(rec, req)
 		if rec.Code == http.StatusOK {
@@ -117,7 +147,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("cross-tenant delete affects zero rows and returns 404", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/candidates/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		DeleteCandidate(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -133,7 +163,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("own-tenant read succeeds", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_b")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
 		if rec.Code != http.StatusOK {
@@ -192,7 +222,7 @@ func TestTenantIsolation_Users(t *testing.T) {
 
 	t.Run("DeleteUser with Tenant B's known user ID from Tenant A context is denied", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/users/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBUserID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBUserID)})
 		rec := httptest.NewRecorder()
 		DeleteUser(rec, req)
 		if rec.Code != http.StatusNotFound {

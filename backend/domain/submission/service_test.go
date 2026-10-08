@@ -54,7 +54,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
 	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
 	must(d.QueryRow("INSERT INTO clients (name,status,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Client", "active", tenant).Scan(&client))
-	must(d.QueryRow("INSERT INTO requirements (client_id,title,status,tenant_id) VALUES ($1,$2,$3,$4) RETURNING id", client, "Requirement", "open", tenant).Scan(&rid))
+	must(d.QueryRow("INSERT INTO requirements (client_id,job_type,title,status,tenant_id) VALUES ($1,'fulltime',$2,$3,$4) RETURNING id", client, "Requirement", "open", tenant).Scan(&rid))
 	clean := func() {
 		d.Exec("DELETE FROM recruitment_submission_feedback WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM recruitment_submissions WHERE tenant_id=$1", tenant)

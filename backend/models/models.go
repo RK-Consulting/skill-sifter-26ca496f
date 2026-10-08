@@ -77,6 +77,7 @@ type CandidateStatusUpdate struct {
 type DailyJob struct {
 	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
 	JdNo             int       `json:"jdNo" db:"jd_no,notnull"`
+	CompanyName      string    `json:"companyName,omitempty" db:"-"`
 	Instructions     string    `json:"instructions" db:"instructions"`
 	AssignedUser     int       `json:"assignedUser" db:"assigned_user"`
 	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
@@ -110,6 +111,7 @@ type Interview struct {
 // BusinessDev model
 type BusinessDev struct {
 	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
+	CompanyName   string    `json:"companyName,omitempty" db:"-"`
 	ClientName    string    `json:"clientName" db:"client_name,notnull"`
 	PartnerName   string    `json:"partnerName" db:"partner_name"`
 	ContactPerson string    `json:"contactPerson" db:"contact_person,notnull"`
