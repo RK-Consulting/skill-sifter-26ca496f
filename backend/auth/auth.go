@@ -44,6 +44,7 @@ type Claims struct {
 	Role        string `json:"role"`
 	TenantID    string `json:"tenantId"`
 	CompanyName string `json:"companyName"`
+	Recovery    bool   `json:"recovery,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -123,14 +124,37 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// remaining usable until JWT expiry and makes the platform layer
 		// authoritative for tenant + RBAC.
 		var access platformaccess.LoginAccess
-		if r.URL.Path == "/api/admin/tenant/provision" {
-			access, err = platformaccess.ResolveProvisioningAccess(db.DB, claims.UserID, claims.TenantID)
+		if r.URL.Path == "/api/admin/tenant/provision" && claims.Recovery {
+			if claims.UserID != 0 || claims.Role != "admin" {
+				http.Error(w, "Invalid provisioning recovery token", http.StatusForbidden)
+				return
+			}
+			var accountStatus, provisioningStatus, companyName string
+			if err := db.DB.QueryRow(
+				`SELECT account_status, provisioning_status, company_name
+				 FROM platform_tenants WHERE tenant_id=$1`,
+				claims.TenantID,
+			).Scan(&accountStatus, &provisioningStatus, &companyName); err != nil ||
+				accountStatus == "TERMINATED" ||
+				(provisioningStatus != "PENDING" && provisioningStatus != "PROVISIONING" && provisioningStatus != "FAILED" && provisioningStatus != "READY") {
+				http.Error(w, "Tenant provisioning recovery is not available", http.StatusForbidden)
+				return
+			}
+			access = platformaccess.LoginAccess{
+				TenantID: claims.TenantID, Role: "admin",
+				AccountStatus: accountStatus, ProvisioningStatus: provisioningStatus,
+				CompanyName: companyName,
+			}
 		} else {
-			access, err = platformaccess.ResolveLoginAccess(db.DB, claims.UserID, claims.TenantID)
-		}
-		if err != nil {
-			http.Error(w, "Tenant subscription or access is not active", http.StatusForbidden)
-			return
+			if r.URL.Path == "/api/admin/tenant/provision" {
+				access, err = platformaccess.ResolveProvisioningAccess(db.DB, claims.UserID, claims.TenantID)
+			} else {
+				access, err = platformaccess.ResolveLoginAccess(db.DB, claims.UserID, claims.TenantID)
+			}
+			if err != nil {
+				http.Error(w, "Tenant subscription or access is not active", http.StatusForbidden)
+				return
+			}
 		}
 
 		if access.SubscriptionStatus == "EXPIRED" {
@@ -145,6 +169,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := r.Context()
 		ctx = context.WithValue(ctx, "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "email", claims.Email)
+		ctx = context.WithValue(ctx, "provisioningRecovery", claims.Recovery)
 		ctx = context.WithValue(ctx, "role", access.Role)
 		ctx = context.WithValue(ctx, "tenantID", access.TenantID)
 		ctx = context.WithValue(ctx, "companyName", claims.CompanyName)
@@ -184,6 +209,21 @@ func RoleMiddleware(allowedRoles ...string) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+
+// GenerateProvisioningRecoveryToken creates a short-lived token that can only
+// be used to retry provisioning for a verified registration.
+func GenerateProvisioningRecoveryToken(tenantID, email, companyName string) (string, error) {
+	claims := &Claims{
+		UserID: 0, Email: email, Role: "admin", TenantID: tenantID,
+		CompanyName: companyName, Recovery: true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(JwtKey)
 }
 
 // GenerateToken creates a JWT token for a user. user.TenantID must be the
