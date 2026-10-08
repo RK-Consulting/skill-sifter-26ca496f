@@ -28,7 +28,6 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 	// User-management handlers resolve tenant routing through the control plane.
 	// Seed deterministic READY routing and an active subscription for the two
 	// isolated test tenants, while pointing both at the authoritative tenant test DB.
-	db.CloseTenantDatabases()
 	_ = os.Setenv("DB_HOST", getenvOr("TEST_DB_HOST", "localhost"))
 	_ = os.Setenv("DB_PORT", getenvOr("TEST_DB_PORT", "5432"))
 	_ = os.Setenv("DB_USER", getenvOr("TEST_DB_USER", "postgres"))
