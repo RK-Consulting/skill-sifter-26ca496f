@@ -57,7 +57,7 @@ func (r *PostgresRepository) create(q submissionInserter, s *Submission) error {
 			tenant_id,candidate_id,requirement_id,submitted_by_user_id,
 			recipient_type,recipient_client_id,recipient_name,
 			recipient_email,submission_context,recruiter_notes,candidate_snapshot,requirement_snapshot
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING id,submitted_at,created_at`,
 		s.TenantID, s.CandidateID, s.RequirementID, s.SubmittedByUserID, s.RecipientType,
 		nullableInt(s.RecipientClientID), nullableString(s.RecipientName), nullableString(s.RecipientEmail),
