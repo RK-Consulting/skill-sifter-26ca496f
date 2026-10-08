@@ -38,7 +38,6 @@ func withAuthContext(req *http.Request, companyName string) *http.Request {
 // real database, not just Go's type system, so a column mismatch here fails
 // loudly instead of silently reaching production.
 func TestAddCandidateAndGetCandidates(t *testing.T) {
-	testDB := setupTestDB(t)
 	candidate := models.Candidate{
 		Name:         "Test Candidate",
 		Email:        "test.candidate@example.com",
