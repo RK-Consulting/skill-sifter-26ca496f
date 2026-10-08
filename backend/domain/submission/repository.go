@@ -92,10 +92,6 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 			v := int(clientID.Int64)
 			s.RecipientClientID = &v
 		}
-		if userID.Valid {
-			v := int(userID.Int64)
-			s.RecipientUserID = &v
-		}
 		results = append(results, s)
 	}
 	return results, rows.Err()
