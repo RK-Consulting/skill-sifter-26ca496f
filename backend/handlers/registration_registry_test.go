@@ -48,7 +48,6 @@ func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 
 func TestPermanentRegistrationRegistryRejectsDuplicateEmail(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	const email = "registry-test@example.com"
 
 	_, _ = testDB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
