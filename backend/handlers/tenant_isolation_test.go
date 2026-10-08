@@ -25,6 +25,37 @@ func setupIsolationTestDB(t *testing.T) *sql.DB {
 		t.Fatal("handler test databases are not initialized")
 	}
 
+	// User-management handlers resolve tenant routing through the control plane.
+	// Seed deterministic READY routing and an active subscription for the two
+	// isolated test tenants, while pointing both at the authoritative tenant test DB.
+	db.CloseTenantDatabases()
+	_ = os.Setenv("DB_HOST", getenvOr("TEST_DB_HOST", "localhost"))
+	_ = os.Setenv("DB_PORT", getenvOr("TEST_DB_PORT", "5432"))
+	_ = os.Setenv("DB_USER", getenvOr("TEST_DB_USER", "postgres"))
+	_ = os.Setenv("DB_PASSWORD", getenvOr("TEST_DB_PASSWORD", "postgres"))
+	tenantDatabase := getenvOr("SKILLSIFTER_TENANT_TEST_DB", "skillsifter_tenant_test")
+	for _, tenant := range []string{"tenant_a", "tenant_b"} {
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_user_accounts WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_subscriptions WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(`DELETE FROM platform_tenants WHERE tenant_id=$1`, tenant); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(
+			`INSERT INTO platform_tenants(tenant_id,company_name,account_status,provisioning_status,tenant_database)
+			 VALUES($1,$2,'ACTIVE','READY',$3)`, tenant, tenant+" company", tenantDatabase); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := handlerControlDB.Exec(
+			`INSERT INTO platform_subscriptions(tenant_id,plan_code,status,starts_at,user_limit)
+			 VALUES($1,'starter_monthly','ACTIVE',NOW(),3)`, tenant); err != nil {
+			t.Fatal(err)
+		}
+	}
+
 	cleanupTables := []string{
 		"recruitment_submission_feedback", "recruitment_submissions",
 		"recruitment_screenings", "recruitment_selections",
