@@ -317,7 +317,7 @@ func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 	}
 
 	var reqID int
-	testDB.QueryRow(`INSERT INTO requirements (client_id, title, tenant_id) VALUES ($1, 'Minimal Requirement', 'tenant_a') RETURNING id`, clientID).Scan(&reqID)
+	testDB.QueryRow(`INSERT INTO requirements (client_id, job_type, title, tenant_id) VALUES ($1, 'fulltime', 'Minimal Requirement', 'tenant_a') RETURNING id`, clientID).Scan(&reqID)
 
 	reqReq := isoCtx(httptest.NewRequest("GET", "/api/v1/requirements/x", nil), "tenant_a")
 	reqReq = mux.SetURLVars(reqReq, map[string]string{"id": strconv.Itoa(reqID)})
