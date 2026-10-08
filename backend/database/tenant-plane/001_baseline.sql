@@ -111,7 +111,7 @@ CREATE TABLE candidate_language_expertise (
     language VARCHAR(100) NOT NULL,
     proficiency_framework VARCHAR(50) NOT NULL,
     proficiency_level VARCHAR(50) NOT NULL,
-    source_resume_id INTEGER REFERENCES resumes(id) ON DELETE SET NULL,
+    source_resume_id INTEGER,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT candidate_language_expertise_unique UNIQUE(candidate_id, language, proficiency_framework, proficiency_level)
@@ -153,6 +153,10 @@ CREATE TABLE resumes (
     uploaded_at TIMESTAMP NOT NULL DEFAULT NOW(),
     parsed_at TIMESTAMP
 );
+
+ALTER TABLE candidate_language_expertise
+    ADD CONSTRAINT candidate_language_expertise_source_resume_fk
+    FOREIGN KEY (source_resume_id) REFERENCES resumes(id) ON DELETE SET NULL;
 
 CREATE UNIQUE INDEX uq_resumes_tenant_hash ON resumes(tenant_id, file_hash);
 CREATE INDEX idx_resumes_tenant ON resumes(tenant_id);
