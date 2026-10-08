@@ -16,7 +16,6 @@ func openRegistryTestDB(t *testing.T) *sql.DB {
 
 func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	var exists bool
 	if err := testDB.QueryRow(`
 		SELECT EXISTS (
