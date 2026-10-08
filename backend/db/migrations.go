@@ -13,7 +13,7 @@ import (
     "strconv"
 )
 
-var schemaSeqPattern = regexp.MustCompile(`^(\\d+)_`)
+var schemaSeqPattern = regexp.MustCompile(`^(\d+)_`)
 const controlSchemaLockKey = "skill-sifter:control-schema"
 const tenantSchemaLockKey = "skill-sifter:tenant-schema"
 
