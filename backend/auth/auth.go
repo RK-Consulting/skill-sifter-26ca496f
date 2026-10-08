@@ -143,7 +143,6 @@ func AuthMiddleware(next http.Handler) http.Handler {
 			access = platformaccess.LoginAccess{
 				TenantID: claims.TenantID, Role: "admin",
 				AccountStatus: accountStatus, ProvisioningStatus: provisioningStatus,
-				CompanyName: companyName,
 			}
 		} else {
 			if r.URL.Path == "/api/admin/tenant/provision" {
