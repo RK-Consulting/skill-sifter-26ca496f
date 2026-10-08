@@ -47,6 +47,7 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/e2e/bootstrap", handlers.BootstrapE2ESmokeAccount).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
