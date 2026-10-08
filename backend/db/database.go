@@ -131,86 +131,90 @@ func setTenantProvisioningStatus(controlDB *sql.DB, tenantID, status, databaseNa
 // TenantUser is the minimal tenant-local account created during provisioning.
 // It is deliberately not a control-plane user record.
 type TenantUser struct {
-    ID       int
-    Username string
-    Email    string
-    Password string
-    Role     string
+	ID       int
+	Username string
+	Email    string
+	Password string
+	Role     string
 }
 
 // ProvisionTenantDatabase creates or resumes a deterministic tenant database,
 // initializes the final tenant schema, and optionally creates the initial
 // tenant-local user. It never copies users from the control plane.
 func ProvisionTenantDatabase(controlDB *sql.DB, tenantID string, initialUser *TenantUser) (databaseName string, tenantUserID int, err error) {
-    if tenantID == "" {
-        return "", 0, fmt.Errorf("tenant id is required")
-    }
+	if tenantID == "" {
+		return "", 0, fmt.Errorf("tenant id is required")
+	}
 
-    lockConn, err := controlDB.Conn(context.Background())
-    if err != nil { return "", 0, fmt.Errorf("acquire provisioning connection: %w", err) }
-    defer lockConn.Close()
-    if _, err = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_lock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID); err != nil {
-        return "", 0, fmt.Errorf("acquire provisioning lock: %w", err)
-    }
-    defer func() { _, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID) }()
+	lockConn, err := controlDB.Conn(context.Background())
+	if err != nil {
+		return "", 0, fmt.Errorf("acquire provisioning connection: %w", err)
+	}
+	defer lockConn.Close()
+	if _, err = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_lock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID); err != nil {
+		return "", 0, fmt.Errorf("acquire provisioning lock: %w", err)
+	}
+	defer func() {
+		_, _ = lockConn.ExecContext(context.Background(), "SELECT pg_advisory_unlock(hashtext($1)::bigint)", "skill-sifter:provision:"+tenantID)
+	}()
 
-    databaseName = TenantDatabaseName(tenantID)
-    if _, err = controlDB.Exec(
-        `UPDATE platform_tenants
+	databaseName = TenantDatabaseName(tenantID)
+	if _, err = controlDB.Exec(
+		`UPDATE platform_tenants
          SET provisioning_status='PROVISIONING', tenant_database=$1, updated_at=NOW()
          WHERE tenant_id=$2 AND provisioning_status IN ('PENDING','PROVISIONING','FAILED','READY')`,
-        databaseName, tenantID,
-    ); err != nil {
-        return "", 0, fmt.Errorf("mark tenant provisioning: %w", err)
-    }
+		databaseName, tenantID,
+	); err != nil {
+		return "", 0, fmt.Errorf("mark tenant provisioning: %w", err)
+	}
 
-    defer func() {
-        if err != nil {
-            _, _ = controlDB.Exec(
-                `UPDATE platform_tenants
+	defer func() {
+		if err != nil {
+			_, _ = controlDB.Exec(
+				`UPDATE platform_tenants
                  SET provisioning_status='FAILED', updated_at=NOW()
                  WHERE tenant_id=$1`, tenantID)
-        }
-    }()
+		}
+	}()
 
-    adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
-    if err != nil {
-        return "", 0, fmt.Errorf("open control database for provisioning: %w", err)
-    }
-    defer adminDB.Close()
+	adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
+	if err != nil {
+		return "", 0, fmt.Errorf("open control database for provisioning: %w", err)
+	}
+	defer adminDB.Close()
 
-    var exists bool
-    if err = adminDB.QueryRow(
-        `SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)`, databaseName,
-    ).Scan(&exists); err != nil {
-        return "", 0, fmt.Errorf("check tenant database: %w", err)
-    }
+	var exists bool
+	if err = adminDB.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)`, databaseName,
+	).Scan(&exists); err != nil {
+		return "", 0, fmt.Errorf("check tenant database: %w", err)
+	}
 
-    if !exists {
-        if _, err = adminDB.Exec(`CREATE DATABASE ` + databaseName); err != nil &&
-            !strings.Contains(err.Error(), "already exists") {
-            return "", 0, fmt.Errorf("create tenant database: %w", err)
-        }
-    }
+	if !exists {
+		if _, err = adminDB.Exec(`CREATE DATABASE ` + databaseName); err != nil &&
+			!strings.Contains(err.Error(), "already exists") {
+			return "", 0, fmt.Errorf("create tenant database: %w", err)
+		}
+	}
 
-    tenantDB, err := OpenDatabase(databaseName)
-    if err != nil {
-        return "", 0, fmt.Errorf("open tenant database: %w", err)
-    }
-    defer tenantDB.Close()
+	tenantDB, err := OpenDatabase(databaseName)
+	if err != nil {
+		return "", 0, fmt.Errorf("open tenant database: %w", err)
+	}
+	defer tenantDB.Close()
 
-    if err = InitializeTenantSchema(tenantDB); err != nil {
-        return "", 0, err
-    }
+	if err = InitializeTenantSchema(tenantDB); err != nil {
+		return "", 0, err
+	}
 
-    if initialUser != nil {
-        if initialUser.Username == "" || initialUser.Email == "" || initialUser.Password == "" || initialUser.Role == "" {
-            return "", 0, fmt.Errorf("initial tenant user is incomplete")
-        }
+	if initialUser != nil {
+		if initialUser.Username == "" || initialUser.Email == "" || initialUser.Password == "" || initialUser.Role == "" {
+			return "", 0, fmt.Errorf("initial tenant user is incomplete")
+		}
 
-        if initialUser.ID > 0 {
-            err = tenantDB.QueryRow(
-                `INSERT INTO users(id, username, email, password, role, tenant_id)
+		if initialUser.ID > 0 {
+			err = tenantDB.QueryRow(
+				`INSERT INTO users(id, username, email, password, role, tenant_id)
                  VALUES($1,$2,$3,$4,$5,$6)
                  ON CONFLICT(id) DO UPDATE
                  SET username=EXCLUDED.username,
@@ -219,12 +223,12 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID string, initialUser *Te
                      role=EXCLUDED.role,
                      tenant_id=EXCLUDED.tenant_id
                  RETURNING id`,
-                initialUser.ID, initialUser.Username, initialUser.Email,
-                initialUser.Password, initialUser.Role, tenantID,
-            ).Scan(&tenantUserID)
-        } else {
-            err = tenantDB.QueryRow(
-                `INSERT INTO users(username, email, password, role, tenant_id)
+				initialUser.ID, initialUser.Username, initialUser.Email,
+				initialUser.Password, initialUser.Role, tenantID,
+			).Scan(&tenantUserID)
+		} else {
+			err = tenantDB.QueryRow(
+				`INSERT INTO users(username, email, password, role, tenant_id)
                  VALUES($1,$2,$3,$4,$5)
                  ON CONFLICT(email) DO UPDATE
                  SET username=EXCLUDED.username,
@@ -232,31 +236,31 @@ func ProvisionTenantDatabase(controlDB *sql.DB, tenantID string, initialUser *Te
                      role=EXCLUDED.role,
                      tenant_id=EXCLUDED.tenant_id
                  RETURNING id`,
-                initialUser.Username, initialUser.Email, initialUser.Password,
-                initialUser.Role, tenantID,
-            ).Scan(&tenantUserID)
-        }
-        if err != nil {
-            return "", 0, fmt.Errorf("create tenant user: %w", err)
-        }
+				initialUser.Username, initialUser.Email, initialUser.Password,
+				initialUser.Role, tenantID,
+			).Scan(&tenantUserID)
+		}
+		if err != nil {
+			return "", 0, fmt.Errorf("create tenant user: %w", err)
+		}
 
-        if _, err = tenantDB.Exec(
-            `SELECT setval(pg_get_serial_sequence('users','id'), GREATEST(COALESCE(MAX(id),1),1), true) FROM users`,
-        ); err != nil {
-            return "", 0, fmt.Errorf("sync tenant user sequence: %w", err)
-        }
-    }
+		if _, err = tenantDB.Exec(
+			`SELECT setval(pg_get_serial_sequence('users','id'), GREATEST(COALESCE(MAX(id),1),1), true) FROM users`,
+		); err != nil {
+			return "", 0, fmt.Errorf("sync tenant user sequence: %w", err)
+		}
+	}
 
-    if _, err = controlDB.Exec(
-        `UPDATE platform_tenants
+	if _, err = controlDB.Exec(
+		`UPDATE platform_tenants
          SET provisioning_status='READY', tenant_database=$1, updated_at=NOW()
          WHERE tenant_id=$2`,
-        databaseName, tenantID,
-    ); err != nil {
-        return "", 0, fmt.Errorf("mark tenant ready: %w", err)
-    }
+		databaseName, tenantID,
+	); err != nil {
+		return "", 0, fmt.Errorf("mark tenant ready: %w", err)
+	}
 
-    return databaseName, tenantUserID, nil
+	return databaseName, tenantUserID, nil
 }
 
 // DeleteTenantDatabase performs the complete application-owned tenant deletion lifecycle.

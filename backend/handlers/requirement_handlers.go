@@ -240,8 +240,6 @@ func UpdateRequirement(w http.ResponseWriter, r *http.Request) {
 	req.ID = id
 	req.TenantID = tenantID
 
-	
-
 	belongs, err := clientBelongsToTenant(r, req.ClientID, tenantID)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error validating client")

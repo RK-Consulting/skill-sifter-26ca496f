@@ -187,7 +187,6 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	user.CompanyName = ""
 	user.Role = platformRole
 
-
 	tokenString, err := auth.GenerateToken(user, user.Role)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not generate token")

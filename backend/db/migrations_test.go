@@ -246,7 +246,6 @@ func TestSchemaLockSerializesInitializers(t *testing.T) {
 	}
 }
 
-
 func TestFinalPlaneBaselines_ArePhysicallySeparated(t *testing.T) {
 	host := getenvDefault("TEST_DB_HOST", "localhost")
 	port := getenvDefault("TEST_DB_PORT", "5432")

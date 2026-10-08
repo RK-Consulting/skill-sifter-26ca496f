@@ -52,7 +52,7 @@ func fixture(t *testing.T, d *sql.DB) (string, int, int, int, func()) {
 			t.Fatal(err)
 		}
 	}
-		var uid, cid, client, rid int
+	var uid, cid, client, rid int
 	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id", "screen-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
 	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
 	must(d.QueryRow("INSERT INTO clients (name,status,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Client", "active", tenant).Scan(&client))
@@ -63,7 +63,7 @@ func fixture(t *testing.T, d *sql.DB) (string, int, int, int, func()) {
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM users WHERE tenant_id=$1", tenant)
-			}
+	}
 	return tenant, cid, rid, uid, clean
 }
 
@@ -95,7 +95,7 @@ func TestService_TenantIsolation(t *testing.T) {
 	tenant, cid, rid, uid, clean := fixture(t, d)
 	defer clean()
 	other := tenant + "_other"
-			s := NewService(NewPostgresRepository(d), d)
+	s := NewService(NewPostgresRepository(d), d)
 	if _, err := s.CreateScreening(tenant, CreateInput{CandidateID: cid, RequirementID: rid, RecruiterUserID: uid}); err != nil {
 		t.Fatal(err)
 	}

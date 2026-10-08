@@ -33,14 +33,21 @@ type ActivityLogRow struct {
 
 func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	period := r.URL.Query().Get("period")
-	if period == "" { period = "monthly" }
+	if period == "" {
+		period = "monthly"
+	}
 	var trunc, since, label string
 	switch period {
-	case "daily": trunc, since, label = "day", "30 days", "2006-01-02"
-	case "weekly": trunc, since, label = "week", "26 weeks", "2006-01-02"
-	case "monthly": trunc, since, label = "month", "12 months", "2006-01"
-	case "quarterly": trunc, since, label = "quarter", "8 quarters", "2006-01"
-	case "yearly": trunc, since, label = "year", "5 years", "2006"
+	case "daily":
+		trunc, since, label = "day", "30 days", "2006-01-02"
+	case "weekly":
+		trunc, since, label = "week", "26 weeks", "2006-01-02"
+	case "monthly":
+		trunc, since, label = "month", "12 months", "2006-01"
+	case "quarterly":
+		trunc, since, label = "quarter", "8 quarters", "2006-01"
+	case "yearly":
+		trunc, since, label = "year", "5 years", "2006"
 	default:
 		respondWithError(w, http.StatusBadRequest, "period must be daily, weekly, monthly, quarterly or yearly")
 		return
@@ -94,7 +101,9 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		x.Period = p.Format(label)
-		if period == "quarterly" { x.Period = fmt.Sprintf("Q%d %d", (int(p.Month())-1)/3+1, p.Year()) }
+		if period == "quarterly" {
+			x.Period = fmt.Sprintf("Q%d %d", (int(p.Month())-1)/3+1, p.Year())
+		}
 		out = append(out, x)
 	}
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Periodic report fetched", Data: out})
@@ -103,39 +112,54 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 func GetActivityLog(w http.ResponseWriter, r *http.Request) {
 	limit := 100
 	if raw := r.URL.Query().Get("limit"); raw != "" {
-		if n, e := strconv.Atoi(raw); e == nil && n > 0 && n <= 500 { limit = n }
+		if n, e := strconv.Atoi(raw); e == nil && n > 0 && n <= 500 {
+			limit = n
+		}
 	}
 	action := r.URL.Query().Get("action")
 	query := "SELECT id,action,entity_type,COALESCE(entity_id::text,''),COALESCE(metadata->>'description',''),actor_user_id,occurred_at FROM audit_events WHERE tenant_id=$1"
 	args := []interface{}{r.Context().Value("tenantID")}
-	if action != "" { query += " AND action=$2"; args = append(args, action) }
+	if action != "" {
+		query += " AND action=$2"
+		args = append(args, action)
+	}
 	query += fmt.Sprintf(" ORDER BY occurred_at DESC LIMIT %d", limit)
 	rows, err := db.RequestDB(r).Query(query, args...)
-	if err != nil { respondWithError(w, http.StatusInternalServerError, "Failed to fetch activity log"); return }
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to fetch activity log")
+		return
+	}
 	defer rows.Close()
 	out := []ActivityLogRow{}
 	for rows.Next() {
 		var x ActivityLogRow
-		if err := rows.Scan(&x.ID,&x.Action,&x.EntityType,&x.EntityID,&x.Description,&x.ActorUserID,&x.CreatedAt); err != nil {
-			respondWithError(w, http.StatusInternalServerError, "Failed to read activity log"); return
+		if err := rows.Scan(&x.ID, &x.Action, &x.EntityType, &x.EntityID, &x.Description, &x.ActorUserID, &x.CreatedAt); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Failed to read activity log")
+			return
 		}
-		out = append(out,x)
+		out = append(out, x)
 	}
-	respondWithJSON(w,http.StatusOK,models.ApiResponse{Success:true,Message:"Activity log fetched",Data:out})
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Activity log fetched", Data: out})
 }
 
 func GetRecentActivity(w http.ResponseWriter, r *http.Request) {
 	rows, err := db.RequestDB(r).Query(`SELECT action,COALESCE(metadata->>'description',action),occurred_at FROM audit_events WHERE tenant_id=$1 ORDER BY occurred_at DESC LIMIT 10`, r.Context().Value("tenantID"))
-	if err != nil { respondWithError(w,http.StatusInternalServerError,"Error fetching recent activity"); return }
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error fetching recent activity")
+		return
+	}
 	defer rows.Close()
 	activity := []models.ActivityEntry{}
 	for rows.Next() {
 		var a models.ActivityEntry
-		if err := rows.Scan(&a.Type,&a.Description,&a.Timestamp); err != nil { respondWithError(w,http.StatusInternalServerError,"Error scanning activity row"); return }
-		a.Title=a.Type
-		activity=append(activity,a)
+		if err := rows.Scan(&a.Type, &a.Description, &a.Timestamp); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Error scanning activity row")
+			return
+		}
+		a.Title = a.Type
+		activity = append(activity, a)
 	}
-	respondWithJSON(w,http.StatusOK,models.ApiResponse{Success:true,Message:"Recent activity retrieved successfully",Data:activity})
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Recent activity retrieved successfully", Data: activity})
 }
 
 func GetPipelineReport(w http.ResponseWriter, r *http.Request) {

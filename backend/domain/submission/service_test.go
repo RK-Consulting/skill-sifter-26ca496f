@@ -50,7 +50,7 @@ func subFixture(t *testing.T, d *sql.DB) (string, int, int, int, int, func()) {
 			t.Fatal(e)
 		}
 	}
-		var uid, cid, rid, client int
+	var uid, cid, rid, client int
 	must(d.QueryRow("INSERT INTO users (username,email,password,role,tenant_id) VALUES ($1,$2,$3,$4,$5) RETURNING id", "sub-user", tenant+"@u", "x", "recruiter", tenant).Scan(&uid))
 	must(d.QueryRow("INSERT INTO candidates (name,email,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Candidate", tenant+"@c", tenant).Scan(&cid))
 	must(d.QueryRow("INSERT INTO clients (name,status,tenant_id) VALUES ($1,$2,$3) RETURNING id", "Client", "active", tenant).Scan(&client))
@@ -110,7 +110,7 @@ func TestService_SubmitRejectsCrossTenantCandidate(t *testing.T) {
 	tenant, cid, rid, uid, client, clean := subFixture(t, d)
 	defer clean()
 	other := tenant + "_other"
-			s := NewService(NewPostgresRepository(d), d)
+	s := NewService(NewPostgresRepository(d), d)
 	_, err := s.Submit(other, CreateInput{CandidateID: cid, RequirementID: rid, SubmittedByUserID: uid, RecipientType: RecipientClient, RecipientClientID: &client})
 	if err != ErrCandidateNotFound {
 		t.Fatalf("got %v, want ErrCandidateNotFound", err)

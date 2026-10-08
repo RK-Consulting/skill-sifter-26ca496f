@@ -861,7 +861,6 @@ func SearchResumes(w http.ResponseWriter, r *http.Request) {
 		duration,
 	)
 
-
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
 		Success: true,
 		Message: "Resume search completed",

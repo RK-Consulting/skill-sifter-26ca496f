@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"database/sql"
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"io"
@@ -345,7 +345,6 @@ func RazorpaySubscriptionWebhook(w http.ResponseWriter, r *http.Request) {
 		t := time.Unix(sub.CurrentEnd, 0)
 		ends = &t
 	}
-
 
 	var userLimit int
 	if err = db.DB.QueryRow("SELECT user_limit FROM platform_plans WHERE code=$1 AND active=TRUE", planCode).Scan(&userLimit); err != nil {

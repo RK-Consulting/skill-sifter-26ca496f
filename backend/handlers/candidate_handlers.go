@@ -160,7 +160,6 @@ func AddCandidate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	if c.Status == "" {
 		c.Status = "active"
 	}

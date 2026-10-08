@@ -1,37 +1,37 @@
 package handlers
 
 import (
-    "database/sql"
-    "encoding/json"
-    "net/http"
-    "strings"
-    "time"
+	"database/sql"
+	"encoding/json"
+	"net/http"
+	"strings"
+	"time"
 
-    "github.com/RK-Consulting/skill-sifter/db"
-    "github.com/RK-Consulting/skill-sifter/models"
-    "github.com/gorilla/mux"
-    "golang.org/x/crypto/bcrypt"
+	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/models"
+	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func tenantUserDB(r *http.Request) (string, *sql.DB, error) {
-    tenantID, ok := r.Context().Value("tenantID").(string)
-    if !ok || tenantID == "" {
-        return "", nil, sql.ErrNoRows
-    }
-    tenantDB, err := db.TenantDB(db.DB, tenantID)
-    if err != nil {
-        return "", nil, err
-    }
-    return tenantID, tenantDB, nil
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID == "" {
+		return "", nil, sql.ErrNoRows
+	}
+	tenantDB, err := db.TenantDB(db.DB, tenantID)
+	if err != nil {
+		return "", nil, err
+	}
+	return tenantID, tenantDB, nil
 }
 
 func validOperationalRole(role string) bool {
-    switch role {
-    case "manager", "recruiter", "team_leader":
-        return true
-    default:
-        return false
-    }
+	switch role {
+	case "manager", "recruiter", "team_leader":
+		return true
+	default:
+		return false
+	}
 }
 
 func CreateUser(w http.ResponseWriter, r *http.Request) {
@@ -157,123 +157,129 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func UpdateUser(w http.ResponseWriter, r *http.Request) {
-    tenantID, tenantDB, err := tenantUserDB(r)
-    if err != nil {
-        respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
-        return
-    }
-    targetID := mux.Vars(r)["id"]
+	tenantID, tenantDB, err := tenantUserDB(r)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
+		return
+	}
+	targetID := mux.Vars(r)["id"]
 
-    var currentUsername, currentEmail, currentRole string
-    if err := tenantDB.QueryRow(
-        `SELECT username,email,role FROM users WHERE id=$1 AND tenant_id=$2`,
-        targetID, tenantID,
-    ).Scan(&currentUsername, &currentEmail, &currentRole); err != nil {
-        if err == sql.ErrNoRows {
-            respondWithError(w, http.StatusNotFound, "User not found")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Error looking up user")
-        return
-    }
-    if currentRole == "admin" {
-        respondWithError(w, http.StatusForbidden, "The tenant admin cannot be edited through this endpoint")
-        return
-    }
+	var currentUsername, currentEmail, currentRole string
+	if err := tenantDB.QueryRow(
+		`SELECT username,email,role FROM users WHERE id=$1 AND tenant_id=$2`,
+		targetID, tenantID,
+	).Scan(&currentUsername, &currentEmail, &currentRole); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
+		return
+	}
+	if currentRole == "admin" {
+		respondWithError(w, http.StatusForbidden, "The tenant admin cannot be edited through this endpoint")
+		return
+	}
 
-    var update struct {
-        Username string `json:"username"`
-        Email    string `json:"email"`
-        Role     string `json:"role"`
-    }
-    if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
-        respondWithError(w, http.StatusBadRequest, "Invalid request payload")
-        return
-    }
-    defer r.Body.Close()
+	var update struct {
+		Username string `json:"username"`
+		Email    string `json:"email"`
+		Role     string `json:"role"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&update); err != nil {
+		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		return
+	}
+	defer r.Body.Close()
 
-    update.Username = strings.TrimSpace(update.Username)
-    update.Email = strings.ToLower(strings.TrimSpace(update.Email))
-    if update.Role != "" && !validOperationalRole(update.Role) {
-        respondWithError(w, http.StatusBadRequest, "User role must be manager, recruiter, or team_leader")
-        return
-    }
+	update.Username = strings.TrimSpace(update.Username)
+	update.Email = strings.ToLower(strings.TrimSpace(update.Email))
+	if update.Role != "" && !validOperationalRole(update.Role) {
+		respondWithError(w, http.StatusBadRequest, "User role must be manager, recruiter, or team_leader")
+		return
+	}
 
-    newUsername, newEmail, newRole := currentUsername, currentEmail, currentRole
-    if update.Username != "" { newUsername = update.Username }
-    if update.Email != "" { newEmail = update.Email }
-    if update.Role != "" { newRole = update.Role }
+	newUsername, newEmail, newRole := currentUsername, currentEmail, currentRole
+	if update.Username != "" {
+		newUsername = update.Username
+	}
+	if update.Email != "" {
+		newEmail = update.Email
+	}
+	if update.Role != "" {
+		newRole = update.Role
+	}
 
-    if _, err := tenantDB.Exec(`
+	if _, err := tenantDB.Exec(`
         UPDATE users SET username=$1,email=$2,role=$3
         WHERE id=$4 AND tenant_id=$5
     `, newUsername, newEmail, newRole, targetID, tenantID); err != nil {
-        if strings.Contains(err.Error(), "unique") {
-            respondWithError(w, http.StatusConflict, "Email already exists")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Could not update tenant user")
-        return
-    }
+		if strings.Contains(err.Error(), "unique") {
+			respondWithError(w, http.StatusConflict, "Email already exists")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Could not update tenant user")
+		return
+	}
 
-    if _, err := db.DB.Exec(`
+	if _, err := db.DB.Exec(`
         UPDATE platform_user_accounts
         SET email=$1,role=$2,updated_at=NOW()
         WHERE user_id=$3 AND tenant_id=$4
     `, newEmail, newRole, targetID, tenantID); err != nil {
-        _, _ = tenantDB.Exec(
-            `UPDATE users SET username=$1,email=$2,role=$3 WHERE id=$4 AND tenant_id=$5`,
-            currentUsername, currentEmail, currentRole, targetID, tenantID,
-        )
-        respondWithError(w, http.StatusInternalServerError, "Could not update platform account")
-        return
-    }
+		_, _ = tenantDB.Exec(
+			`UPDATE users SET username=$1,email=$2,role=$3 WHERE id=$4 AND tenant_id=$5`,
+			currentUsername, currentEmail, currentRole, targetID, tenantID,
+		)
+		respondWithError(w, http.StatusInternalServerError, "Could not update platform account")
+		return
+	}
 
-    respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "User updated successfully"})
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "User updated successfully"})
 }
 
 func DeleteUser(w http.ResponseWriter, r *http.Request) {
-    tenantID, tenantDB, err := tenantUserDB(r)
-    if err != nil {
-        respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
-        return
-    }
-    targetID := mux.Vars(r)["id"]
+	tenantID, tenantDB, err := tenantUserDB(r)
+	if err != nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Tenant database is not ready")
+		return
+	}
+	targetID := mux.Vars(r)["id"]
 
-    var username, email, password, role string
-    var createdAt time.Time
-    if err := tenantDB.QueryRow(
-        `SELECT username,email,password,role,created_at FROM users WHERE id=$1 AND tenant_id=$2`,
-        targetID, tenantID,
-    ).Scan(&username, &email, &password, &role, &createdAt); err != nil {
-        if err == sql.ErrNoRows {
-            respondWithError(w, http.StatusNotFound, "User not found")
-            return
-        }
-        respondWithError(w, http.StatusInternalServerError, "Error looking up user")
-        return
-    }
-    if role == "admin" {
-        respondWithError(w, http.StatusForbidden, "The tenant admin cannot be deleted")
-        return
-    }
+	var username, email, password, role string
+	var createdAt time.Time
+	if err := tenantDB.QueryRow(
+		`SELECT username,email,password,role,created_at FROM users WHERE id=$1 AND tenant_id=$2`,
+		targetID, tenantID,
+	).Scan(&username, &email, &password, &role, &createdAt); err != nil {
+		if err == sql.ErrNoRows {
+			respondWithError(w, http.StatusNotFound, "User not found")
+			return
+		}
+		respondWithError(w, http.StatusInternalServerError, "Error looking up user")
+		return
+	}
+	if role == "admin" {
+		respondWithError(w, http.StatusForbidden, "The tenant admin cannot be deleted")
+		return
+	}
 
-    if _, err := tenantDB.Exec("DELETE FROM users WHERE id=$1 AND tenant_id=$2", targetID, tenantID); err != nil {
-        respondWithError(w, http.StatusInternalServerError, "Could not delete tenant user")
-        return
-    }
+	if _, err := tenantDB.Exec("DELETE FROM users WHERE id=$1 AND tenant_id=$2", targetID, tenantID); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not delete tenant user")
+		return
+	}
 
-    if _, err := db.DB.Exec(
-        "DELETE FROM platform_user_accounts WHERE user_id=$1 AND tenant_id=$2",
-        targetID, tenantID,
-    ); err != nil {
-        _, _ = tenantDB.Exec(`
+	if _, err := db.DB.Exec(
+		"DELETE FROM platform_user_accounts WHERE user_id=$1 AND tenant_id=$2",
+		targetID, tenantID,
+	); err != nil {
+		_, _ = tenantDB.Exec(`
             INSERT INTO users(id,username,email,password,role,tenant_id,created_at)
             VALUES($1,$2,$3,$4,$5,$6,$7)
         `, targetID, username, email, password, role, tenantID, createdAt)
-        respondWithError(w, http.StatusInternalServerError, "Could not delete platform account")
-        return
-    }
+		respondWithError(w, http.StatusInternalServerError, "Could not delete platform account")
+		return
+	}
 
-    respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "User deleted successfully"})
+	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "User deleted successfully"})
 }

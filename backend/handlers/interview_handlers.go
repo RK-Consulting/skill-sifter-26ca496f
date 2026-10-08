@@ -233,7 +233,7 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	i.ID = id
 	i.TenantID = tenantID
 	i.CandidateName = name
-		i.RequirementTitle = title
+	i.RequirementTitle = title
 	i.Position = title
 	_, err = db.RequestDB(r).Exec(`UPDATE interviews SET round=$1,interview_date=$2,status=$3,outcome=$4,feedback=$5,candidate_feedback=$6,next_action=$7,last_modified=NOW() WHERE id=$8 AND tenant_id=$9`, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, id, tenantID)
 	if err != nil {

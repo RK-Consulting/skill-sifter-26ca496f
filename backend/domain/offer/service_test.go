@@ -65,7 +65,7 @@ func offerFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 		must(err)
 	}
 
-		var candidateID, clientID, requirementID int
+	var candidateID, clientID, requirementID int
 	must(d.QueryRow(
 		"INSERT INTO candidates(name,email,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",
 		"Candidate", tenant+"@candidate", tenant, tenant,
@@ -89,7 +89,7 @@ func offerFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 		d.Exec("DELETE FROM requirements WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM clients WHERE tenant_id=$1", tenant)
 		d.Exec("DELETE FROM candidates WHERE tenant_id=$1", tenant)
-			}
+	}
 	return tenant, candidateID, requirementID, cleanup
 }
 
@@ -159,7 +159,7 @@ func TestService_TenantIsolation(t *testing.T) {
 	defer cleanup()
 
 	other := tenant + "_other"
-		if _, err := NewService(NewPostgresRepository(d), d).Get(other, candidateID, requirementID); err != ErrNotFound {
+	if _, err := NewService(NewPostgresRepository(d), d).Get(other, candidateID, requirementID); err != ErrNotFound {
 		t.Fatalf("got %v, want ErrNotFound", err)
 	}
 }
