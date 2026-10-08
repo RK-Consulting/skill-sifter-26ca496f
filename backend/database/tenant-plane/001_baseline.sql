@@ -111,6 +111,7 @@ CREATE TABLE candidate_language_expertise (
     language VARCHAR(100) NOT NULL,
     proficiency_framework VARCHAR(50) NOT NULL,
     proficiency_level VARCHAR(50) NOT NULL,
+    source_resume_id INTEGER REFERENCES resumes(id) ON DELETE SET NULL,
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
     CONSTRAINT candidate_language_expertise_unique UNIQUE(candidate_id, language, proficiency_framework, proficiency_level)
@@ -118,6 +119,8 @@ CREATE TABLE candidate_language_expertise (
 
 CREATE INDEX idx_candidate_language_expertise_tenant_candidate
     ON candidate_language_expertise(tenant_id, candidate_id);
+CREATE INDEX idx_candidate_language_expertise_source_resume
+    ON candidate_language_expertise(source_resume_id);
 
 CREATE TABLE candidate_expertise (
     id SERIAL PRIMARY KEY,
