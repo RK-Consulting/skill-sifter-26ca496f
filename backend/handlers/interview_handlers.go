@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/domain/audit"
