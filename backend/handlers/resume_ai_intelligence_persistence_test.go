@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RK-Consulting/skill-sifter/db"
 	_ "github.com/lib/pq"
 )
 
