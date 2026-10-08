@@ -27,7 +27,7 @@ func setupResumeAITestFixture(t *testing.T) resumeAITestFixture {
 	tenantID := fmt.Sprintf("rai03_test_%d", time.Now().UnixNano())
 	var candidateID int
 	if err := testDB.QueryRow(
-		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ($1, $2, $3, '', '', '', '', '', '', '', 'active', $4) RETURNING id",
+		"INSERT INTO candidates (name, email, phone, tenant_id) VALUES ($1, $2, $3, $4) RETURNING id",
 		"RAI-03 Test Candidate", "rai03-"+tenantID+"@example.com", "9000000000", tenantID,
 	).Scan(&candidateID); err != nil {
 		t.Fatalf("could not create test candidate: %v", err)
