@@ -8,11 +8,10 @@ import (
 
 func openRegistryTestDB(t *testing.T) *sql.DB {
 	t.Helper()
-	testDB, err := openHandlerTestDB(getenvOr("SKILLSIFTER_HANDLER_TEST_DB", handlerTestDBName))
-	if err != nil {
-		t.Fatalf("open registration registry test database: %v", err)
+	if handlerControlDB == nil {
+		t.Fatal("control-plane test database is not initialized")
 	}
-	return testDB
+	return handlerControlDB
 }
 
 func TestPermanentRegistrationRegistrySchema(t *testing.T) {
