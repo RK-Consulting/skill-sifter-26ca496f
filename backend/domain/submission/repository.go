@@ -83,7 +83,7 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 		s := &Submission{}
 		var clientID sql.NullInt64
 		if err := rows.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
-			&s.RecipientType, &clientID, &userID, &s.RecipientName, &s.RecipientEmail, &s.SubmissionContext,
+			&s.RecipientType, &clientID, &s.RecipientName, &s.RecipientEmail, &s.SubmissionContext,
 			&s.RecruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt); err != nil {
 			return nil, err
 		}
