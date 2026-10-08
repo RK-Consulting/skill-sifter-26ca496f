@@ -167,7 +167,7 @@ func TestResumeAICandidateAssociationIsTenantScoped(t *testing.T) {
 	otherTenant := fmt.Sprintf("rai03_other_%d", time.Now().UnixNano())
 	var otherCandidateID int
 	if err := fx.db.QueryRow(
-		"INSERT INTO candidates (name, email, phone, position, location, experience, currentctc, expectedctc, noticeperiod, jobdescription, status, tenant_id) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', '', '', '', '', '', '', 'active', $1) RETURNING id",
+		"INSERT INTO candidates (name, email, phone, tenant_id) VALUES ('Other Tenant Candidate', 'shared@example.com', '9111111111', $1) RETURNING id",
 		otherTenant,
 	).Scan(&otherCandidateID); err != nil {
 		t.Fatal(err)
