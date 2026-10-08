@@ -383,7 +383,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusServiceUnavailable, models.ApiResponse{
 			Success: false,
 			Message: "Account created but tenant provisioning failed; retry using the provisioning recovery token",
-			Data: map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
+			Data:    map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
 		})
 		return
 	}
@@ -397,7 +397,7 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithJSON(w, http.StatusServiceUnavailable, models.ApiResponse{
 			Success: false,
 			Message: "Tenant database is ready but platform account finalization failed; retry using the provisioning recovery token",
-			Data: map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
+			Data:    map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
 		})
 		return
 	}

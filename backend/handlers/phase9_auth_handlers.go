@@ -325,9 +325,9 @@ func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		Success: true,
 		Message: "Tenant database is ready",
 		Data: map[string]interface{}{
-			"tenantId": tenantID,
-			"database": databaseName,
-			"status":   "READY",
+			"tenantId":  tenantID,
+			"database":  databaseName,
+			"status":    "READY",
 			"recovered": recovery,
 		},
 	})
