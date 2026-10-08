@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
-	"strconv"
 	"testing"
 
 	"github.com/gorilla/mux"
