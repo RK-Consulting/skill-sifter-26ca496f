@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -76,7 +77,7 @@ func TestClient_LifecycleAndValidation(t *testing.T) {
 
 		body, _ := json.Marshal(map[string]string{"name": "Transition Co", "status": "active"})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/clients/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(id)})
 		rec := httptest.NewRecorder()
 		UpdateClient(rec, req)
 		if rec.Code != http.StatusOK {
@@ -99,7 +100,7 @@ func TestClient_CrossTenantIsolation(t *testing.T) {
 
 	t.Run("cross-tenant read returns 404", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/v1/clients/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBClientID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBClientID)})
 		rec := httptest.NewRecorder()
 		GetClientByID(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -119,7 +120,7 @@ func TestClient_CrossTenantIsolation(t *testing.T) {
 	t.Run("cross-tenant update affects zero rows", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Hijacked", "status": "inactive"})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/clients/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBClientID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBClientID)})
 		rec := httptest.NewRecorder()
 		UpdateClient(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -134,7 +135,7 @@ func TestClient_CrossTenantIsolation(t *testing.T) {
 
 	t.Run("cross-tenant delete does not remove the row", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/v1/clients/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBClientID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBClientID)})
 		rec := httptest.NewRecorder()
 		DeleteClient(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -212,7 +213,7 @@ func TestRequirement_LifecycleAndValidation(t *testing.T) {
 		for _, status := range []string{"on_hold", "closed"} {
 			body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Transition Req", "clientId": clientID, "status": status, "headcount": 1})
 			req := isoCtx(httptest.NewRequest("PUT", "/api/v1/requirements/x", bytes.NewReader(body)), "tenant_a")
-			req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+			req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(id)})
 			rec := httptest.NewRecorder()
 			UpdateRequirement(rec, req)
 			if rec.Code != http.StatusOK {
@@ -237,7 +238,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 
 	t.Run("cross-tenant read by known ID returns 404", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/v1/requirements/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBReqID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBReqID)})
 		rec := httptest.NewRecorder()
 		GetRequirementByID(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -257,7 +258,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 	t.Run("cross-tenant update affects zero rows", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]interface{}{"jobType": "fulltime", "title": "Hijacked", "clientId": tenantBClientID, "status": "cancelled", "headcount": 1})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/requirements/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBReqID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBReqID)})
 		rec := httptest.NewRecorder()
 		UpdateRequirement(rec, req)
 		if rec.Code == http.StatusOK {
@@ -272,7 +273,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 
 	t.Run("cross-tenant delete does not remove the row", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/v1/requirements/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBReqID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBReqID)})
 		rec := httptest.NewRecorder()
 		DeleteRequirement(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -287,7 +288,7 @@ func TestRequirement_CrossTenantIsolation(t *testing.T) {
 
 	t.Run("own-tenant access succeeds", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/v1/requirements/x", nil), "tenant_b")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBReqID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBReqID)})
 		rec := httptest.NewRecorder()
 		GetRequirementByID(rec, req)
 		if rec.Code != http.StatusOK {
@@ -308,7 +309,7 @@ func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 	testDB.QueryRow(`INSERT INTO clients (name, tenant_id) VALUES ('Minimal Client', 'tenant_a') RETURNING id`).Scan(&clientID)
 
 	clientReq := isoCtx(httptest.NewRequest("GET", "/api/v1/clients/x", nil), "tenant_a")
-	clientReq = mux.SetURLVars(clientReq, map[string]string{"id": itoa(clientID)})
+	clientReq = mux.SetURLVars(clientReq, map[string]string{"id": strconv.Itoa(clientID)})
 	clientRec := httptest.NewRecorder()
 	GetClientByID(clientRec, clientReq)
 	if clientRec.Code != http.StatusOK {
@@ -319,7 +320,7 @@ func TestGetByID_HandlesNullOptionalFields(t *testing.T) {
 	testDB.QueryRow(`INSERT INTO requirements (client_id, title, tenant_id) VALUES ($1, 'Minimal Requirement', 'tenant_a') RETURNING id`, clientID).Scan(&reqID)
 
 	reqReq := isoCtx(httptest.NewRequest("GET", "/api/v1/requirements/x", nil), "tenant_a")
-	reqReq = mux.SetURLVars(reqReq, map[string]string{"id": itoa(reqID)})
+	reqReq = mux.SetURLVars(reqReq, map[string]string{"id": strconv.Itoa(reqID)})
 	reqRec := httptest.NewRecorder()
 	GetRequirementByID(reqRec, reqReq)
 	if reqRec.Code != http.StatusOK {
@@ -345,7 +346,7 @@ func TestDeleteClient_WithRequirements_IsRejected(t *testing.T) {
 	testDB.Exec(`INSERT INTO requirements (client_id, title, status, tenant_id) VALUES ($1, 'Dependent Req', 'open', 'tenant_a')`, clientID)
 
 	req := isoCtx(httptest.NewRequest("DELETE", "/api/v1/clients/x", nil), "tenant_a")
-	req = mux.SetURLVars(req, map[string]string{"id": itoa(clientID)})
+	req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(clientID)})
 	rec := httptest.NewRecorder()
 	DeleteClient(rec, req)
 
