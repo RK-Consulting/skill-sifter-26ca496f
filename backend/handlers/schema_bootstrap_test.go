@@ -61,6 +61,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	db.DB = controlDB
 	handlerControlDB = controlDB
 	handlerTenantDB = tenantDB
 	if err := os.Setenv("TEST_DB_NAME", tenantName); err != nil {

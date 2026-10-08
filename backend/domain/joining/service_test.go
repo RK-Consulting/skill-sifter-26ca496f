@@ -71,8 +71,8 @@ func fixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 		"Client", "active", tenant,
 	).Scan(&clientID))
 	must(d.QueryRow(
-		"INSERT INTO requirements(client_id,title,status,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",
-		clientID, "Requirement", "open", tenant,
+		"INSERT INTO requirements(client_id,job_type,title,status,tenant_id) VALUES($1,$2,$3,$4,$5) RETURNING id",
+		clientID, "fulltime", "Requirement", "open", tenant,
 	).Scan(&requirementID))
 	must(d.QueryRow(
 		"INSERT INTO recruitment_selections(tenant_id,candidate_id,requirement_id,decision) VALUES($1,$2,$3,'selected') RETURNING id",

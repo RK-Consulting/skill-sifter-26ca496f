@@ -3,6 +3,7 @@ package handlers
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -18,9 +19,9 @@ func tenantUserDB(r *http.Request) (string, *sql.DB, error) {
 	if !ok || tenantID == "" {
 		return "", nil, sql.ErrNoRows
 	}
-	tenantDB, err := db.TenantDB(db.DB, tenantID)
-	if err != nil {
-		return "", nil, err
+	tenantDB := db.RequestDB(r)
+	if tenantDB == nil {
+		return "", nil, fmt.Errorf("tenant database is not ready")
 	}
 	return tenantID, tenantDB, nil
 }

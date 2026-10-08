@@ -21,15 +21,15 @@ func NewPostgresRepository(dbConn *sql.DB) *PostgresRepository {
 }
 
 const submissionSelect = `id, tenant_id, candidate_id, requirement_id, submitted_by_user_id,
-	recipient_type, recipient_client_id, recipient_user_id, recipient_name,
+	recipient_type, recipient_client_id, recipient_name,
 	recipient_email, submission_context, recruiter_notes,
 	candidate_snapshot, requirement_snapshot, submitted_at, created_at`
 
 func scanSubmission(row *sql.Row) (*Submission, error) {
 	s := &Submission{}
-	var clientID, userID sql.NullInt64
+	var clientID sql.NullInt64
 	if err := row.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
-		&s.RecipientType, &clientID, &userID, &s.RecipientName, &s.RecipientEmail,
+		&s.RecipientType, &clientID, &s.RecipientName, &s.RecipientEmail,
 		&s.SubmissionContext, &s.RecruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot,
 		&s.SubmittedAt, &s.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -40,10 +40,6 @@ func scanSubmission(row *sql.Row) (*Submission, error) {
 	if clientID.Valid {
 		v := int(clientID.Int64)
 		s.RecipientClientID = &v
-	}
-	if userID.Valid {
-		v := int(userID.Int64)
-		s.RecipientUserID = &v
 	}
 	return s, nil
 }
@@ -59,12 +55,12 @@ func (r *PostgresRepository) create(q submissionInserter, s *Submission) error {
 	return q.QueryRow(`
 		INSERT INTO recruitment_submissions (
 			tenant_id,candidate_id,requirement_id,submitted_by_user_id,
-			recipient_type,recipient_client_id,recipient_user_id,recipient_name,
+			recipient_type,recipient_client_id,recipient_name,
 			recipient_email,submission_context,recruiter_notes,candidate_snapshot,requirement_snapshot
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
 		RETURNING id,submitted_at,created_at`,
 		s.TenantID, s.CandidateID, s.RequirementID, s.SubmittedByUserID, s.RecipientType,
-		nullableInt(s.RecipientClientID), nullableInt(s.RecipientUserID),
+		nullableInt(s.RecipientClientID),
 		nullableString(s.RecipientName), nullableString(s.RecipientEmail),
 		nullableString(s.SubmissionContext), nullableString(s.RecruiterNotes),
 		s.CandidateSnapshot, s.RequirementSnapshot,
@@ -86,19 +82,15 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 	results := []*Submission{}
 	for rows.Next() {
 		s := &Submission{}
-		var clientID, userID sql.NullInt64
+		var clientID sql.NullInt64
 		if err := rows.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
-			&s.RecipientType, &clientID, &userID, &s.RecipientName, &s.RecipientEmail, &s.SubmissionContext,
+			&s.RecipientType, &clientID, &s.RecipientName, &s.RecipientEmail, &s.SubmissionContext,
 			&s.RecruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt); err != nil {
 			return nil, err
 		}
 		if clientID.Valid {
 			v := int(clientID.Int64)
 			s.RecipientClientID = &v
-		}
-		if userID.Valid {
-			v := int(userID.Int64)
-			s.RecipientUserID = &v
 		}
 		results = append(results, s)
 	}

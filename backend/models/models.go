@@ -83,6 +83,7 @@ type DailyJob struct {
 	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
 	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID         string    `json:"tenantId" db:"tenant_id,notnull"`
+	CompanyName      string    `json:"companyName,omitempty" db:"-"` // Legacy display-only compatibility; daily-job routes are retired.
 }
 
 // Interview represents an agency-neutral recruitment interview event.
@@ -118,6 +119,7 @@ type BusinessDev struct {
 	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID      string    `json:"tenantId" db:"tenant_id,notnull"`
+	CompanyName   string    `json:"companyName,omitempty" db:"-"` // Legacy display-only compatibility; business-dev routes are retired.
 }
 
 // Client model. ADR 0002: a Client represents an organization the

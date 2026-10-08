@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 )
@@ -34,6 +35,11 @@ func schemaDefinitionsDir(kind string) (string, error) {
 	candidates := []string{
 		filepath.Join("database", kind),
 		filepath.Join("backend", "database", kind),
+	}
+	if _, file, _, ok := runtime.Caller(0); ok {
+		candidates = append(candidates,
+			filepath.Join(filepath.Dir(file), "..", "database", kind),
+		)
 	}
 	for _, c := range candidates {
 		if info, err := os.Stat(c); err == nil && info.IsDir() {

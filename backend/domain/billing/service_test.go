@@ -65,8 +65,8 @@ func billingFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 
 	var candidateID, clientID, requirementID, selectionID int
 	if err := d.QueryRow(
-		"INSERT INTO candidates(name,email,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",
-		"Candidate", tenant+"@candidate", tenant, tenant,
+		"INSERT INTO candidates(name,email,tenant_id) VALUES($1,$2,$3) RETURNING id",
+		"Candidate", tenant+"@candidate", tenant,
 	).Scan(&candidateID); err != nil {
 		t.Fatal(err)
 	}
@@ -79,8 +79,8 @@ func billingFixture(t *testing.T, d *sql.DB) (string, int, int, func()) {
 	}
 
 	if err := d.QueryRow(
-		"INSERT INTO requirements(client_id,title,status,tenant_id) VALUES($1,$2,$3,$4) RETURNING id",
-		clientID, "Requirement", "open", tenant,
+		"INSERT INTO requirements(client_id,job_type,title,status,tenant_id) VALUES($1,$2,$3,$4,$5) RETURNING id",
+		clientID, "fulltime", "Requirement", "open", tenant,
 	).Scan(&requirementID); err != nil {
 		t.Fatal(err)
 	}
