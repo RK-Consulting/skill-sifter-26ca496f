@@ -22,7 +22,7 @@ npx playwright install chromium
 
 ## Production smoke
 
-The repository seeds one dedicated **permanent production-smoke account** through the database schema definitions:
+The production smoke workflow maintains one dedicated **permanent production-smoke account** through an idempotent E2E bootstrap endpoint. The account is test infrastructure, not part of the authoritative production schema baseline:
 
 - tenant: `e2e_smoke_tenant`
 - company: `SkillSifter E2E Smoke`
@@ -37,7 +37,7 @@ The smoke credentials are supplied through GitHub Actions secrets:
 - `SKILLSIFTER_E2E_ADMIN_EMAIL`
 - `SKILLSIFTER_E2E_ADMIN_PASSWORD`
 
-For the seeded fixture, the email must be `e2e-admin@skillsifter.in`. The password must match the password represented by the bcrypt hash in `038_e2e_smoke_account.sql`.
+The workflow supplies the password from the GitHub Actions secret `SKILLSIFTER_E2E_ADMIN_PASSWORD`. The bootstrap creates or repairs the dedicated tenant, subscription and administrator before Playwright runs, so production database resets do not require manual account creation.
 
 The normal smoke suite is non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
 
@@ -73,4 +73,4 @@ npm run report
 
 Playwright retains screenshots, video and traces for failures. The HTML report is written to `playwright-report/`.
 
-The production smoke workflow is manual by design. Production credentials are supplied through GitHub Actions secrets and are never committed to the repository.
+The production smoke workflow is automated. Successful Frontend CI runs trigger the smoke workflow; the workflow first bootstraps the dedicated E2E account through the production API and then runs the browser tests. Production credentials are supplied through GitHub Actions secrets and are never committed to the repository.
