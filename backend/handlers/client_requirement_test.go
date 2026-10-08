@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/gorilla/mux"
@@ -76,7 +77,7 @@ func TestClient_LifecycleAndValidation(t *testing.T) {
 
 		body, _ := json.Marshal(map[string]string{"name": "Transition Co", "status": "active"})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/clients/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(id)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(id)})
 		rec := httptest.NewRecorder()
 		UpdateClient(rec, req)
 		if rec.Code != http.StatusOK {
