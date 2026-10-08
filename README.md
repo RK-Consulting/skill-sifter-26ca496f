@@ -187,7 +187,13 @@ The V1 privilege matrix is fixed. SkillSifter does not provide an arbitrary role
 
 ## Database and schema
 
-The Go application owns the authoritative numbered schema definitions under `backend/database/migrations/`.
+The Go application owns the authoritative database schema through two independently initialized schema planes:
+
+- `backend/database/control-plane/001_baseline.sql` — authoritative platform/control-plane schema.
+- `backend/database/tenant-plane/001_baseline.sql` — authoritative tenant/recruitment schema.
+
+The historical `backend/database/migrations/` chain has been retired as of SkillSifter v1.0.0.
+Its history remains preserved in Git and is not part of runtime schema initialization.
 
 - `schema_versions` tracks applied definitions.
 - Applied definitions are checksum-verified.

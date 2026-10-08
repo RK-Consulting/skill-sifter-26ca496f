@@ -12,7 +12,13 @@ The GitHub milestone and issues must be published after repository authenticatio
 
 ## Verified technical follow-ups
 
-- Runtime schema initialization uses the authoritative numbered schema definitions under `backend/database/migrations/`. Historical migration files are retained as schema history and must not be rewritten.
+- Runtime schema initialization uses the final independently versioned control-plane and tenant-plane schema baselines:
+
+- `backend/database/control-plane/001_baseline.sql`
+- `backend/database/tenant-plane/001_baseline.sql`
+
+- The historical `backend/database/migrations/` chain was retired for v1.0.0 and remains available through Git history only.
+
 - Legacy Jobs handlers were retired as part of the Requirements migration; this historical follow-up is closed.
 - Tenant filtering remains handler/query based and should be hardened through an approved design.
 - Dashboard recruitment pipeline and charts use hardcoded data and must not be represented as real reporting.

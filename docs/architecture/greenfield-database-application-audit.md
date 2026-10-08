@@ -16,7 +16,12 @@ The correct action is a greenfield schema reset rather than another compatibilit
 
 ### 1. Historical migration chain
 
-`backend/database/migrations/` currently contains the accumulated 001–045 evolution.
+The historical `backend/database/migrations/` chain accumulated the original 001–045 schema evolution. That chain has now been retired from the runtime repository for v1.0.0 and remains preserved in Git history.
+
+The authoritative v1.0.0 schema definitions are:
+
+- `backend/database/control-plane/001_baseline.sql`
+- `backend/database/tenant-plane/001_baseline.sql`
 
 Problem:
 - legacy Jobs schema
@@ -161,7 +166,7 @@ The implementation should be retained in the clean baseline, with its concurrenc
 4. Classify every FK, CHECK, UNIQUE index, trigger/function, cascade, and DB-side mutation.
 5. Design the final control-plane baseline.
 6. Design the final tenant-plane baseline.
-7. Replace the migration runner with explicit control/tenant schema initialization.
+7. The historical migration runner architecture has been replaced by explicit control-plane and tenant-plane schema initialization in v1.0.0.
 8. Move any remaining domain decisions from PostgreSQL into Go.
 9. Introduce atomic DB operations where concurrency requires them and return explicit results to Go.
 10. Rewrite tests against clean empty databases.

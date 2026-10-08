@@ -1,20 +1,33 @@
 # ADR 0007: Database Migration Strategy
+> **Status: Superseded**
+>
+> This ADR describes the original single migration-chain architecture and is retained as historical architectural record.
+>
+> For SkillSifter v1.0.0, the single historical migration chain has been retired and replaced by explicit independent control-plane and tenant-plane schema initialization.
+>
+> The authoritative runtime schema definitions are:
+>
+> - `backend/database/control-plane/001_baseline.sql`
+> - `backend/database/tenant-plane/001_baseline.sql`
+>
+> The historical migration files remain recoverable through Git history but are no longer part of the runtime repository.
+
 
 **Status:** Accepted  
 **Decider:** Product owner  
 **Related issue:** #23
 
-## Context
+## Historical Context
 
 The current repository contains a migration directory and a Go `ApplyMigrations` function, but the implementation currently applies a single reporting/resume migration rather than deterministically executing the complete migration set. The repository also contains duplicate numeric migration prefixes (`002_*`), creating an ordering ambiguity. V1 requires deterministic fresh-install and upgrade behaviour across local, test, container, and production environments.
 
-## Decision
+## Historical Decision
 
 SkillSifter V1 will use a **single application-owned Go migration runner** as the authoritative migration execution path. The runner will execute ordered SQL migration files from `backend/database/migrations/` and maintain durable migration tracking in PostgreSQL.
 
 No new external migration framework is required by this architecture decision. The existing Go migration mechanism is the starting point, but it must be evolved from the current one-off migration execution into the deterministic runner defined below.
 
-## Migration Source of Truth
+## Historical Migration Source of Truth
 
 - `backend/database/migrations/` is the authoritative ordered migration set.
 - Migration filenames use a unique numeric sequence followed by a descriptive name, for example `001_baseline.sql`, `002_ai_reporting.sql`.
@@ -22,7 +35,7 @@ No new external migration framework is required by this architecture decision. T
 - Existing duplicate `002_*` files must be reconciled during implementation; the runner must not silently choose between them.
 - Migration files are immutable after they have been applied to a deployed database. A correction requires a new migration.
 
-## Migration Tracking
+## Historical Migration Tracking
 
 A dedicated migration-history table records at minimum:
 

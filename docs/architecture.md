@@ -223,7 +223,12 @@ No HRMS workflow is introduced into this domain.
 
 The Go application owns the authoritative numbered schema definitions in:
 
-`backend/database/migrations/`
+The v1.0.0 runtime schema is split into two authoritative database planes:
+
+- `backend/database/control-plane/001_baseline.sql`
+- `backend/database/tenant-plane/001_baseline.sql`
+
+The former `backend/database/migrations/` evolution chain is retired and is preserved only in Git history.
 
 The schema engine:
 
