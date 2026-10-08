@@ -78,7 +78,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("cross-tenant read by known ID returns 404, not the record", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -101,7 +101,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	t.Run("cross-tenant update affects zero rows and returns 404", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Hijacked", "email": "hijacked@test.com"})
 		req := isoCtx(httptest.NewRequest("PUT", "/api/candidates/x", bytes.NewReader(body)), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		UpdateCandidate(rec, req)
 		if rec.Code == http.StatusOK {
@@ -117,7 +117,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("cross-tenant delete affects zero rows and returns 404", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/candidates/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		DeleteCandidate(rec, req)
 		if rec.Code != http.StatusNotFound {
@@ -133,7 +133,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("own-tenant read succeeds", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_b")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBCandidateID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
 		if rec.Code != http.StatusOK {
@@ -192,7 +192,7 @@ func TestTenantIsolation_Users(t *testing.T) {
 
 	t.Run("DeleteUser with Tenant B's known user ID from Tenant A context is denied", func(t *testing.T) {
 		req := isoCtx(httptest.NewRequest("DELETE", "/api/users/x", nil), "tenant_a")
-		req = mux.SetURLVars(req, map[string]string{"id": itoa(tenantBUserID)})
+		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBUserID)})
 		rec := httptest.NewRecorder()
 		DeleteUser(rec, req)
 		if rec.Code != http.StatusNotFound {
