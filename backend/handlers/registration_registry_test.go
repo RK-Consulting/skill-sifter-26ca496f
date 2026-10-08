@@ -16,7 +16,6 @@ func openRegistryTestDB(t *testing.T) *sql.DB {
 
 func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	var exists bool
 	if err := testDB.QueryRow(`
 		SELECT EXISTS (
@@ -49,7 +48,6 @@ func TestPermanentRegistrationRegistrySchema(t *testing.T) {
 
 func TestPermanentRegistrationRegistryRejectsDuplicateEmail(t *testing.T) {
 	testDB := openRegistryTestDB(t)
-	defer testDB.Close()
 	const email = "registry-test@example.com"
 
 	_, _ = testDB.Exec(`DELETE FROM platform_registration_registry WHERE email_id = $1`, email)
