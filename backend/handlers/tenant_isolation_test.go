@@ -205,6 +205,23 @@ func TestTenantIsolation_Users(t *testing.T) {
 		}
 	})
 
+	// User creation enforces the control-plane subscription limit. Seed the
+	// minimum READY + ACTIVE control state required for this tenant-local test.
+	if _, err := handlerControlDB.Exec(`
+		INSERT INTO platform_tenants(tenant_id, company_name, provisioning_status)
+		VALUES ('tenant_a', 'Tenant A', 'READY')
+		ON CONFLICT (tenant_id) DO UPDATE SET provisioning_status='READY', account_status='ACTIVE'
+	`); err != nil {
+		t.Fatalf("seed tenant control state: %v", err)
+	}
+	if _, err := handlerControlDB.Exec(`
+		DELETE FROM platform_subscriptions WHERE tenant_id='tenant_a';
+		INSERT INTO platform_subscriptions(tenant_id, plan_code, status, starts_at, user_limit)
+		VALUES ('tenant_a', 'starter_monthly', 'ACTIVE', NOW(), 3)
+	`); err != nil {
+		t.Fatalf("seed tenant subscription: %v", err)
+	}
+
 	t.Run("CreateUser ignores a client-supplied tenantId/companyName", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{
 			"username": "newuser", "email": "newuser@test.com", "password": "x", "role": "recruiter",
