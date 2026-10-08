@@ -225,6 +225,7 @@ type User struct {
 	Email       string    `json:"email" db:"email,notnull,unique"`
 	Password    string    `json:"password,omitempty" db:"password,notnull"`
 	Role        string    `json:"role" db:"role,notnull"`
+	CompanyName string    `json:"companyName,omitempty" db:"-"`
 	TenantID    string    `json:"tenantId" db:"tenant_id,notnull"` // Changed from CompanyID
 	CreatedAt   time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
 }
