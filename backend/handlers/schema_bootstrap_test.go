@@ -51,6 +51,7 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
+	db.DB = controlDB
 	if err := db.InitializeControlSchema(); err != nil {
 		fmt.Fprintf(os.Stderr, "control-plane schema bootstrap failed: %v\n", err)
 		os.Exit(1)
