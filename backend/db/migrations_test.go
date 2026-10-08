@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -247,6 +248,16 @@ func TestSchemaLockSerializesInitializers(t *testing.T) {
 }
 
 func TestFinalPlaneBaselines_ArePhysicallySeparated(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	backendRoot := filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
+	oldWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(backendRoot); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(oldWD)
 	host := getenvDefault("TEST_DB_HOST", "localhost")
 	port := getenvDefault("TEST_DB_PORT", "5432")
 	user := getenvDefault("TEST_DB_USER", "postgres")
