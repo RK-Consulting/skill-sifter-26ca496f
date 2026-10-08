@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"database/sql"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/tls"
