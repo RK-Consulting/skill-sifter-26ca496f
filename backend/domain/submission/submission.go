@@ -18,7 +18,6 @@ type Submission struct {
 	SubmittedByUserID   int
 	RecipientType       RecipientType
 	RecipientClientID   *int
-	RecipientUserID     *int
 	RecipientName       string
 	RecipientEmail      string
 	SubmissionContext   string
