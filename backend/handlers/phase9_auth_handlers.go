@@ -270,10 +270,55 @@ func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	databaseName, _, err := db.ProvisionTenantDatabase(db.DB, tenantID, nil)
+	recovery, _ := r.Context().Value("provisioningRecovery").(bool)
+	var initialUser *db.TenantUser
+	var registrationID int64
+	if recovery {
+		email, _ := r.Context().Value("email").(string)
+		if email == "" {
+			respondWithError(w, http.StatusUnauthorized, "Provisioning recovery identity missing")
+			return
+		}
+		var username, passwordHash string
+		if err := db.DB.QueryRow(`
+			SELECT pr.id, pr.username, pr.password_hash, pt.company_name
+			FROM platform_registration_registry rr
+			JOIN platform_tenants pt ON pt.tenant_id=rr.last_tenant_id
+			JOIN platform_pending_registrations pr
+			  ON lower(pr.email)=lower(rr.email_id)
+			 AND pr.email_verified_at IS NOT NULL
+			WHERE lower(rr.email_id)=lower($1)
+			  AND rr.last_tenant_id=$2
+			ORDER BY pr.id DESC
+			LIMIT 1`, email, tenantID).Scan(&registrationID, &username, &passwordHash, &companyName); err != nil {
+			respondWithError(w, http.StatusForbidden, "Provisioning recovery registration is no longer available")
+			return
+		}
+		initialUser = &db.TenantUser{
+			Username: username,
+			Email:    email,
+			Password: passwordHash,
+			Role:     "admin",
+		}
+	}
+
+	databaseName, tenantUserID, err := db.ProvisionTenantDatabase(db.DB, tenantID, initialUser)
 	if err != nil {
 		respondWithError(w, http.StatusServiceUnavailable, "Tenant database provisioning failed")
 		return
+	}
+
+	if recovery {
+		if _, err = db.DB.Exec(`INSERT INTO platform_user_accounts(tenant_id,user_id,email,role)
+			VALUES($1,$2,$3,'admin')
+			ON CONFLICT (tenant_id,user_id) DO UPDATE
+			SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()`,
+			tenantID, tenantUserID, initialUser.Email); err != nil {
+			respondWithError(w, http.StatusInternalServerError, "Could not finalize platform account")
+			return
+		}
+		_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE registration_id=$1", registrationID)
+		_, _ = db.DB.Exec("DELETE FROM platform_pending_registrations WHERE id=$1", registrationID)
 	}
 
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{
@@ -283,6 +328,7 @@ func ProvisionCurrentTenant(w http.ResponseWriter, r *http.Request) {
 			"tenantId": tenantID,
 			"database": databaseName,
 			"status":   "READY",
+			"recovered": recovery,
 		},
 	})
 }

@@ -380,6 +380,21 @@ func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 		`DELETE FROM platform_verification_codes
 		 WHERE platform_account_id IN (
 			 SELECT id FROM platform_user_accounts WHERE tenant_id=$1
+		 )
+		 OR registration_id IN (
+			 SELECT pr.id
+			 FROM platform_pending_registrations pr
+			 JOIN platform_registration_registry rr
+			   ON lower(rr.email_id)=lower(pr.email)
+			WHERE rr.last_tenant_id=$1
+		 )`,
+		`DELETE FROM platform_pending_registrations
+		 WHERE id IN (
+			 SELECT pr.id
+			 FROM platform_pending_registrations pr
+			 JOIN platform_registration_registry rr
+			   ON lower(rr.email_id)=lower(pr.email)
+			WHERE rr.last_tenant_id=$1
 		 )`,
 		`DELETE FROM platform_user_accounts WHERE tenant_id=$1`,
 		`DELETE FROM platform_subscription_events WHERE tenant_id=$1`,
