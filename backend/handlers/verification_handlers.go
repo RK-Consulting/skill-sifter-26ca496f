@@ -17,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/RK-Consulting/skill-sifter/auth"
 	"github.com/RK-Consulting/skill-sifter/db"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"golang.org/x/crypto/bcrypt"
@@ -374,7 +375,16 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 	_, tenantUserID, err := db.ProvisionTenantDatabase(db.DB, tenantID, &db.TenantUser{Username: username, Email: email, Password: passwordHash, Role: "admin"})
 	if err != nil {
 		_, _ = db.DB.Exec("UPDATE platform_tenants SET provisioning_status='FAILED' WHERE tenant_id=$1", tenantID)
-		respondWithError(w, http.StatusServiceUnavailable, "Account created but tenant provisioning failed; please retry provisioning")
+		recoveryToken, tokenErr := auth.GenerateProvisioningRecoveryToken(tenantID, email, company)
+		if tokenErr != nil {
+			respondWithError(w, http.StatusServiceUnavailable, "Account created but tenant provisioning failed; administrator recovery is temporarily unavailable")
+			return
+		}
+		respondWithJSON(w, http.StatusServiceUnavailable, models.ApiResponse{
+			Success: false,
+			Message: "Account created but tenant provisioning failed; retry using the provisioning recovery token",
+			Data: map[string]interface{}{"tenantId": tenantID, "recoveryToken": recoveryToken},
+		})
 		return
 	}
 
@@ -382,6 +392,12 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
 		return
 	}
+
+	// Verified registration state is temporary. Once the tenant-local admin and
+	// control-plane routing record exist, remove the pending registration and
+	// its consumed email OTP while retaining platform_registration_registry.
+	_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE registration_id=$1", input.RegistrationID)
+	_, _ = db.DB.Exec("DELETE FROM platform_pending_registrations WHERE id=$1", input.RegistrationID)
 
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{Success: true, Message: "Email verified and 2-day trial started", Data: map[string]interface{}{"tenantId": tenantID, "email": email, "subscriptionStatus": "TRIAL", "planCode": planCode}})
 }
