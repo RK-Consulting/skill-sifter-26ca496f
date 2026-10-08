@@ -55,7 +55,7 @@ func (r *PostgresRepository) create(q submissionInserter, s *Submission) error {
 	return q.QueryRow(`
 		INSERT INTO recruitment_submissions (
 			tenant_id,candidate_id,requirement_id,submitted_by_user_id,
-			recipient_type,recipient_client_id,recipient_user_id,recipient_name,
+			recipient_type,recipient_client_id,recipient_name,
 			recipient_email,submission_context,recruiter_notes,candidate_snapshot,requirement_snapshot
 		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 		RETURNING id,submitted_at,created_at`,
