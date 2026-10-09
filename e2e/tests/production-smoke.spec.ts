@@ -293,15 +293,22 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await page.getByRole('button', { name: 'Complete Screening', exact: true }).click();
       await expect(page.getByText('Completed — Production smoke screening passed')).toBeVisible();
 
+      const submissionURL = `/api/v1/candidates/${candidateID}/requirements/${requirementID}/submissions`;
       const submissionResponsePromise = page.waitForResponse(
         response =>
-          response.url().includes(
-            `/api/v1/candidates/${candidateID}/requirements/${requirementID}/submissions`,
-          ) &&
+          response.url().includes(submissionURL) &&
           response.request().method() === 'POST',
+      );
+      // The UI calls refresh() after POST. Capture that GET as well so the
+      // smoke test verifies the complete write -> read -> UI transition.
+      const submissionReadResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(submissionURL) &&
+          response.request().method() === 'GET',
       );
       await page.getByRole('button', { name: 'Submit to Client', exact: true }).click();
       const submissionResponse = await submissionResponsePromise;
+      const submissionReadResponse = await submissionReadResponsePromise;
       expect(submissionResponse.ok()).toBeTruthy();
 
       // Verify the request contract as well as the lifecycle transition.
@@ -337,6 +344,27 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
         expect(createdSubmission.recipientName).toBe(clientName);
       }
 
+      expect(submissionReadResponse.ok()).toBeTruthy();
+      const submissionReadPayload = await submissionReadResponse.json();
+      expect(submissionReadPayload.success).toBe(true);
+      expect(Array.isArray(submissionReadPayload.data)).toBe(true);
+      const readSubmissions = submissionReadPayload.data as Array<Record<string, unknown>>;
+      expect(readSubmissions.length).toBeGreaterThan(0);
+      const readSubmission = readSubmissions[0];
+      expect(typeof readSubmission.id).toBe('number');
+      expect(Number.isInteger(readSubmission.id as number)).toBe(true);
+      expect(readSubmission.id).toBe(createdSubmission.id);
+      expect(readSubmission.candidateId).toBe(candidateID);
+      expect(readSubmission.requirementId).toBe(requirementID);
+      expect(readSubmission.recipientType).toBe('client');
+      if (readSubmission.recipientClientId != null) {
+        expect(readSubmission.recipientClientId).toBe(clientID);
+      }
+      if (readSubmission.recipientName != null) {
+        expect(readSubmission.recipientName).toBe(clientName);
+      }
+
+      await expect(page.getByText('Submitted to', { exact: false })).toBeVisible();
       await expect(page.getByPlaceholder('Client feedback (optional)')).toBeVisible();
 
       await page.getByPlaceholder('Client feedback (optional)').fill('Production smoke client feedback');
