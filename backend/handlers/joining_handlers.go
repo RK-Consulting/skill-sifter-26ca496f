@@ -91,7 +91,11 @@ func CreateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	actorUserID, _ := r.Context().Value("userID").(int)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	j, err := joiningService(r).Create(tenantID, joining.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
@@ -144,7 +148,11 @@ func UpdateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
-	actorUserID, _ := r.Context().Value("userID").(int)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	j, err := joiningService(r).Update(tenantID, candidateID, requirementID, joining.UpdateInput{
 		JoiningDate: joiningDate,
 		Joined:      req.Joined,
