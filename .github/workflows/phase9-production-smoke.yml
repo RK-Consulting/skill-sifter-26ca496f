@@ -13,7 +13,7 @@ on:
         default: 'https://skillsifter.in'
         type: string
   workflow_run:
-    workflows: ['Backend CI', 'Frontend Production Smoke']
+    workflows: ['Backend CI']
     types: [completed]
     branches: [main]
 
