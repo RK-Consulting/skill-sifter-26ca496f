@@ -25,12 +25,17 @@ const submissionSelect = `id, tenant_id, candidate_id, requirement_id, submitted
 	recipient_email, submission_context, recruiter_notes,
 	candidate_snapshot, requirement_snapshot, submitted_at, created_at`
 
-func scanSubmission(row *sql.Row) (*Submission, error) {
+type submissionScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func scanSubmission(scanner submissionScanner) (*Submission, error) {
 	s := &Submission{}
 	var clientID sql.NullInt64
-	if err := row.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
-		&s.RecipientType, &clientID, &s.RecipientName, &s.RecipientEmail,
-		&s.SubmissionContext, &s.RecruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot,
+	var recipientName, recipientEmail, submissionContext, recruiterNotes sql.NullString
+	if err := scanner.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
+		&s.RecipientType, &clientID, &recipientName, &recipientEmail,
+		&submissionContext, &recruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot,
 		&s.SubmittedAt, &s.CreatedAt); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
@@ -40,6 +45,18 @@ func scanSubmission(row *sql.Row) (*Submission, error) {
 	if clientID.Valid {
 		v := int(clientID.Int64)
 		s.RecipientClientID = &v
+	}
+	if recipientName.Valid {
+		s.RecipientName = recipientName.String
+	}
+	if recipientEmail.Valid {
+		s.RecipientEmail = recipientEmail.String
+	}
+	if submissionContext.Valid {
+		s.SubmissionContext = submissionContext.String
+	}
+	if recruiterNotes.Valid {
+		s.RecruiterNotes = recruiterNotes.String
 	}
 	return s, nil
 }
@@ -81,16 +98,9 @@ func (r *PostgresRepository) ListByCandidateRequirement(tenantID string, candida
 	defer rows.Close()
 	results := []*Submission{}
 	for rows.Next() {
-		s := &Submission{}
-		var clientID sql.NullInt64
-		if err := rows.Scan(&s.ID, &s.TenantID, &s.CandidateID, &s.RequirementID, &s.SubmittedByUserID,
-			&s.RecipientType, &clientID, &s.RecipientName, &s.RecipientEmail, &s.SubmissionContext,
-			&s.RecruiterNotes, &s.CandidateSnapshot, &s.RequirementSnapshot, &s.SubmittedAt, &s.CreatedAt); err != nil {
+		s, err := scanSubmission(rows)
+		if err != nil {
 			return nil, err
-		}
-		if clientID.Valid {
-			v := int(clientID.Int64)
-			s.RecipientClientID = &v
 		}
 		results = append(results, s)
 	}
