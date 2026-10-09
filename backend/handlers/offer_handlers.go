@@ -116,7 +116,8 @@ func UpdateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	o, err := offerService(r).Update(tenantID, candidateID, requirementID, offer.UpdateInput{
-		Accepted: req.Accepted,
+		Accepted:    req.Accepted,
+		ActorUserID: actorUserID,
 	})
 	switch {
 	case errors.Is(err, offer.ErrNotFound):
