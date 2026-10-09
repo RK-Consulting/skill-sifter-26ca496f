@@ -92,7 +92,11 @@ func CreateCandidateRequirementBilling(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
-	actorUserID, _ := r.Context().Value("userID").(int)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	b, err := billingService(r).Create(tenantID, billing.CreateInput{
 		CandidateID:      candidateID,
 		RequirementID:    requirementID,
