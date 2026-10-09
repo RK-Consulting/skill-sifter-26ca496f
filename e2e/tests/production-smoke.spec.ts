@@ -421,8 +421,42 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await expect(page.getByText('Accepted', { exact: true })).toBeVisible();
 
       const joiningDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const joiningURL = `/api/v1/candidates/${candidateID}/requirements/${requirementID}/joining`;
+      const joiningCreateResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(joiningURL) &&
+          response.request().method() === 'POST',
+      );
+      const joiningReadResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(joiningURL) &&
+          response.request().method() === 'GET',
+      );
       await page.locator('#joining-date').fill(joiningDate);
       await page.getByRole('button', { name: 'Record Joining', exact: true }).click();
+
+      const joiningCreateResponse = await joiningCreateResponsePromise;
+      expect(joiningCreateResponse.ok()).toBeTruthy();
+      const joiningCreatePayload = await joiningCreateResponse.json();
+      expect(joiningCreatePayload.success).toBe(true);
+      expect(joiningCreatePayload.data?.id).toBeGreaterThan(0);
+      expect(joiningCreatePayload.data?.candidateId).toBe(candidateID);
+      expect(joiningCreatePayload.data?.requirementId).toBe(requirementID);
+      expect(joiningCreatePayload.data?.offerId).toBeGreaterThan(0);
+      expect(joiningCreatePayload.data?.joiningDate).toBeTruthy();
+      expect(joiningCreatePayload.data?.joined).toBe(true);
+
+      const joiningReadResponse = await joiningReadResponsePromise;
+      expect(joiningReadResponse.ok()).toBeTruthy();
+      const joiningReadPayload = await joiningReadResponse.json();
+      expect(joiningReadPayload.success).toBe(true);
+      expect(joiningReadPayload.data?.id).toBe(joiningCreatePayload.data.id);
+      expect(joiningReadPayload.data?.candidateId).toBe(candidateID);
+      expect(joiningReadPayload.data?.requirementId).toBe(requirementID);
+      expect(joiningReadPayload.data?.offerId).toBe(joiningCreatePayload.data.offerId);
+      expect(joiningReadPayload.data?.joiningDate).toBeTruthy();
+      expect(joiningReadPayload.data?.joined).toBe(true);
+
       await expect(page.getByText('Joined', { exact: true })).toBeVisible();
 
       await page.locator('#billing-amount').fill('50000');
