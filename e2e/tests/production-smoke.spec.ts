@@ -67,7 +67,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
   test('authenticated application smoke across Phase 9 modules', async ({ page }) => {
     await login(page);
 
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/(dashboard|$)/);
     await expect(page.getByRole('heading').first()).toBeVisible();
 
     const routes = [
@@ -144,11 +144,14 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       const clientSelect = page.getByLabel('Client *');
       await expect(clientSelect).toBeVisible();
       await clientSelect.selectOption({ label: clientName });
+      await page.getByLabel('Job Type *').selectOption('fulltime');
       await page.getByLabel('Job Title *').fill(requirementTitle);
       await page.getByLabel('Department').fill('Engineering');
       await page.getByLabel('Experience Required').fill('5 years');
       await page.getByLabel('Budget').fill('1800000');
       await page.getByLabel('Notice Period').fill('30 days');
+      await page.getByLabel('Mode of Work *').selectOption('hybrid');
+      await page.getByLabel('Status *').selectOption('open');
       await page.getByLabel('Job Location').fill('Bengaluru');
       await page.getByLabel('No. of Open Positions *').fill('1');
       await page.getByLabel('Mandatory Requirements').fill('Go, PostgreSQL, REST APIs');

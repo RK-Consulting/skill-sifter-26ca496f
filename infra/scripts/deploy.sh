@@ -25,20 +25,18 @@ echo "==> Checking live Nginx configuration for drift"
 LIVE_NGINX="/etc/nginx/sites-available/api.skillsifter.in"
 REPO_NGINX="$APP_DIR/infra/nginx/api.skillsifter.in.conf"
 if [ -f "$LIVE_NGINX" ] && ! cmp -s "$REPO_NGINX" "$LIVE_NGINX"; then
-  echo "❌ DEPLOY ABORTED: live Nginx configuration differs from Git."
+  echo "DEPLOY ABORTED: live Nginx configuration differs from Git."
   echo "Live: $LIVE_NGINX"
   echo "Git:  $REPO_NGINX"
-  echo "Review the difference, reconcile the intended change into Git,"
-  echo "then run deploy.sh again. The live service was NOT touched."
+  echo "Review the diff, reconcile the intended change into Git, then redeploy."
   diff -u "$REPO_NGINX" "$LIVE_NGINX" || true
   exit 1
 fi
-echo "✅ Nginx configuration matches Git"
+echo "Nginx configuration matches Git"
 
 echo "==> Loading backend environment for deployment and integration tests"
 if [ ! -f "$APP_DIR/backend/.env" ]; then
-  echo "❌ DEPLOY ABORTED: backend/.env is missing."
-  echo "The live service was NOT touched."
+  echo "DEPLOY ABORTED: backend/.env is missing. The live service was NOT touched."
   exit 1
 fi
 
@@ -52,12 +50,9 @@ set +a
 : "${TEST_DB_PASSWORD:=${DB_PASSWORD:-}}"
 
 if [ -z "$TEST_DB_USER" ] || [ -z "$TEST_DB_PASSWORD" ]; then
-  echo "❌ DEPLOY ABORTED: TEST_DB_USER/TEST_DB_PASSWORD are not configured."
-  echo "Set them in backend/.env or provide DB_USER/DB_PASSWORD there."
-  echo "The live service was NOT touched."
+  echo "DEPLOY ABORTED: TEST_DB_USER/TEST_DB_PASSWORD are not configured. The live service was NOT touched."
   exit 1
 fi
-
 export TEST_DB_HOST TEST_DB_PORT TEST_DB_USER TEST_DB_PASSWORD
 
 echo "==> Integration test database: ${TEST_DB_HOST}:${TEST_DB_PORT} as ${TEST_DB_USER}"
@@ -67,24 +62,22 @@ go mod download
 
 UNFORMATTED=$(gofmt -l .)
 if [ -n "$UNFORMATTED" ]; then
-  echo "❌ DEPLOY ABORTED: the following files are not gofmt-formatted:"
+  echo "DEPLOY ABORTED: unformatted Go files:"
   echo "$UNFORMATTED"
   echo "The live service was NOT touched. Fix formatting, push, and redeploy."
   exit 1
 fi
 
 if ! go vet ./...; then
-  echo "❌ DEPLOY ABORTED: go vet failed. The live service was NOT touched."
+  echo "DEPLOY ABORTED: go vet failed. The live service was NOT touched."
   exit 1
 fi
-
 if ! go test ./...; then
-  echo "❌ DEPLOY ABORTED: tests failed. The live service was NOT touched."
+  echo "DEPLOY ABORTED: tests failed. The live service was NOT touched."
   exit 1
 fi
 
-echo "✅ Test gate passed — proceeding with build and deploy"
-
+echo "Test gate passed — proceeding with build and deploy"
 echo "==> Building backend"
 go build -o skillsifter .
 
@@ -104,15 +97,18 @@ sleep 2
 systemctl status skillsifter --no-pager
 
 echo "==> Health check"
-curl -sf http://localhost:8081/api/health-check && echo ""
+curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check
+echo ""
 
-echo "==> Production E2E bootstrap route check"
-bootstrap_status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS http://localhost:8081/api/e2e/bootstrap)"
-if [ "$bootstrap_status" != "200" ] && [ "$bootstrap_status" != "204" ]; then
-  echo "❌ DEPLOY FAILED: /api/e2e/bootstrap is not available for OPTIONS (HTTP $bootstrap_status)."
-  echo "The deployed backend does not contain the production smoke bootstrap route."
-  exit 1
-fi
-echo "✅ Production E2E bootstrap route is available (HTTP $bootstrap_status)"
+echo "==> Production E2E bootstrap and reset route contract checks"
+for route in bootstrap reset; do
+  status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/$route" || true)"
+  if [ "$status" != "204" ]; then
+    echo "DEPLOY FAILED: /api/e2e/$route OPTIONS returned HTTP ${status:-unknown}; expected 204."
+    echo "The service restarted, but production E2E prerequisites are not healthy."
+    exit 1
+  fi
+  echo "Production E2E /api/e2e/$route route is available (HTTP $status)"
+done
 
 echo "==> Deploy succeeded"
