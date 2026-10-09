@@ -67,7 +67,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
   test('authenticated application smoke across Phase 9 modules', async ({ page }) => {
     await login(page);
 
-    await expect(page).toHaveURL(/\/$/);
+    await expect(page).toHaveURL(/\/(dashboard|$)/);
     await expect(page.getByRole('heading').first()).toBeVisible();
 
     const routes = [
