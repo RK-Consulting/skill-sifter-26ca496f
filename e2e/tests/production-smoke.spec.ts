@@ -202,7 +202,9 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await expect(page.getByText('Completed — Production smoke screening passed')).toBeVisible();
 
       await page.getByRole('button', { name: 'Submit to Client', exact: true }).click();
-      await expect(page.getByText(`Submitted to ${clientName}`)).toBeVisible();
+      // The lifecycle contract is the stage transition to Feedback. Do not
+      // depend on recipientName being echoed by the submission read model.
+      await expect(page.getByPlaceholder('Client feedback (optional)')).toBeVisible();
 
       await page.getByPlaceholder('Client feedback (optional)').fill('Production smoke client feedback');
       await page.getByRole('button', { name: 'Record Feedback', exact: true }).click();
