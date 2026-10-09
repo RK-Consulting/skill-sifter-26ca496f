@@ -387,7 +387,37 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
 
       await page.getByRole('button', { name: 'Create Offer', exact: true }).click();
       await expect(page.getByRole('button', { name: 'Accept Offer', exact: true })).toBeVisible();
+      const offerURL = `/api/v1/candidates/${candidateID}/requirements/${requirementID}/offer`;
+      const offerUpdateResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(offerURL) &&
+          response.request().method() === 'PUT',
+      );
+      const offerReadResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(offerURL) &&
+          response.request().method() === 'GET',
+      );
       await page.getByRole('button', { name: 'Accept Offer', exact: true }).click();
+
+      const offerUpdateResponse = await offerUpdateResponsePromise;
+      expect(offerUpdateResponse.ok()).toBeTruthy();
+      const offerUpdatePayload = await offerUpdateResponse.json();
+      expect(offerUpdatePayload.success).toBe(true);
+      expect(offerUpdatePayload.data?.id).toBeGreaterThan(0);
+      expect(offerUpdatePayload.data?.candidateId).toBe(candidateID);
+      expect(offerUpdatePayload.data?.requirementId).toBe(requirementID);
+      expect(offerUpdatePayload.data?.accepted).toBe(true);
+
+      const offerReadResponse = await offerReadResponsePromise;
+      expect(offerReadResponse.ok()).toBeTruthy();
+      const offerReadPayload = await offerReadResponse.json();
+      expect(offerReadPayload.success).toBe(true);
+      expect(offerReadPayload.data?.id).toBe(offerUpdatePayload.data.id);
+      expect(offerReadPayload.data?.candidateId).toBe(candidateID);
+      expect(offerReadPayload.data?.requirementId).toBe(requirementID);
+      expect(offerReadPayload.data?.accepted).toBe(true);
+
       await expect(page.getByText('Accepted', { exact: true })).toBeVisible();
 
       const joiningDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
