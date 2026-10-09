@@ -3,15 +3,15 @@ package joining
 import "time"
 
 type Joining struct {
-	ID            int
-	TenantID      string
-	CandidateID   int
-	RequirementID int
-	OfferID       int
-	JoiningDate   *time.Time
-	Joined        bool
-	CreatedAt     time.Time
-	LastModified  time.Time
+	ID            int        `json:"id"`
+	TenantID      string     `json:"tenantId"`
+	CandidateID   int        `json:"candidateId"`
+	RequirementID int        `json:"requirementId"`
+	OfferID       int        `json:"offerId"`
+	JoiningDate   *time.Time `json:"joiningDate,omitempty"`
+	Joined        bool       `json:"joined"`
+	CreatedAt     time.Time  `json:"createdAt"`
+	LastModified  time.Time  `json:"lastModified"`
 }
 
 type CreateInput struct {
