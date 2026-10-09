@@ -92,12 +92,14 @@ func CreateCandidateRequirementBilling(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, _ := r.Context().Value("userID").(int)
 	b, err := billingService(r).Create(tenantID, billing.CreateInput{
 		CandidateID:      candidateID,
 		RequirementID:    requirementID,
 		Amount:           req.Amount,
 		Currency:         req.Currency,
 		InvoiceReference: req.InvoiceReference,
+		ActorUserID:      actorUserID,
 	})
 	switch {
 	case errors.Is(err, billing.ErrCandidateRequirementNotFound):
