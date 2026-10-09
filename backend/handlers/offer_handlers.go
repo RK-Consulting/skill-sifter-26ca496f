@@ -71,7 +71,7 @@ func CreateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 	o, err := offerService(r).Create(tenantID, offer.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
-		ActorUserID: actorUserID,
+		ActorUserID:   actorUserID,
 	})
 	switch {
 	case errors.Is(err, offer.ErrCandidateRequirementNotFound):
