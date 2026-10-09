@@ -42,12 +42,65 @@ async function resetSmokeTenant(request: import('@playwright/test').APIRequestCo
   expect(payload.success).toBe(true);
 }
 
-function createdID(payload: { data?: { id?: number } }) {
-  const id = payload.data?.id;
-  if (!id) {
-    throw new Error('Production smoke mutation response did not contain a created record ID.');
+type JsonRecord = Record<string, unknown>;
+
+function assertPrimitiveType(value: unknown, expected: 'number' | 'string' | 'boolean', field: string) {
+  expect(typeof value, field).toBe(expected);
+  if (expected === 'number') {
+    expect(Number.isFinite(value as number), field).toBe(true);
   }
-  return id;
+}
+
+function validateApiDataTypes(value: unknown, path = 'data') {
+  if (value == null) return;
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => validateApiDataTypes(item, `${path}[${index}]`));
+    return;
+  }
+  if (typeof value !== 'object') return;
+
+  const record = value as JsonRecord;
+  for (const [key, item] of Object.entries(record)) {
+    const fieldPath = `${path}.${key}`;
+
+    // All entity identifiers and counters in the current v1 contract are JSON numbers.
+    if (/^(id|.*Id|round|headcount|screeningCount|screeningLimit)$/.test(key) && item != null) {
+      assertPrimitiveType(item, 'number', fieldPath);
+      if (/^(id|.*Id|round|headcount|screeningCount|screeningLimit)$/.test(key)) {
+        expect(Number.isInteger(item as number), fieldPath).toBe(true);
+      }
+      continue;
+    }
+
+    // These are explicit booleans in the domain contracts.
+    if (/^(accepted|joined|billed|success)$/.test(key) && item != null) {
+      assertPrimitiveType(item, 'boolean', fieldPath);
+      continue;
+    }
+
+    // Timestamp/date fields are serialized as ISO strings by encoding/json.
+    if (/At$|Date$/.test(key) && item != null) {
+      assertPrimitiveType(item, 'string', fieldPath);
+      expect(Number.isNaN(Date.parse(item as string)), fieldPath).toBe(false);
+      continue;
+    }
+
+    // Known string-valued business fields must never silently become numbers/booleans.
+    if (/^(name|email|phone|position|location|status|pipelineStage|jobType|title|department|experience|experienceRequired|budget|noticePeriod|workArrangement|mandatoryRequirements|description|currency|amount|invoiceReference|recipientType|recipientName|outcome|decision|decisionNotes|nextAction|comments|feedback|candidateFeedback|reasonCode|recruiterAssessment)$/.test(key) && item != null) {
+      assertPrimitiveType(item, 'string', fieldPath);
+    }
+  }
+  Object.values(record).forEach((item, index) => {
+    if (typeof item === 'object' && item !== null) validateApiDataTypes(item, `${path}[${index}]`);
+  });
+}
+
+function createdID(payload: { data?: { id?: unknown } }) {
+  const id = payload.data?.id;
+  assertPrimitiveType(id, 'number', 'data.id');
+  expect(Number.isInteger(id)).toBe(true);
+  expect(id).toBeGreaterThan(0);
+  return id as number;
 }
 
 test.describe('SkillSifter Phase 9 production smoke', () => {
@@ -116,6 +169,45 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
     const jobID = `SMOKE-${suffix}`;
 
     let cleanupError: unknown;
+    const apiValidationErrors: string[] = [];
+    const apiValidationTasks: Promise<void>[] = [];
+
+    // Validate every JSON API response and mutation request touched by this
+    // production lifecycle. This is intentionally generic so a new response
+    // field cannot silently change from number/string/boolean to another type.
+    page.on('response', response => {
+      if (!response.url().includes('/api/')) return;
+      const contentType = response.headers()['content-type'] || '';
+      if (!contentType.includes('application/json')) return;
+      apiValidationTasks.push(
+        response.json()
+          .then(payload => {
+            try {
+              validateApiDataTypes(payload);
+            } catch (error) {
+              apiValidationErrors.push(
+                `Response ${response.request().method()} ${response.url()}: ${String(error)}`,
+              );
+            }
+          })
+          .catch(() => {
+            // Some successful endpoints intentionally have no JSON body.
+          }),
+      );
+    });
+
+    page.on('request', request => {
+      if (!request.url().includes('/api/') || !['POST', 'PUT', 'PATCH'].includes(request.method())) return;
+      const payload = request.postDataJSON();
+      if (payload == null || typeof payload !== 'object') return;
+      try {
+        validateApiDataTypes(payload, 'request');
+      } catch (error) {
+        apiValidationErrors.push(
+          `Request ${request.method()} ${request.url()}: ${String(error)}`,
+        );
+      }
+    });
 
     try {
       // Client
@@ -288,6 +380,9 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
         cleanupError = error;
       }
     }
+
+    await Promise.all(apiValidationTasks);
+    expect(apiValidationErrors, apiValidationErrors.join('\n')).toEqual([]);
 
     if (cleanupError) {
       throw cleanupError;
