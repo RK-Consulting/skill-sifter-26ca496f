@@ -112,7 +112,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 	if err := s.repo.Create(b); err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, 0, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	if err := audit.Write(s.db, tenantID, input.ActorUserID, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write billing audit event: %w", err)
 	}
 	return b, nil
