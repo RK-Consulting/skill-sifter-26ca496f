@@ -1,6 +1,10 @@
 name: Phase 9 Production Mutation Smoke
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/phase9-production-smoke.yml'
   workflow_dispatch:
     inputs:
       base_url:
@@ -8,21 +12,30 @@ on:
         required: true
         default: 'https://skillsifter.in'
         type: string
+  workflow_run:
+    workflows: ['Backend CI', 'Frontend Production Smoke']
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
 
 concurrency:
   group: phase9-production-mutation-smoke
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   production-smoke:
     name: Browser Production Mutation Smoke
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.base_url }}
+      PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.base_url || 'https://skillsifter.in' }}
       E2E_API_BASE_URL: https://api.skillsifter.in
       E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
@@ -38,6 +51,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -68,11 +83,30 @@ jobs:
           echo "Frontend did not become reachable within 5 minutes."
           exit 1
 
+      - name: Wait for deployed backend E2E endpoints
+        shell: bash
+        run: |
+          for attempt in {1..20}; do
+            bootstrap_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/bootstrap" || true)
+            reset_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/reset" || true)
+            if [[ "$bootstrap_status" == "204" && "$reset_status" == "204" ]]; then
+              echo "Production bootstrap and reset endpoints are ready."
+              exit 0
+            fi
+            echo "Backend E2E endpoints not ready (attempt $attempt/20; bootstrap=$bootstrap_status reset=$reset_status); waiting 15 seconds..."
+            sleep 15
+          done
+          echo "Required production E2E endpoints were not ready within 5 minutes."
+          exit 1
+
       - name: Bootstrap production E2E smoke account
         shell: bash
         run: |
           payload=$(jq -n --arg email "$E2E_ADMIN_EMAIL" --arg password "$E2E_ADMIN_PASSWORD" '{email:$email,password:$password}')
-          response=$(curl --fail --silent --show-error --location             --header 'Content-Type: application/json'             --data "$payload"             "$E2E_API_BASE_URL/api/e2e/bootstrap")
+          response=$(curl --fail --silent --show-error --max-time 20 \
+            --header 'Content-Type: application/json' \
+            --data "$payload" \
+            "$E2E_API_BASE_URL/api/e2e/bootstrap")
           echo "$response" | jq -e '.success == true and .data.status == "READY"' >/dev/null
           echo "Production E2E smoke account is ready."
 
