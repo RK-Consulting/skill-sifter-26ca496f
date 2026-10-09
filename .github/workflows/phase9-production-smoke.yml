@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/phase9-production-smoke.yml'
+      - 'e2e/**'
   workflow_dispatch:
     inputs:
       base_url:
