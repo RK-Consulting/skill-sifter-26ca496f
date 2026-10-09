@@ -201,9 +201,42 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await page.getByRole('button', { name: 'Complete Screening', exact: true }).click();
       await expect(page.getByText('Completed — Production smoke screening passed')).toBeVisible();
 
+      const submissionResponsePromise = page.waitForResponse(
+        response =>
+          response.url().includes(
+            `/api/v1/candidates/${candidateID}/requirements/${requirementID}/submissions`,
+          ) &&
+          response.request().method() === 'POST',
+      );
       await page.getByRole('button', { name: 'Submit to Client', exact: true }).click();
-      // The lifecycle contract is the stage transition to Feedback. Do not
-      // depend on recipientName being echoed by the submission read model.
+      const submissionResponse = await submissionResponsePromise;
+      expect(submissionResponse.ok()).toBeTruthy();
+
+      // Verify the request contract as well as the lifecycle transition.
+      // This catches a client-side regression where the wrong recipient is
+      // submitted even if the UI advances to Feedback.
+      const submissionRequestPayload = submissionResponse.request().postDataJSON() as {
+        recipientType?: string;
+        recipientClientId?: number;
+        recipientName?: string;
+      };
+      expect(submissionRequestPayload.recipientType).toBe('client');
+      expect(submissionRequestPayload.recipientClientId).toBe(clientID);
+      expect(submissionRequestPayload.recipientName).toBe(clientName);
+
+      // Verify recipient fields returned by the read model when present.
+      // The lifecycle contract itself remains the stage transition to Feedback.
+      const submissionPayload = await submissionResponse.json();
+      const createdSubmission = submissionPayload?.data?.data;
+      expect(createdSubmission?.id).toBeGreaterThan(0);
+      expect(createdSubmission?.recipientType).toBe('client');
+      if (createdSubmission?.recipientClientId != null) {
+        expect(createdSubmission.recipientClientId).toBe(clientID);
+      }
+      if (createdSubmission?.recipientName != null) {
+        expect(createdSubmission.recipientName).toBe(clientName);
+      }
+
       await expect(page.getByPlaceholder('Client feedback (optional)')).toBeVisible();
 
       await page.getByPlaceholder('Client feedback (optional)').fill('Production smoke client feedback');
