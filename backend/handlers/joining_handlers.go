@@ -91,11 +91,13 @@ func CreateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, _ := r.Context().Value("userID").(int)
 	j, err := joiningService(r).Create(tenantID, joining.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
 		JoiningDate:   joiningDate,
 		Joined:        req.Joined,
+		ActorUserID:   actorUserID,
 	})
 	switch {
 	case errors.Is(err, joining.ErrCandidateRequirementNotFound):
@@ -142,9 +144,11 @@ func UpdateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, _ := r.Context().Value("userID").(int)
 	j, err := joiningService(r).Update(tenantID, candidateID, requirementID, joining.UpdateInput{
 		JoiningDate: joiningDate,
 		Joined:      req.Joined,
+		ActorUserID: actorUserID,
 	})
 	switch {
 	case errors.Is(err, joining.ErrNotFound):
