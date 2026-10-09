@@ -344,8 +344,18 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
         expect(createdSubmission.recipientName).toBe(clientName);
       }
 
-      expect(submissionReadResponse.ok()).toBeTruthy();
-      const submissionReadPayload = await submissionReadResponse.json();
+      const submissionReadStatus = submissionReadResponse.status();
+      const submissionReadBody = await submissionReadResponse.text();
+      console.log('Submission GET response:', {
+        status: submissionReadStatus,
+        ok: submissionReadResponse.ok(),
+        body: submissionReadBody.slice(0, 2000),
+      });
+      expect(
+        submissionReadResponse.ok(),
+        `Submission GET failed: HTTP ${submissionReadStatus} ${submissionReadBody}`,
+      ).toBeTruthy();
+      const submissionReadPayload = JSON.parse(submissionReadBody);
       expect(submissionReadPayload.success).toBe(true);
       expect(Array.isArray(submissionReadPayload.data)).toBe(true);
       const readSubmissions = submissionReadPayload.data as Array<Record<string, unknown>>;
