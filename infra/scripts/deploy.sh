@@ -108,11 +108,11 @@ curl -sf http://localhost:8081/api/health-check && echo ""
 
 echo "==> Production E2E bootstrap route check"
 bootstrap_status="$(curl -sS -o /dev/null -w '%{http_code}' -X OPTIONS http://localhost:8081/api/e2e/bootstrap)"
-if [ "$bootstrap_status" != "200" ]; then
+if [ "$bootstrap_status" != "200" ] && [ "$bootstrap_status" != "204" ]; then
   echo "❌ DEPLOY FAILED: /api/e2e/bootstrap is not available for OPTIONS (HTTP $bootstrap_status)."
   echo "The deployed backend does not contain the production smoke bootstrap route."
   exit 1
 fi
-echo "✅ Production E2E bootstrap route is available"
+echo "✅ Production E2E bootstrap route is available (HTTP $bootstrap_status)"
 
 echo "==> Deploy succeeded"
