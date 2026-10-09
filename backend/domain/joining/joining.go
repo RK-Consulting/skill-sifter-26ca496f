@@ -19,9 +19,11 @@ type CreateInput struct {
 	RequirementID int
 	JoiningDate   *time.Time
 	Joined        bool
+	ActorUserID   int
 }
 
 type UpdateInput struct {
 	JoiningDate *time.Time
 	Joined      bool
+	ActorUserID int
 }
