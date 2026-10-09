@@ -233,7 +233,9 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       // Verify recipient fields returned by the read model when present.
       // The lifecycle contract itself remains the stage transition to Feedback.
       const submissionPayload = await submissionResponse.json();
-      const createdSubmission = submissionPayload?.data?.data;
+      // POST /submissions returns the created record directly under data.
+      // (GET /submissions returns an array under data; do not reuse that envelope.)
+      const createdSubmission = submissionPayload?.data;
       expect(createdSubmission?.id).toBeGreaterThan(0);
       expect(createdSubmission?.recipientType).toBe('client');
       if (createdSubmission?.recipientClientId != null) {
