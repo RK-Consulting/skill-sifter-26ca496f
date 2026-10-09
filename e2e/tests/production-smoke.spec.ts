@@ -220,6 +220,12 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
         recipientClientId?: number;
         recipientName?: string;
       };
+      console.log('Submission request payload shape:', {
+        recipientType: typeof submissionRequestPayload.recipientType,
+        recipientClientId: typeof submissionRequestPayload.recipientClientId,
+        recipientName: typeof submissionRequestPayload.recipientName,
+        recipientNamePresent: submissionRequestPayload.recipientName != null,
+      });
       expect(submissionRequestPayload.recipientType).toBe('client');
       expect(submissionRequestPayload.recipientClientId).toBe(clientID);
       expect(submissionRequestPayload.recipientName).toBe(clientName);
