@@ -102,7 +102,6 @@ func BootstrapE2ESmokeAccount(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-
 // ResetE2ESmokeTenantData removes all tenant business data from the dedicated
 // production smoke tenant while preserving its roles and administrator account.
 // It is authenticated with the same CI-only E2E administrator credentials used
