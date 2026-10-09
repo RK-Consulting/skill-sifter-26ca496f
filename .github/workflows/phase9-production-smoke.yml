@@ -1,4 +1,4 @@
-name: Phase 9 Production Smoke
+name: Phase 9 Production Mutation Smoke
 
 on:
   workflow_dispatch:
@@ -8,46 +8,35 @@ on:
         required: true
         default: 'https://skillsifter.in'
         type: string
-      run_mutations:
-        description: 'Run production-smoke mutations and clean them up after a successful run'
-        required: true
-        default: false
-        type: boolean
+
+permissions:
+  contents: read
 
 jobs:
   production-smoke:
-    name: Browser Production Smoke
+    name: Browser Production Mutation Smoke
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.base_url }}
+      E2E_API_BASE_URL: https://api.skillsifter.in
       E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
-      E2E_RUN_MUTATIONS: ${{ inputs.run_mutations }}
+      E2E_RUN_MUTATIONS: 'true'
 
     steps:
       - name: Verify production smoke credentials
         shell: bash
         run: |
-          if [ -z "$E2E_ADMIN_EMAIL" ]; then
-            echo "Production smoke credential SKILLSIFTER_E2E_ADMIN_EMAIL is not configured."
-            exit 1
-          fi
-          if [ -z "$E2E_ADMIN_PASSWORD" ]; then
-            echo "Production smoke credential SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."
-            exit 1
-          fi
-          if [ "$E2E_ADMIN_EMAIL" != "e2e-admin@skillsifter.in" ]; then
-            echo "Production smoke email does not match the permanent E2E smoke account."
-            exit 1
-          fi
-          echo "Production smoke credentials are configured for the permanent E2E smoke account."
+          test -n "$E2E_ADMIN_EMAIL" || { echo "SKILLSIFTER_E2E_ADMIN_EMAIL is not configured."; exit 1; }
+          test -n "$E2E_ADMIN_PASSWORD" || { echo "SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."; exit 1; }
+          test "$E2E_ADMIN_EMAIL" = "e2e-admin@skillsifter.in" || { echo "Unexpected E2E smoke account."; exit 1; }
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
@@ -61,14 +50,36 @@ jobs:
         working-directory: e2e
         run: npx playwright install --with-deps chromium
 
-      - name: Run production smoke
+      - name: Wait for deployed frontend
+        shell: bash
+        run: |
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error --location --max-time 15 "$PLAYWRIGHT_TEST_BASE_URL/" >/dev/null; then
+              echo "Frontend is reachable."
+              exit 0
+            fi
+            echo "Frontend not ready yet (attempt $attempt/20); waiting 15 seconds..."
+            sleep 15
+          done
+          echo "Frontend did not become reachable within 5 minutes."
+          exit 1
+
+      - name: Bootstrap production E2E smoke account
+        shell: bash
+        run: |
+          payload=$(jq -n --arg email "$E2E_ADMIN_EMAIL" --arg password "$E2E_ADMIN_PASSWORD" '{email:$email,password:$password}')
+          response=$(curl --fail --silent --show-error --location             --header 'Content-Type: application/json'             --data "$payload"             "$E2E_API_BASE_URL/api/e2e/bootstrap")
+          echo "$response" | jq -e '.success == true and .data.status == "READY"' >/dev/null
+          echo "Production E2E smoke account is ready."
+
+      - name: Run production mutation smoke
         working-directory: e2e
         run: npm run smoke
 
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v4
         with:
-          name: phase9-production-smoke-report
+          name: phase9-production-mutation-smoke-report
           path: e2e/playwright-report/
           retention-days: 30
