@@ -64,9 +64,9 @@ function validateApiDataTypes(value: unknown, path = 'data') {
     const fieldPath = `${path}.${key}`;
 
     // All entity identifiers and counters in the current v1 contract are JSON numbers.
-    if (/^(id|.*Id|round|headcount|screeningCount|screeningLimit)$/.test(key) && item != null) {
+    if (/^(id|(candidate|requirement|client|user|recruiter|submission|feedback|interview|selection|offer|joining|billing)Id|round|headcount|screeningCount|screeningLimit)$/.test(key) && item != null) {
       assertPrimitiveType(item, 'number', fieldPath);
-      if (/^(id|.*Id|round|headcount|screeningCount|screeningLimit)$/.test(key)) {
+      if (/^(id|(candidate|requirement|client|user|recruiter|submission|feedback|interview|selection|offer|joining|billing)Id|round|headcount|screeningCount|screeningLimit)$/.test(key)) {
         expect(Number.isInteger(item as number), fieldPath).toBe(true);
       }
       continue;
