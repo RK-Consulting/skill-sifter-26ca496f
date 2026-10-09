@@ -22,6 +22,10 @@ const (
 // The password is supplied by the CI secret and is stored only as a bcrypt hash
 // in the tenant database. Calling this endpoint repeatedly is safe.
 func BootstrapE2ESmokeAccount(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
 	if r.Method != http.MethodPost {
 		respondWithError(w, http.StatusMethodNotAllowed, "POST required")
 		return
