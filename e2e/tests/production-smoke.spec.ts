@@ -42,22 +42,6 @@ async function resetSmokeTenant(request: import('@playwright/test').APIRequestCo
   expect(payload.success).toBe(true);
 }
 
-async function deleteResource(
-  page: import('@playwright/test').Page,
-  path: string,
-  token: string,
-  apiOrigin: string,
-  label: string,
-) {
-  const response = await page.request.delete(new URL(path, apiOrigin).toString(), {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-
-  if (!response.ok()) {
-    throw new Error(`Production smoke cleanup failed for ${label}: HTTP ${response.status()}`);
-  }
-}
-
 function createdID(payload: { data?: { id?: number } }) {
   const id = payload.data?.id;
   if (!id) {
