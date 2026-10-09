@@ -12,6 +12,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: phase9-production-mutation-smoke
+  cancel-in-progress: true
+
 jobs:
   production-smoke:
     name: Browser Production Mutation Smoke
