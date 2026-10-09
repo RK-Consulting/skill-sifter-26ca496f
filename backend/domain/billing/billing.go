@@ -3,18 +3,18 @@ package billing
 import "time"
 
 type Billing struct {
-	ID               int
-	TenantID         string
-	CandidateID      int
-	RequirementID    int
-	ClientID         int
-	JoiningID        int
-	BillingDate      time.Time
-	Amount           string
-	Currency         string
-	InvoiceReference string
-	CreatedAt        time.Time
-	LastModified     time.Time
+	ID               int       `json:"id"`
+	TenantID         string    `json:"tenantId"`
+	CandidateID      int       `json:"candidateId"`
+	RequirementID    int       `json:"requirementId"`
+	ClientID         int       `json:"clientId"`
+	JoiningID        int       `json:"joiningId"`
+	BillingDate      time.Time `json:"billingDate"`
+	Amount           string    `json:"amount"`
+	Currency         string    `json:"currency"`
+	InvoiceReference string    `json:"invoiceReference,omitempty"`
+	CreatedAt        time.Time `json:"createdAt"`
+	LastModified     time.Time `json:"lastModified"`
 }
 
 type WorklistItem struct {
