@@ -41,29 +41,30 @@ The workflow supplies the password from the GitHub Actions secret `SKILLSIFTER_E
 
 The normal smoke suite is non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
 
-## Mutating production smoke
+## Production mutation smoke
 
-The client/requirement/candidate creation flow is opt-in:
+The Phase 9 production mutation smoke is the business-flow acceptance test for the current frontend. It uses the permanent dedicated production-smoke account and exercises the current UI from data entry through the complete recruitment lifecycle:
 
-```bash
-E2E_RUN_MUTATIONS=true \
-E2E_ADMIN_EMAIL="..." \
-E2E_ADMIN_PASSWORD="..." \
-npm run smoke
-```
+- Client creation
+- Requirement creation
+- Candidate creation
+- Candidate × Requirement context
+- Screening
+- Submission
+- Client feedback
+- Interview scheduling
+- Interview completion
+- Selection
+- Offer creation
+- Offer acceptance
+- Joining
+- Billing
 
-The mutation flow uses the permanent production-smoke tenant and creates uniquely named test records. **Only after the complete mutation flow succeeds**, the test deletes the candidate, requirement, and client created by that run, in dependency order.
+The workflow bootstraps the dedicated account automatically and runs with `E2E_RUN_MUTATIONS=true`.
 
-The cleanup never deletes:
+After the complete flow, the test calls the dedicated E2E reset endpoint using the same smoke administrator credentials. The reset truncates only business data in `e2e_smoke_tenant` and preserves its roles and administrator account. It never touches customer tenants, the platform subscription, the permanent registration identity, or any other production tenant.
 
-- the production-smoke tenant
-- its tenant database
-- the permanent administrator
-- the platform user account
-- the active subscription
-- the subscription/plan configuration
-
-If the mutation flow fails before cleanup begins, the created records are intentionally retained so the failure can be diagnosed.
+The reset runs from the test cleanup path even when a mutation fails, so a failed production smoke does not intentionally leave its test records behind.
 
 ## Reports
 
