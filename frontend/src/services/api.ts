@@ -229,92 +229,6 @@ export const candidateRecruitmentService = {
   },
 };
 
-export const businessDevService = {
-  // Fix business-dev endpoint - removed /list which was causing 400 Bad Request
-  getAllBusinessDevs: async () => {
-    try {
-      return await api.get('/business-dev');
-    } catch (error) {
-      console.error('Error fetching business dev contacts:', error);
-      throw error;
-    }
-  },
-
-  // Get a business development by ID
-  getBusinessDevById: async (id: number) => {
-    return api.get(`/business-dev/${id}`);
-  },
-
-  // Create a new business development
-  createBusinessDev: async (businessDev: Record<string, unknown>) => {
-    return api.post('/business-dev', businessDev);
-  },
-
-  // Update a business development
-  updateBusinessDev: async (id: number, businessDev: Record<string, unknown>) => {
-    return api.put(`/business-dev/${id}`, businessDev);
-  },
-
-  // Delete a business development
-  deleteBusinessDev: async (id: number) => {
-    return api.delete(`/business-dev/${id}`);
-  },
-};
-
-export const companyService = {
-  // Get all companies
-  getAllCompanies: async () => {
-    return api.get('/companies');
-  },
-
-  // Get a company by ID
-  getCompanyById: async (id: string) => {
-    return api.get(`/companies/${id}`);
-  },
-
-  // Create a new company
-  createCompany: async (company: Record<string, unknown>) => {
-    return api.post('/companies', company);
-  },
-
-  // Update a company
-  updateCompany: async (id: string, company: Record<string, unknown>) => {
-    return api.put(`/companies/${id}`, company);
-  },
-
-  // Delete a company
-  deleteCompany: async (id: string) => {
-    return api.delete(`/companies/${id}`);
-  },
-};
-
-export const roleService = {
-  // Get all roles
-  getAllRoles: async () => {
-    return api.get('/roles');
-  },
-
-  // Get a role by ID
-  getRoleById: async (id: number) => {
-    return api.get(`/roles/${id}`);
-  },
-
-  // Create a new role
-  createRole: async (role: Record<string, unknown>) => {
-    return api.post('/roles', role);
-  },
-
-  // Update a role
-  updateRole: async (id: number, role: Record<string, unknown>) => {
-    return api.put(`/roles/${id}`, role);
-  },
-
-  // Delete a role
-  deleteRole: async (id: number) => {
-    return api.delete(`/roles/${id}`);
-  },
-};
-
 export const subscriptionService = {
   getPlans: async () => api.get('/account/plans'),
   getSubscription: async () => api.get('/account/subscription'),
@@ -339,33 +253,6 @@ export const userService = {
 
   deleteUser: async (id: number) => {
     return api.delete(`/admin/users/${id}`);
-  },
-};
-
-export const dailyJobService = {
-  // Get all daily jobs
-  getAllDailyJobs: async () => {
-    return api.get('/daily-jobs');
-  },
-
-  // Get a daily job by ID
-  getDailyJobById: async (id: number) => {
-    return api.get(`/daily-jobs/${id}`);
-  },
-
-  // Create a new daily job
-  createDailyJob: async (dailyJob: Record<string, unknown>) => {
-    return api.post('/daily-jobs', dailyJob);
-  },
-
-  // Update a daily job
-  updateDailyJob: async (id: number, dailyJob: Record<string, unknown>) => {
-    return api.put(`/daily-jobs/${id}`, dailyJob);
-  },
-
-  // Delete a daily job
-  deleteDailyJob: async (id: number) => {
-    return api.delete(`/daily-jobs/${id}`);
   },
 };
 
