@@ -21,16 +21,22 @@ func TestPublicRoutesDoNotExposeE2EBootstrap(t *testing.T) {
 	}
 }
 
-func TestPublicRoutesDoNotExposeLegacyCompanyUsersAlias(t *testing.T) {
+func TestRoutesDoNotExposeLegacyCompanyUsersAlias(t *testing.T) {
 	router := mux.NewRouter()
 	setupProtectedRoutes(router)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/company-users", nil)
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-
-	// The route must be absent, not merely protected by a frontend menu.
-	if rec.Code != http.StatusNotFound {
-		t.Fatalf("GET /api/company-users status = %d, want %d", rec.Code, http.StatusNotFound)
+	found := false
+	err := router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
+		path, err := route.GetPathTemplate()
+		if err == nil && path == "/api/company-users" {
+			found = true
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("walking routes: %v", err)
+	}
+	if found {
+		t.Fatal("legacy /api/company-users route must not be registered")
 	}
 }
