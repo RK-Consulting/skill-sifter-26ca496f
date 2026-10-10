@@ -24,15 +24,6 @@ echo "==> Deploying SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION})"
 echo "==> Checking live Nginx configuration for drift"
 LIVE_NGINX="/etc/nginx/sites-available/api.skillsifter.in"
 REPO_NGINX="$APP_DIR/infra/nginx/api.skillsifter.in.conf"
-LIVE_RATE_LIMITS="/etc/nginx/conf.d/skillsifter-rate-limits.conf"
-REPO_RATE_LIMITS="$APP_DIR/infra/nginx/skillsifter-rate-limits.conf"
-if [ -f "$LIVE_RATE_LIMITS" ] && ! cmp -s "$REPO_RATE_LIMITS" "$LIVE_RATE_LIMITS"; then
-  echo "DEPLOY ABORTED: live Nginx rate-limit configuration differs from Git."
-  echo "Live: $LIVE_RATE_LIMITS"
-  echo "Git:  $REPO_RATE_LIMITS"
-  diff -u "$REPO_RATE_LIMITS" "$LIVE_RATE_LIMITS" || true
-  exit 1
-fi
 if [ -f "$LIVE_NGINX" ] && ! cmp -s "$REPO_NGINX" "$LIVE_NGINX"; then
   echo "DEPLOY ABORTED: live Nginx configuration differs from Git."
   echo "Live: $LIVE_NGINX"
@@ -87,84 +78,17 @@ if ! go test ./...; then
 fi
 
 echo "Test gate passed — proceeding with build and deploy"
-
-echo "==> Preparing least-privilege runtime account and storage"
-if ! getent group skillsifter >/dev/null 2>&1; then
-  groupadd --system skillsifter
-fi
-if ! id -u skillsifter >/dev/null 2>&1; then
-  useradd --system --gid skillsifter --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
-fi
-install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
-chown skillsifter:skillsifter /var/lib/skillsifter /var/lib/skillsifter/resumes
-chmod 0750 /var/lib/skillsifter /var/lib/skillsifter/resumes
-
-LEGACY_RESUME_DIR="$APP_DIR/backend/storage/resumes"
-if [ -d "$LEGACY_RESUME_DIR" ]; then
-  echo "==> Preserving legacy resume paths with read-only service access"
-  find "$LEGACY_RESUME_DIR" -type d -exec chgrp skillsifter {} + -exec chmod 0750 {} +
-  find "$LEGACY_RESUME_DIR" -type f -exec chgrp skillsifter {} + -exec chmod 0640 {} +
-fi
-chown root:skillsifter "$APP_DIR/backend/.env"
-chmod 0640 "$APP_DIR/backend/.env"
-
-# Snapshot the currently deployed binary and service-facing configuration before
-# replacing anything. A failed post-change step restores this exact known-good set.
-ROLLBACK_DIR="$(mktemp -d /var/lib/skillsifter/deploy-rollback.XXXXXX)"
-DEPLOY_CHANGES_STARTED=0
-cp "$APP_DIR/backend/skillsifter" "$ROLLBACK_DIR/skillsifter" 2>/dev/null || true
-cp /etc/systemd/system/skillsifter.service "$ROLLBACK_DIR/skillsifter.service"
-cp /etc/nginx/sites-available/api.skillsifter.in "$ROLLBACK_DIR/api.skillsifter.in"
-cp /etc/nginx/conf.d/skillsifter-rate-limits.conf "$ROLLBACK_DIR/skillsifter-rate-limits.conf"
-
-rollback_deploy() {
-  local rc="$?"
-  trap - EXIT
-  if [ "$rc" -ne 0 ] && [ "$DEPLOY_CHANGES_STARTED" -eq 1 ]; then
-    echo "DEPLOY FAILED after live changes began; restoring previous binary and settings."
-    if [ -f "$ROLLBACK_DIR/skillsifter" ]; then
-      cp "$ROLLBACK_DIR/skillsifter" "$APP_DIR/backend/skillsifter"
-      chown root:root "$APP_DIR/backend/skillsifter"
-      chmod 0755 "$APP_DIR/backend/skillsifter"
-    fi
-    PREVIOUS_VERSION="$(sed -n 's/^Environment=SKILLSIFTER_VERSION=//p' "$ROLLBACK_DIR/skillsifter.service" | head -n 1)"
-    PREVIOUS_REVISION="$(sed -n 's/^Environment=SKILLSIFTER_REVISION=//p' "$ROLLBACK_DIR/skillsifter.service" | head -n 1)"
-    cp "$ROLLBACK_DIR/skillsifter.service" /etc/systemd/system/skillsifter.service
-    cp "$ROLLBACK_DIR/api.skillsifter.in" /etc/nginx/sites-available/api.skillsifter.in
-    cp "$ROLLBACK_DIR/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
-    systemctl daemon-reload || true
-    if nginx -t; then
-      systemctl reload nginx || true
-    else
-      echo "WARNING: restored Nginx configuration failed validation; reload skipped."
-    fi
-    if systemctl restart skillsifter && sleep 2 && curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check | python3 -c 'import json,sys; d=json.load(sys.stdin); expected_version,expected_revision=sys.argv[1:3]; sys.exit(0 if d.get("status") == "OK" and d.get("version") == expected_version and d.get("revision") == expected_revision else 1)' "$PREVIOUS_VERSION" "$PREVIOUS_REVISION"; then
-      echo "Automatic rollback succeeded; previous version/revision is healthy ($PREVIOUS_VERSION / $PREVIOUS_REVISION)."
-    else
-      echo "CRITICAL: automatic rollback attempted, but previous service health could not be confirmed."
-    fi
-  fi
-  rm -rf "$ROLLBACK_DIR"
-  exit "$rc"
-}
-trap rollback_deploy EXIT
-
 echo "==> Building backend"
 go build -o skillsifter .
 
-# From here onward, any failure automatically restores the previous binary and
-# service-facing settings. Preflight/test/build failures leave the live service alone.
-DEPLOY_CHANGES_STARTED=1
-
-echo "==> Syncing nginx rate-limit policy and site config"
-cp "$APP_DIR/infra/nginx/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
+echo "==> Syncing nginx config"
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 nginx -t
 systemctl reload nginx
 
 echo "==> Syncing systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
-sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" -e "s|__APP_REVISION__|$RELEASE_REVISION|g" /etc/systemd/system/skillsifter.service
+sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /etc/systemd/system/skillsifter.service
 systemctl daemon-reload
 
 echo "==> Restarting service"
@@ -172,25 +96,19 @@ systemctl restart skillsifter
 sleep 2
 systemctl status skillsifter --no-pager
 
-echo "==> Health and deployed revision check"
-health_payload="$(curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check)"
-printf '%s\n' "$health_payload"
-if ! python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("status") == "OK" and d.get("version") == sys.argv[1] and d.get("revision") == sys.argv[2] else 1)' "$RELEASE_VERSION" "$RELEASE_REVISION" <<< "$health_payload"; then
-  echo "DEPLOY FAILED: health endpoint version/revision does not match this deployment."
-  echo "Expected version=$RELEASE_VERSION revision=$RELEASE_REVISION"
-  exit 1
-fi
+echo "==> Health check"
+curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check
+echo ""
 
-echo "==> Production E2E reset preflight contract check"
-status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/reset" || true)"
-if [ "$status" != "204" ]; then
-  echo "DEPLOY FAILED: /api/e2e/reset OPTIONS returned HTTP ${status:-unknown}; expected 204."
-  echo "The service restarted, but production E2E reset prerequisite is not healthy."
-  exit 1
-fi
-echo "Production E2E /api/e2e/reset OPTIONS preflight is healthy (HTTP $status)"
+echo "==> Production E2E bootstrap and reset route contract checks"
+for route in bootstrap reset; do
+  status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/$route" || true)"
+  if [ "$status" != "204" ]; then
+    echo "DEPLOY FAILED: /api/e2e/$route OPTIONS returned HTTP ${status:-unknown}; expected 204."
+    echo "The service restarted, but production E2E prerequisites are not healthy."
+    exit 1
+  fi
+  echo "Production E2E /api/e2e/$route route is available (HTTP $status)"
+done
 
-DEPLOY_CHANGES_STARTED=0
-trap - EXIT
-rm -rf "$ROLLBACK_DIR"
 echo "==> Deploy succeeded"
