@@ -50,8 +50,12 @@ func scanFeedback(row *sql.Row) (*Feedback, error) {
 	return f, nil
 }
 
-func (r *PostgresRepository) Create(f *Feedback) error { return createFeedback(r.db, f) }
-func (r *PostgresRepository) CreateTx(tx *sql.Tx, f *Feedback) error { return createFeedback(tx, f) }
+func (r *PostgresRepository) Create(f *Feedback) error {
+	return createFeedback(r.db, f)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, f *Feedback) error {
+	return createFeedback(tx, f)
+}
 
 type feedbackInserter interface {
 	QueryRow(string, ...interface{}) *sql.Row
