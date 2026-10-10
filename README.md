@@ -45,6 +45,7 @@ The recruitment lifecycle is deliberately simple and frozen for V1.
 - **Offer:** made + accepted
 - **Joining:** joining date + joined
 - **Billing:** operational billing worklist after joined
+- A separate Jobs/Daily Jobs module is not part of the final V1 schema. Candidate × Requirement is the assignment context.
 - HRMS employee-management and approval workflows are outside SkillSifter.
 
 ## V1.0.0 capabilities
@@ -55,7 +56,7 @@ The recruitment lifecycle is deliberately simple and frozen for V1.
 - Requirements management with recruitment-specific fields
 - Candidate database and candidate expertise
 - Candidate × Requirement recruitment context
-- Assignments and daily recruitment tasks
+- Candidate × Requirement assignment context
 - Screening
 - Submission and client review
 - Feedback
