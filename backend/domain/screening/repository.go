@@ -58,8 +58,15 @@ func scanScreening(row *sql.Row) (*Screening, error) {
 	return s, nil
 }
 
-func (r *PostgresRepository) Create(s *Screening) error {
-	return r.db.QueryRow(`
+func (r *PostgresRepository) Create(s *Screening) error { return createScreening(r.db, s) }
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, s *Screening) error { return createScreening(tx, s) }
+
+type screeningInserter interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
+
+func createScreening(q screeningInserter, s *Screening) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_screenings (
 			tenant_id, candidate_id, requirement_id, recruiter_user_id,
 			current_ctc, expected_ctc, notice_period, last_working_day,
