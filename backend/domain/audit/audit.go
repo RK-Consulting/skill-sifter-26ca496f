@@ -32,7 +32,7 @@ func write(execer execer, tenantID string, actorUserID int, entityType string, e
 	if actorUserID > 0 {
 		actor = actorUserID
 	}
-	_, err = db.Exec(`
+	_, err = execer.Exec(`
 		INSERT INTO audit_events (
 			tenant_id, actor_user_id, entity_type, entity_id, action, metadata
 		) VALUES ($1,$2,$3,$4,$5,$6::jsonb)
