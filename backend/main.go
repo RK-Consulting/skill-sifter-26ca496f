@@ -47,7 +47,7 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/e2e/reset", handlers.ResetE2ESmokeTenantData).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/e2e/reset", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }).Methods("OPTIONS")
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
@@ -74,6 +74,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager := api.PathPrefix("/manager").Subrouter()
 	manager.Use(auth.RoleMiddleware("manager", "admin"))
 	manager.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
+	api.HandleFunc("/e2e/reset", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.ResetE2ESmokeTenantData)).ServeHTTP).Methods("POST")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription", handlers.GetSubscriptionAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription/phone/send", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.SendPhoneVerificationCode)).ServeHTTP).Methods("POST", "OPTIONS")
