@@ -148,6 +148,7 @@ GO-LIVE
 - [ ] Production service runs as unprivileged `skillsifter` user
 - [ ] `backend/.env` is `root:skillsifter` mode `0640`
 - [ ] Resume storage is `/var/lib/skillsifter/resumes`, writable only by service account
+- [x] Existing resume files and stored DB paths under `backend/storage/resumes` are retained and remain read-only accessible; no DB path rewrite or file move is performed
 - [ ] Production CORS allows only canonical SkillSifter web origins
 - [ ] Login rate limit is active in Nginx
 - [ ] E2E reset requires JWT + tenant Admin and is fixed to `e2e_smoke_tenant`
