@@ -6,7 +6,7 @@
 
 ## Included
 
-V1.0 covers the recruitment firm's core operating lifecycle: business development, clients and requirements, candidate management, Candidate × Requirement recruitment context, screening, submission, feedback, interviews, selection, offers, joining, operational billing, reporting, SaaS account/subscription, security and UAT.
+V1.0 covers the recruitment firm's core operating lifecycle: clients and requirements, candidate management, Candidate × Requirement recruitment context, screening, submission, feedback, interviews, selection, offers, joining, operational billing, reporting, SaaS account/subscription, security and UAT. Partner/contact details are maintained on Client records; a separate Business Development domain/table is not part of the final tenant schema.
 
 AI is limited to recruiter-assisted resume extraction and candidate-to-requirement matching. A recruiter remains responsible for candidate selection and submission decisions.
 
