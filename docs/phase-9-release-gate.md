@@ -183,7 +183,7 @@ GO-LIVE
 - [x] Subscription lifecycle — previously verified; revalidate against final commit
 - [ ] Schema baseline / provisioning = PASS on the final audit commit
 - [ ] UAT = PASS on the final audit commit
-- [ ] Production smoke = PASS on the final deployed commit
+- [ ] Manually dispatch production smoke after deployment; it must verify exact deployed revision and pass all lifecycle assertions
 
 ### GO-LIVE
 
@@ -191,6 +191,6 @@ GO-LIVE
 
 The earlier production deployment and smoke suite passed **4/4 tests in 19.1 seconds**, but that is historical evidence, not validation of this audit branch. The final gate remains pending until Yellow fixes and Red security findings are merged, backend/frontend CI passes on the exact final commit, the updated backend is deployed, and the post-audit production smoke passes.
 
-**Deployment note:** `infra/scripts/deploy.sh` intentionally aborts on live-vs-Git Nginx drift. Before deployment, pre-sync the versioned `api.skillsifter.in.conf` to `/etc/nginx/sites-available/api.skillsifter.in`; do not bypass the drift guard. The login rate-limit zone is installed at `/etc/nginx/conf.d/skillsifter-rate-limits.conf` by the deployment script.
+**Deployment note:** `infra/scripts/deploy.sh` intentionally aborts on live-vs-Git Nginx drift. Before deployment, pre-sync the versioned `api.skillsifter.in.conf` to `/etc/nginx/sites-available/api.skillsifter.in`; do not bypass the drift guard. The login rate-limit zone is installed at `/etc/nginx/conf.d/skillsifter-rate-limits.conf` by the deployment script. The health endpoint reports `version` and the exact `revision`; deploy.sh fails if those do not match the build being deployed. The production mutation smoke is manual-dispatch-only and refuses to mutate data unless the deployed revision equals the checked-out `main` SHA.
 
 Post-go-live work is new product work and must not be added to this release gate.
