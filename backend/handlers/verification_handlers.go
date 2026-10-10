@@ -307,7 +307,18 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if otpHash(strings.TrimSpace(input.Code)) != codeHash {
-		_, _ = db.DB.Exec("UPDATE platform_verification_codes SET attempts=attempts+1 WHERE id=$1", verificationID)
+		var remainingAttempts int
+		err := db.DB.QueryRow(
+			`UPDATE platform_verification_codes
+			 SET attempts=attempts+1
+			 WHERE id=$1 AND consumed_at IS NULL AND expires_at>NOW() AND attempts<5
+			 RETURNING attempts`,
+			verificationID,
+		).Scan(&remainingAttempts)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Verification code is invalid, expired, or attempts are exhausted")
+			return
+		}
 		respondWithError(w, http.StatusBadRequest, "Incorrect verification code")
 		return
 	}
@@ -480,7 +491,18 @@ func VerifyPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if otpHash(strings.TrimSpace(input.Code)) != hash {
-		_, _ = db.DB.Exec("UPDATE platform_verification_codes SET attempts=attempts+1 WHERE id=$1", id)
+		var attemptsAfterUpdate int
+		err := db.DB.QueryRow(
+			`UPDATE platform_verification_codes
+			 SET attempts=attempts+1
+			 WHERE id=$1 AND platform_account_id=$2 AND consumed_at IS NULL AND expires_at>NOW() AND attempts<5
+			 RETURNING attempts`,
+			id, accountID,
+		).Scan(&attemptsAfterUpdate)
+		if err != nil {
+			respondWithError(w, http.StatusBadRequest, "Verification code is invalid, expired, or attempts are exhausted")
+			return
+		}
 		respondWithError(w, http.StatusBadRequest, "Incorrect verification code")
 		return
 	}
