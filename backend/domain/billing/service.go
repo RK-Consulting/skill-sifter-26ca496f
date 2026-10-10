@@ -109,11 +109,19 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 		Currency:         input.Currency,
 		InvoiceReference: strings.TrimSpace(input.InvoiceReference),
 	}
-	if err := s.repo.Create(b); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.CreateTx(tx, b); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write billing audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return b, nil
 }
