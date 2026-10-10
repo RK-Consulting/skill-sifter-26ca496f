@@ -9,6 +9,9 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'infra/scripts/**'
+      - 'infra/systemd/**'
+      - 'infra/nginx/**'
       - '.github/workflows/lint.yml'
   pull_request:
     branches:
@@ -17,6 +20,9 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'infra/scripts/**'
+      - 'infra/systemd/**'
+      - 'infra/nginx/**'
       - '.github/workflows/lint.yml'
 
 permissions:
@@ -42,6 +48,10 @@ jobs:
         with:
           go-version-file: backend/go.mod
           cache: false
+
+      - name: Check deployment script syntax
+        shell: bash
+        run: bash -n ../infra/scripts/bootstrap.sh ../infra/scripts/deploy.sh
 
       - name: Check gofmt
         shell: bash
