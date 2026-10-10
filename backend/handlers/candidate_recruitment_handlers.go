@@ -172,6 +172,11 @@ func CreateCandidateScreening(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.WriteTx(tx, tenantID, actorID, "screening", screening.ID, "created", map[string]interface{}{"candidateId": candidateID, "requirementId": req.RequirementID}); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error recording screening audit event")
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing screening")
 		return
@@ -285,6 +290,11 @@ func UpdateCandidateScreening(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.WriteTx(tx, tenantID, actorID, "screening", screeningID, "updated", map[string]interface{}{"candidateId": candidateID, "status": req.Status}); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error recording screening audit event")
+		return
+	}
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing screening update")
 		return
