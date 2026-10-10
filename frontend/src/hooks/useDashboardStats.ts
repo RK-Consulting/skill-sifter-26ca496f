@@ -34,28 +34,6 @@ export const useDashboardStats = (): DashboardStats => {
     retry: false,
   });
 
-  // Fetch daily jobs
-  const { 
-    data: dailyJobsData, 
-    isLoading: dailyJobsLoading,
-    error: dailyJobsError
-  } = useQuery({
-    queryKey: ['dailyJobs'],
-    queryFn: dailyJobService.getAllDailyJobs,
-    retry: false,
-  });
-
-  // Fetch business contacts
-  const { 
-    data: businessData, 
-    isLoading: businessLoading,
-    error: businessError
-  } = useQuery({
-    queryKey: ['businessContacts'],
-    queryFn: businessDevService.getAllBusinessDevs,
-    retry: false,
-  });
-
   // Fetch interviews
   const { 
     data: interviewsData, 
