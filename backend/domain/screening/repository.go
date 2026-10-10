@@ -59,8 +59,12 @@ func scanScreening(row *sql.Row) (*Screening, error) {
 	return s, nil
 }
 
-func (r *PostgresRepository) Create(s *Screening) error { return createScreening(r.db, s) }
-func (r *PostgresRepository) CreateTx(tx *sql.Tx, s *Screening) error { return createScreening(tx, s) }
+func (r *PostgresRepository) Create(s *Screening) error {
+	return createScreening(r.db, s)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, s *Screening) error {
+	return createScreening(tx, s)
+}
 
 type screeningInserter interface {
 	QueryRow(string, ...interface{}) *sql.Row
