@@ -145,6 +145,13 @@ GO-LIVE
 - [x] Database backup confirmed
 - [x] Rollback procedure confirmed
 - [x] No secrets committed to repository
+- [ ] Production service runs as unprivileged `skillsifter` user
+- [ ] `backend/.env` is `root:skillsifter` mode `0640`
+- [ ] Resume storage is `/var/lib/skillsifter/resumes`, writable only by service account
+- [ ] Production CORS allows only canonical SkillSifter web origins
+- [ ] Login rate limit is active in Nginx
+- [ ] E2E reset requires JWT + tenant Admin and is fixed to `e2e_smoke_tenant`
+- [x] No public E2E bootstrap route
 
 ## 10. Production smoke test
 
