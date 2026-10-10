@@ -1,23 +1,17 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
-	"strings"
 
 	"github.com/RK-Consulting/skill-sifter/db"
-	"golang.org/x/crypto/bcrypt"
 )
 
-const (
-	e2eSmokeTenantID = "e2e_smoke_tenant"
-	e2eSmokeEmail    = "e2e-admin@skillsifter.in"
-)
+const e2eSmokeTenantID = "e2e_smoke_tenant"
 
-// ResetE2ESmokeTenantData removes all tenant business data from the dedicated
-// production smoke tenant while preserving its roles and administrator account.
-// It is authenticated with the same CI-only E2E administrator credentials used
-// by the production smoke workflow.
+// ResetE2ESmokeTenantData is a narrowly scoped maintenance operation for the
+// dedicated production smoke tenant. The route is registered behind normal
+// JWT authentication and the admin role; this handler independently enforces
+// the fixed tenant boundary as defense in depth.
 func ResetE2ESmokeTenantData(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusNoContent)
@@ -28,41 +22,20 @@ func ResetE2ESmokeTenantData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var input struct {
-		Email    string `json:"email"`
-		Password string `json:"password"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		respondWithError(w, http.StatusBadRequest, "Invalid request payload")
+	tenantID, ok := r.Context().Value("tenantID").(string)
+	if !ok || tenantID != e2eSmokeTenantID {
+		respondWithError(w, http.StatusForbidden, "This operation is restricted to the dedicated smoke tenant")
 		return
 	}
-	input.Email = strings.TrimSpace(strings.ToLower(input.Email))
-
-	if input.Email != e2eSmokeEmail || len(input.Password) < 6 {
-		respondWithError(w, http.StatusUnauthorized, "E2E smoke credentials are invalid")
+	role, ok := r.Context().Value("role").(string)
+	if !ok || role != "admin" {
+		respondWithError(w, http.StatusForbidden, "Tenant administrator role required")
 		return
 	}
 
-	tenantDB, err := db.OpenDatabase(db.TenantDatabaseName(e2eSmokeTenantID))
-	if err != nil {
-		respondWithError(w, http.StatusServiceUnavailable, "Could not open E2E smoke tenant database")
-		return
-	}
-	defer tenantDB.Close()
-
-	var passwordHash string
-	if err := tenantDB.QueryRow(`
-		SELECT password
-		FROM users
-		WHERE lower(email)=lower($1) AND tenant_id=$2 AND role='admin'
-		LIMIT 1
-	`, input.Email, e2eSmokeTenantID).Scan(&passwordHash); err != nil {
-		respondWithError(w, http.StatusUnauthorized, "E2E smoke credentials are invalid")
-		return
-	}
-
-	if err := bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(input.Password)); err != nil {
-		respondWithError(w, http.StatusUnauthorized, "E2E smoke credentials are invalid")
+	tenantDB := db.RequestDB(r)
+	if tenantDB == nil {
+		respondWithError(w, http.StatusServiceUnavailable, "Smoke tenant database is not ready")
 		return
 	}
 
