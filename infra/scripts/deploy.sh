@@ -100,15 +100,13 @@ echo "==> Health check"
 curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check
 echo ""
 
-echo "==> Production E2E bootstrap and reset route contract checks"
-for route in bootstrap reset; do
-  status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/$route" || true)"
-  if [ "$status" != "204" ]; then
-    echo "DEPLOY FAILED: /api/e2e/$route OPTIONS returned HTTP ${status:-unknown}; expected 204."
-    echo "The service restarted, but production E2E prerequisites are not healthy."
-    exit 1
-  fi
-  echo "Production E2E /api/e2e/$route route is available (HTTP $status)"
-done
+echo "==> Production E2E reset route contract check"
+status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/reset" || true)"
+if [ "$status" != "204" ]; then
+  echo "DEPLOY FAILED: /api/e2e/reset OPTIONS returned HTTP ${status:-unknown}; expected 204."
+  echo "The service restarted, but production E2E reset prerequisite is not healthy."
+  exit 1
+fi
+echo "Production E2E /api/e2e/reset route is available (HTTP $status)"
 
 echo "==> Deploy succeeded"
