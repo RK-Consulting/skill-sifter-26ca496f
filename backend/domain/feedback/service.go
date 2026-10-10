@@ -80,11 +80,19 @@ func (s *Service) CreateFeedback(tenantID string, input CreateInput) (*Feedback,
 		NextAction:       strings.TrimSpace(input.NextAction),
 	}
 
-	if err := s.repo.Create(f); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.FeedbackByUserID, "feedback", f.ID, "created", map[string]interface{}{"submissionId": input.SubmissionID, "outcome": input.Outcome}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.CreateTx(tx, f); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.FeedbackByUserID, "feedback", f.ID, "created", map[string]interface{}{"submissionId": input.SubmissionID, "outcome": input.Outcome}); err != nil {
 		return nil, fmt.Errorf("write feedback audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return f, nil
 }
