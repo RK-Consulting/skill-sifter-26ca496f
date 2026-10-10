@@ -12,6 +12,12 @@ DB_USER="skillsifter_user"
 
 echo "==> App directory: $APP_DIR"
 
+echo "==> Ensuring unprivileged SkillSifter runtime account and storage"
+if ! id -u skillsifter >/dev/null 2>&1; then
+  useradd --system --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
+fi
+install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
+
 if [ -z "${DB_PASSWORD:-}" ]; then
   echo "ERROR: set DB_PASSWORD env var before running this script, e.g.:"
   echo "  DB_PASSWORD='...' JWT_SECRET='...' bash infra/scripts/bootstrap.sh"
@@ -59,6 +65,8 @@ DB_PASSWORD=${DB_PASSWORD}
 DB_NAME=${DB_NAME}
 JWT_SECRET=${JWT_SECRET}
 EOF
+chown root:skillsifter "$APP_DIR/backend/.env"
+chmod 0640 "$APP_DIR/backend/.env"
 
 echo "==> Installing systemd unit"
 RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "dev")"
