@@ -506,10 +506,35 @@ func VerifyPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Incorrect verification code")
 		return
 	}
-	if _, err = db.DB.Exec("UPDATE platform_user_accounts SET phone_verified_at=NOW(), updated_at=NOW() WHERE id=$1", accountID); err != nil {
+	tx, err := db.DB.Begin()
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not start phone verification")
+		return
+	}
+	defer tx.Rollback()
+
+	var consumedID int64
+	if err := tx.QueryRow(
+		`UPDATE platform_verification_codes
+		 SET consumed_at=NOW()
+		 WHERE id=$1 AND platform_account_id=$2 AND purpose='PHONE_SUBSCRIPTION'
+		   AND consumed_at IS NULL AND expires_at>NOW() AND attempts<5
+		 RETURNING id`,
+		id, accountID,
+	).Scan(&consumedID); err != nil {
+		respondWithError(w, http.StatusConflict, "Verification code has already been used or expired")
+		return
+	}
+	if _, err := tx.Exec(
+		"UPDATE platform_user_accounts SET phone_verified_at=NOW(), updated_at=NOW() WHERE id=$1",
+		accountID,
+	); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not verify phone")
 		return
 	}
-	_, _ = db.DB.Exec("UPDATE platform_verification_codes SET consumed_at=NOW() WHERE id=$1", id)
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Could not complete phone verification")
+		return
+	}
 	respondWithJSON(w, http.StatusOK, models.ApiResponse{Success: true, Message: "Phone number verified"})
 }
