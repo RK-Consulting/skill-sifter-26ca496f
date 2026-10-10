@@ -80,8 +80,11 @@ fi
 echo "Test gate passed — proceeding with build and deploy"
 
 echo "==> Preparing least-privilege runtime account and storage"
+if ! getent group skillsifter >/dev/null 2>&1; then
+  groupadd --system skillsifter
+fi
 if ! id -u skillsifter >/dev/null 2>&1; then
-  useradd --system --user-group --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
+  useradd --system --gid skillsifter --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
 fi
 install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
 chown root:skillsifter "$APP_DIR/backend/.env"
