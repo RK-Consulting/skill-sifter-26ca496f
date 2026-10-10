@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"encoding/json"
 	"net/http"
 	"strings"
 
@@ -13,7 +14,7 @@ const (
 	e2eSmokeEmail    = "e2e-admin@skillsifter.in"
 )
 
-// // ResetE2ESmokeTenantData removes all tenant business data from the dedicated
+// ResetE2ESmokeTenantData removes all tenant business data from the dedicated
 // production smoke tenant while preserving its roles and administrator account.
 // It is authenticated with the same CI-only E2E administrator credentials used
 // by the production smoke workflow.
