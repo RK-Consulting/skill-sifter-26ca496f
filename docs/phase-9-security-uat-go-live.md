@@ -1,6 +1,6 @@
 # SkillSifter — Phase 9 Security, UAT & Go-Live Gate
 
-**Status:** GO-LIVE VERIFIED — v1.0.0  
+**Status:** FINAL POST-AUDIT VERIFICATION PENDING — v1.0.0  
 **Date:** 2026-09-30
 
 ## 1. Completed Phase 9 sequence
@@ -97,7 +97,7 @@ Before production launch, verify with a real deployment:
 
 ## 5. Go-live boundary
 
-SkillSifter v1.0.0 has passed the Phase 9 production release gate. Production deployment is healthy, the final production smoke suite passed 4/4 tests, and the release documentation is frozen.
+The earlier v1.0.0 release gate passed, but the final post-audit gate is pending. Production go-live must not be declared complete until the updated backend is deployed and the exact final-commit CI and production smoke runs pass.
 
 No additional architecture is required for Phase 9.
 
