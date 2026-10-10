@@ -266,3 +266,40 @@ Do not add compatibility migrations to make the historical shared schema look li
 ### Current architectural rule
 
 The final baselines are authoritative. Historical migrations remain historical evidence only and must not be replayed to construct a new tenant or control database.
+
+
+## Final V1 audit closure — 2026-10-10
+
+The earlier `Remaining RED work` lists above are historical snapshots from the reconstruction sequence. The following final audit pass supersedes those snapshots.
+
+### Completed in final code pass
+
+- Removed retired Daily Jobs and Business Development handlers and frontend pages.
+- Removed stale frontend service references, dashboard queries, and legacy models for those retired domains.
+- Removed the unused immediate-registration implementation that generated legacy `comp_*` tenant IDs; public registration uses the verified-registration flow and canonical random `tenant_*` identity.
+- Kept `company_name` only as descriptive control-plane/registration data; it is not a tenant authorization key.
+- Removed legacy Business Development reporting fields.
+- Replaced fabricated dashboard trend values and hardcoded charts with API-backed candidate, requirement, and interview metrics plus API-backed pipeline/activity views.
+- Fixed dashboard loading state so it remains loading while any required query is pending.
+- Made email/phone OTP failed-attempt increments atomic.
+- Made phone OTP consumption and phone-verification state update one transaction, preventing successful-code replay.
+- Tenant-scoped user-creation compensation deletes.
+- Reconciled current feature, scope, authorization, and issue documentation with the final schema and fixed-role model.
+
+### Validation evidence
+
+- Backend CI run **38040051304** passed: Go format, build, vet, schema-definition validation, PostgreSQL-backed tests and coverage.
+- Backend lint run **38040051296** passed.
+- Frontend CI run **38039974969** passed: lint, tests and build.
+- Frontend production smoke run **38040026764** passed.
+
+### Go-live gate still required
+
+The code audit and automated CI checks are complete. The backend changes have **not** been deployed to the production server by these commits. Before declaring go-live for this audited revision:
+
+1. Deploy the audited backend revision through the approved `infra/scripts/deploy.sh` gate.
+2. Confirm the deployment SHA, systemd health and API health.
+3. Run the Phase 9 production mutation smoke against that deployed revision and verify the exact source SHA.
+4. Confirm smoke cleanup and review the uploaded report.
+
+Until those deployment-specific checks pass, this document records **code/CI ready — production deployment verification pending**, not a new production go-live declaration.
