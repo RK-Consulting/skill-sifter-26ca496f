@@ -100,11 +100,20 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 		RecipientName: input.RecipientName, RecipientEmail: input.RecipientEmail,
 		SubmissionContext: input.SubmissionContext, RecruiterNotes: input.RecruiterNotes,
 		CandidateSnapshot: candidateSnapshot, RequirementSnapshot: requirementSnapshot}
-	if err := s.repo.Create(record); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.SubmittedByUserID, "submission", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+
+	if err := s.repo.CreateTx(tx, record); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.SubmittedByUserID, "submission", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write submission audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	_ = candidateName
 	_ = requirementTitle
