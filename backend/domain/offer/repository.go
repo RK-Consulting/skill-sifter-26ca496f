@@ -45,13 +45,15 @@ func scanOffer(row *sql.Row) (*Offer, error) {
 	return o, nil
 }
 
-type offerInserter interface { QueryRow(string, ...interface{}) *sql.Row }
+type offerQueryer interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
 
-func createOffer(q offerInserter, o *Offer) error {
-	return q.QueryRow
+func (r *PostgresRepository) Create(o *Offer) error { return createOffer(r.db, o) }
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, o *Offer) error { return createOffer(tx, o) }
 
-func (r *PostgresRepository) UpdateTx(tx *sql.Tx, o *Offer) error {
-	return tx.QueryRow(`
+func createOffer(q offerQueryer, o *Offer) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_offers (
 			tenant_id, candidate_id, requirement_id, selection_id, accepted
 		) VALUES ($1, $2, $3, $4, $5)
@@ -72,7 +74,7 @@ func (r *PostgresRepository) GetByPair(tenantID string, candidateID, requirement
 func (r *PostgresRepository) Update(o *Offer) error { return updateOffer(r.db, o) }
 func (r *PostgresRepository) UpdateTx(tx *sql.Tx, o *Offer) error { return updateOffer(tx, o) }
 
-func updateOffer(q offerInserter, o *Offer) error {
+func updateOffer(q offerQueryer, o *Offer) error {
 	return q.QueryRow(`
 		UPDATE recruitment_offers
 		SET accepted = $1, last_modified = CURRENT_TIMESTAMP
