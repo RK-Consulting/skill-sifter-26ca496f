@@ -227,10 +227,12 @@ Do not add compatibility migrations to make the historical shared schema look li
 - Tenant provisioning no longer requires company name and is serialized per tenant with a PostgreSQL advisory lock.
 - Tenant provisioning remains retryable and records FAILED/READY state in the control plane.
 
-### Remaining RED work
-1. Remove any remaining dead compatibility code that still references retired recruitment resources; do not reintroduce deleted physical columns.
-2. Run gofmt, build, vet, unit/integration tests and frontend CI after the final code/schema contract pass.
-3. Perform the final Phase 9 security/UAT/go-live audit against the frozen control-plane and tenant-plane invariants.
+### Final release audit status
+- Removed the unguarded legacy `/api/company-users` alias; user listing is available through the Admin/Manager-scoped routes.
+- Pinned JWT parsing to HS256 and added a negative test for unexpected signing algorithms.
+- Removed the public E2E bootstrap endpoint, which could reset the dedicated smoke administrator password without proving possession of the existing credential.
+- Production smoke workflows now verify the pre-provisioned E2E administrator through the normal login endpoint; the reset endpoint still verifies the same account's bcrypt password before truncating only the dedicated smoke tenant.
+- Remaining gate: run the full backend CI and both production smoke workflows against the exact triggering commit; review any failures before deployment.
 
 ### Completed — explicit recruitment audit events
 - Added one application-owned audit writer for the tenant-plane `audit_events` table.
