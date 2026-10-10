@@ -49,8 +49,12 @@ type offerQueryer interface {
 	QueryRow(string, ...interface{}) *sql.Row
 }
 
-func (r *PostgresRepository) Create(o *Offer) error { return createOffer(r.db, o) }
-func (r *PostgresRepository) CreateTx(tx *sql.Tx, o *Offer) error { return createOffer(tx, o) }
+func (r *PostgresRepository) Create(o *Offer) error {
+	return createOffer(r.db, o)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, o *Offer) error {
+	return createOffer(tx, o)
+}
 
 func createOffer(q offerQueryer, o *Offer) error {
 	return q.QueryRow(`
@@ -71,8 +75,12 @@ func (r *PostgresRepository) GetByPair(tenantID string, candidateID, requirement
 	))
 }
 
-func (r *PostgresRepository) Update(o *Offer) error { return updateOffer(r.db, o) }
-func (r *PostgresRepository) UpdateTx(tx *sql.Tx, o *Offer) error { return updateOffer(tx, o) }
+func (r *PostgresRepository) Update(o *Offer) error {
+	return updateOffer(r.db, o)
+}
+func (r *PostgresRepository) UpdateTx(tx *sql.Tx, o *Offer) error {
+	return updateOffer(tx, o)
+}
 
 func updateOffer(q offerQueryer, o *Offer) error {
 	return q.QueryRow(`
