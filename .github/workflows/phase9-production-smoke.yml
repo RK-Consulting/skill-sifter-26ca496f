@@ -96,32 +96,32 @@ jobs:
           echo "Frontend did not become reachable within 5 minutes."
           exit 1
 
-      - name: Wait for deployed backend E2E endpoints
+      - name: Wait for deployed backend and reset endpoint
         shell: bash
         run: |
           for attempt in {1..20}; do
-            bootstrap_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/bootstrap" || true)
+            health_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' "$E2E_API_BASE_URL/api/health-check" || true)
             reset_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/reset" || true)
-            if [[ "$bootstrap_status" == "204" && "$reset_status" == "204" ]]; then
-              echo "Production bootstrap and reset endpoints are ready."
+            if [[ "$health_status" == "200" && "$reset_status" == "204" ]]; then
+              echo "Production backend and reset endpoint are reachable."
               exit 0
             fi
-            echo "Backend E2E endpoints not ready (attempt $attempt/20; bootstrap=$bootstrap_status reset=$reset_status); waiting 15 seconds..."
+            echo "Backend not ready (attempt $attempt/20; health=$health_status reset=$reset_status); waiting 15 seconds..."
             sleep 15
           done
-          echo "Required production E2E endpoints were not ready within 5 minutes."
+          echo "Production backend did not become ready within 5 minutes."
           exit 1
 
-      - name: Bootstrap production E2E smoke account
+      - name: Verify production E2E smoke account credentials
         shell: bash
         run: |
           payload=$(jq -n --arg email "$E2E_ADMIN_EMAIL" --arg password "$E2E_ADMIN_PASSWORD" '{email:$email,password:$password}')
           response=$(curl --fail --silent --show-error --max-time 20 \
             --header 'Content-Type: application/json' \
             --data "$payload" \
-            "$E2E_API_BASE_URL/api/e2e/bootstrap")
-          echo "$response" | jq -e '.success == true and .data.status == "READY"' >/dev/null
-          echo "Production E2E smoke account is ready."
+            "$E2E_API_BASE_URL/api/auth/login")
+          echo "$response" | jq -e '.success == true and (.data.token | type == "string" and length > 0) and .data.user.role == "admin"' >/dev/null
+          echo "Production E2E smoke account login verified."
 
       - name: Run production mutation smoke
         working-directory: e2e
