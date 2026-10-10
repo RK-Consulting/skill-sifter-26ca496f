@@ -10,6 +10,7 @@ import (
 	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
+	"github.com/lib/pq"
 )
 
 var interviewStatuses = map[string]bool{"scheduled": true, "completed": true, "cancelled": true, "rescheduled": true, "no_show": true}
@@ -160,14 +161,30 @@ func ScheduleInterview(w http.ResponseWriter, r *http.Request) {
 	i.RequirementTitle = title
 	i.Position = title
 	i.TenantID = tenantID
-	err = db.RequestDB(r).QueryRow(`INSERT INTO interviews(candidate_id,candidate_name,requirement_id,position,round,interview_date,status,outcome,feedback,candidate_feedback,next_action,tenant_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,last_modified`, i.CandidateID, i.CandidateName, *i.RequirementID, i.Position, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, tenantID).Scan(&i.ID, &i.LastModified)
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
+		respondWithError(w, 500, "Error starting interview transaction")
+		return
+	}
+	defer tx.Rollback()
+
+	err = tx.QueryRow(`INSERT INTO interviews(candidate_id,candidate_name,requirement_id,position,round,interview_date,status,outcome,feedback,candidate_feedback,next_action,tenant_id) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id,last_modified`, i.CandidateID, i.CandidateName, *i.RequirementID, i.Position, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, tenantID).Scan(&i.ID, &i.LastModified)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			respondWithError(w, http.StatusConflict, "An active interview already exists for this candidate and requirement")
+			return
+		}
 		respondWithError(w, 500, "Error scheduling interview")
 		return
 	}
 	actorID, _ := r.Context().Value("userID").(int)
-	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "interview", i.ID, "scheduled", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID}); err != nil {
+	if err := audit.WriteTx(tx, tenantID, actorID, "interview", i.ID, "scheduled", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID}); err != nil {
 		respondWithError(w, 500, "Error recording interview audit event")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, 500, "Error committing interview")
 		return
 	}
 	respondWithJSON(w, 201, models.ApiResponse{Success: true, Message: "Interview scheduled successfully", Data: i})
@@ -234,18 +251,39 @@ func UpdateInterview(w http.ResponseWriter, r *http.Request) {
 	i.CandidateName = name
 	i.RequirementTitle = title
 	i.Position = title
-	_, err = db.RequestDB(r).Exec(`UPDATE interviews SET round=$1,interview_date=$2,status=$3,outcome=$4,feedback=$5,candidate_feedback=$6,next_action=$7,last_modified=NOW() WHERE id=$8 AND tenant_id=$9`, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, id, tenantID)
+	tx, err := db.RequestDB(r).Begin()
 	if err != nil {
+		respondWithError(w, 500, "Error starting interview update")
+		return
+	}
+	defer tx.Rollback()
+
+	result, err := tx.Exec(`UPDATE interviews SET round=$1,interview_date=$2,status=$3,outcome=$4,feedback=$5,candidate_feedback=$6,next_action=$7,last_modified=NOW() WHERE id=$8 AND tenant_id=$9`, i.Round, i.InterviewDate, i.Status, i.Outcome, i.Feedback, i.CandidateFeedback, i.NextAction, id, tenantID)
+	if err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			respondWithError(w, http.StatusConflict, "An active interview already exists for this candidate and requirement")
+			return
+		}
 		respondWithError(w, 500, "Error updating interview")
 		return
 	}
-	if err := db.RequestDB(r).QueryRow(`SELECT last_modified FROM interviews WHERE id=$1 AND tenant_id=$2`, id, tenantID).Scan(&i.LastModified); err != nil {
+	affected, err := result.RowsAffected()
+	if err != nil || affected == 0 {
+		respondWithError(w, http.StatusNotFound, "Interview not found")
+		return
+	}
+	if err := tx.QueryRow(`SELECT last_modified FROM interviews WHERE id=$1 AND tenant_id=$2`, id, tenantID).Scan(&i.LastModified); err != nil {
 		respondWithError(w, 500, "Error reading updated interview")
 		return
 	}
 	actorID, _ := r.Context().Value("userID").(int)
-	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "interview", i.ID, "updated", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID, "status": i.Status}); err != nil {
+	if err := audit.WriteTx(tx, tenantID, actorID, "interview", i.ID, "updated", map[string]interface{}{"candidateId": i.CandidateID, "requirementId": *i.RequirementID, "status": i.Status}); err != nil {
 		respondWithError(w, 500, "Error recording interview audit event")
+		return
+	}
+	if err := tx.Commit(); err != nil {
+		respondWithError(w, 500, "Error committing interview update")
 		return
 	}
 	respondWithJSON(w, 200, models.ApiResponse{Success: true, Message: "Interview updated successfully", Data: i})
