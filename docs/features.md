@@ -20,8 +20,7 @@ Out of scope: HRMS employee lifecycle, interviewer panels, hiring-manager hierar
 | Candidate expertise | ✅ |
 | Clients | ✅ |
 | Requirements | ✅ |
-| Assignments | ✅ |
-| Daily Tasks | ✅ |
+| Candidate × Requirement assignment context | ✅ |
 | Screening | ✅ |
 | Submission | ✅ |
 | Feedback | ✅ |
@@ -32,6 +31,8 @@ Out of scope: HRMS employee lifecycle, interviewer panels, hiring-manager hierar
 | Billing | ✅ |
 | Recruitment history/audit | ✅ |
 | Resume intelligence foundation | ✅ |
+
+Separate Daily Jobs and Business Development tables/modules are not part of the final tenant schema. Partner/contact details belong to Client records.
 
 ## 3. Requirements
 
