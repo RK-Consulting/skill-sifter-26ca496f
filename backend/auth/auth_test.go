@@ -102,7 +102,7 @@ func TestAuthMiddlewareRejectsUnexpectedJWTSigningMethod(t *testing.T) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	}))
-	req := httptest.NewRequest(http.MethodGet, "/api/candidates", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/candidates", nil)
 	req.Header.Set("Authorization", "Bearer "+tokenString)
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
