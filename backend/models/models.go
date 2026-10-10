@@ -73,19 +73,6 @@ type CandidateStatusUpdate struct {
 	Status string `json:"status" binding:"required,oneof=active inactive blacklisted archived"`
 }
 
-// DailyJob model
-type DailyJob struct {
-	ID               int       `json:"id" db:"id,primarykey,autoincrement"`
-	JdNo             int       `json:"jdNo" db:"jd_no,notnull"`
-	Instructions     string    `json:"instructions" db:"instructions"`
-	AssignedUser     int       `json:"assignedUser" db:"assigned_user"`
-	AssignedUsername string    `json:"assignedUsername,omitempty"` // Not stored in DB, used for display
-	AssignedDate     time.Time `json:"assignedDate" db:"assigned_date,default:CURRENT_TIMESTAMP"`
-	LastModified     time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID         string    `json:"tenantId" db:"tenant_id,notnull"`
-	CompanyName      string    `json:"companyName,omitempty" db:"-"` // Legacy display-only compatibility; daily-job routes are retired.
-}
-
 // Interview represents an agency-neutral recruitment interview event.
 // It is anchored to Candidate + Requirement. Internal corporate HR concepts
 // such as interviewer identity, panels, hiring managers, approvals, and
@@ -106,20 +93,6 @@ type Interview struct {
 	NextAction        string    `json:"nextAction,omitempty" db:"next_action"`
 	LastModified      time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
 	TenantID          string    `json:"tenantId" db:"tenant_id,notnull"`
-}
-
-// BusinessDev model
-type BusinessDev struct {
-	ID            int       `json:"id" db:"id,primarykey,autoincrement"`
-	ClientName    string    `json:"clientName" db:"client_name,notnull"`
-	PartnerName   string    `json:"partnerName" db:"partner_name"`
-	ContactPerson string    `json:"contactPerson" db:"contact_person,notnull"`
-	ContactNumber string    `json:"contactNumber" db:"contact_number"`
-	ContactEmail  string    `json:"contactEmail" db:"contact_email,notnull"`
-	CreatedAt     time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-	LastModified  time.Time `json:"lastModified" db:"last_modified,default:CURRENT_TIMESTAMP"`
-	TenantID      string    `json:"tenantId" db:"tenant_id,notnull"`
-	CompanyName   string    `json:"companyName,omitempty" db:"-"` // Legacy display-only compatibility; business-dev routes are retired.
 }
 
 // Client model. ADR 0002: a Client represents an organization the
