@@ -191,4 +191,6 @@ GO-LIVE
 
 The earlier production deployment and smoke suite passed **4/4 tests in 19.1 seconds**, but that is historical evidence, not validation of this audit branch. The final gate remains pending until Yellow fixes and Red security findings are merged, backend/frontend CI passes on the exact final commit, the updated backend is deployed, and the post-audit production smoke passes.
 
+**Deployment note:** `infra/scripts/deploy.sh` intentionally aborts on live-vs-Git Nginx drift. Before deployment, pre-sync the versioned `api.skillsifter.in.conf` to `/etc/nginx/sites-available/api.skillsifter.in`; do not bypass the drift guard. The login rate-limit zone is installed at `/etc/nginx/conf.d/skillsifter-rate-limits.conf` by the deployment script.
+
 Post-go-live work is new product work and must not be added to this release gate.
