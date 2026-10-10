@@ -23,10 +23,13 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func otpHash(code string) string {
-	secret := db.GetEnv("OTP_HASH_SECRET", "change-me-in-production")
+func otpHash(code string) (string, error) {
+	secret := strings.TrimSpace(os.Getenv("OTP_HASH_SECRET"))
+	if secret == "" {
+		return "", fmt.Errorf("OTP_HASH_SECRET is not configured")
+	}
 	sum := sha256.Sum256([]byte(secret + ":" + code))
-	return hex.EncodeToString(sum[:])
+	return hex.EncodeToString(sum[:]), nil
 }
 
 func generateOTP() string {
@@ -264,7 +267,12 @@ func StartRegistration(w http.ResponseWriter, r *http.Request) {
 
 	code := generateOTP()
 	_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE purpose='EMAIL_SIGNUP' AND registration_id=$1 AND consumed_at IS NULL", registrationID)
-	_, err = db.DB.Exec("INSERT INTO platform_verification_codes(purpose,registration_id,destination,code_hash,expires_at) VALUES('EMAIL_SIGNUP',$1,$2,$3,NOW()+INTERVAL '10 minutes')", registrationID, input.Email, otpHash(code))
+	codeHash, err := otpHash(code)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "OTP verification is not configured")
+		return
+	}
+	_, err = db.DB.Exec("INSERT INTO platform_verification_codes(purpose,registration_id,destination,code_hash,expires_at) VALUES('EMAIL_SIGNUP',$1,$2,$3,NOW()+INTERVAL '10 minutes')", registrationID, input.Email, codeHash)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create verification code")
 		return
@@ -306,7 +314,12 @@ func VerifyRegistrationEmail(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Verification code is invalid or expired")
 		return
 	}
-	if otpHash(strings.TrimSpace(input.Code)) != codeHash {
+	inputCodeHash, hashErr := otpHash(strings.TrimSpace(input.Code))
+	if hashErr != nil {
+		respondWithError(w, http.StatusInternalServerError, "OTP verification is not configured")
+		return
+	}
+	if inputCodeHash != codeHash {
 		var remainingAttempts int
 		err := db.DB.QueryRow(
 			`UPDATE platform_verification_codes
@@ -448,8 +461,13 @@ func SendPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 	}
 	_, _ = db.DB.Exec("DELETE FROM platform_verification_codes WHERE purpose='PHONE_SUBSCRIPTION' AND platform_account_id=$1 AND consumed_at IS NULL", accountID)
 
+	codeHash, err := otpHash(code)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "OTP verification is not configured")
+		return
+	}
 	var verificationID int64
-	if err := db.DB.QueryRow("INSERT INTO platform_verification_codes(purpose,platform_account_id,destination,code_hash,expires_at) VALUES('PHONE_SUBSCRIPTION',$1,$2,$3,NOW()+INTERVAL '10 minutes') RETURNING id", accountID, phone, otpHash(code)).Scan(&verificationID); err != nil {
+	if err := db.DB.QueryRow("INSERT INTO platform_verification_codes(purpose,platform_account_id,destination,code_hash,expires_at) VALUES('PHONE_SUBSCRIPTION',$1,$2,$3,NOW()+INTERVAL '10 minutes') RETURNING id", accountID, phone, codeHash).Scan(&verificationID); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Could not create phone verification")
 		return
 	}
