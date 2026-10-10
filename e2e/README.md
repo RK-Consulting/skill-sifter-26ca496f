@@ -22,7 +22,7 @@ npx playwright install chromium
 
 ## Production smoke
 
-The production smoke workflow maintains one dedicated **permanent production-smoke account** through an idempotent E2E bootstrap endpoint. The account is test infrastructure, not part of the authoritative production schema baseline:
+The production smoke workflow uses one pre-provisioned **permanent production-smoke account**. The account is test infrastructure, not part of the authoritative production schema baseline. There is deliberately no public bootstrap endpoint that can create or reset its administrator password:
 
 - tenant: `e2e_smoke_tenant`
 - company: `SkillSifter E2E Smoke`
@@ -37,7 +37,7 @@ The smoke credentials are supplied through GitHub Actions secrets:
 - `SKILLSIFTER_E2E_ADMIN_EMAIL`
 - `SKILLSIFTER_E2E_ADMIN_PASSWORD`
 
-The workflow supplies the password from the GitHub Actions secret `SKILLSIFTER_E2E_ADMIN_PASSWORD`. The bootstrap creates or repairs the dedicated tenant, subscription and administrator before Playwright runs, so production database resets do not require manual account creation.
+The workflow supplies the password from the GitHub Actions secret `SKILLSIFTER_E2E_ADMIN_PASSWORD` and verifies it through the normal login endpoint before Playwright runs. The dedicated tenant, subscription and administrator must be provisioned through the controlled operational setup, not an unauthenticated public API.
 
 The normal smoke suite is non-destructive. It checks public authentication pages, authenticated module access, Account & Subscription, Billing, and browser-level errors.
 
@@ -60,7 +60,7 @@ The Phase 9 production mutation smoke is the business-flow acceptance test for t
 - Joining
 - Billing
 
-The workflow bootstraps the dedicated account automatically and runs with `E2E_RUN_MUTATIONS=true`.
+The workflow verifies the dedicated account through normal login and runs with `E2E_RUN_MUTATIONS=true`.
 
 After the complete flow, the test calls the dedicated E2E reset endpoint using the same smoke administrator credentials. The reset truncates only business data in `e2e_smoke_tenant` and preserves its roles and administrator account. It never touches customer tenants, the platform subscription, the permanent registration identity, or any other production tenant.
 
@@ -74,4 +74,4 @@ npm run report
 
 Playwright retains screenshots, video and traces for failures. The HTML report is written to `playwright-report/`.
 
-The production smoke workflow is automated. Successful Frontend CI runs trigger the smoke workflow; the workflow first bootstraps the dedicated E2E account through the production API and then runs the browser tests. Production credentials are supplied through GitHub Actions secrets and are never committed to the repository.
+The production smoke workflow is automated. Successful Frontend CI runs trigger the smoke workflow; it verifies the dedicated E2E account through the production login API and then runs the browser tests. Production credentials are supplied through GitHub Actions secrets and are never committed to the repository.
