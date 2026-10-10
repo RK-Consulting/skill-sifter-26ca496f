@@ -73,11 +73,19 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Offer, error) {
 		RequirementID: input.RequirementID,
 		SelectionID:   selectionID,
 	}
-	if err := s.repo.Create(o); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "offer", o.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.CreateTx(tx, o); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "offer", o.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write offer audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return o, nil
 }
@@ -92,11 +100,19 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 		return nil, err
 	}
 	o.Accepted = input.Accepted
-	if err := s.repo.Update(o); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "offer", o.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "accepted": input.Accepted}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.UpdateTx(tx, o); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "offer", o.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "accepted": input.Accepted}); err != nil {
 		return nil, fmt.Errorf("write offer audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return o, nil
 }
