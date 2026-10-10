@@ -46,10 +46,16 @@ func scanJoining(row *sql.Row) (*Joining, error) {
 	return j, nil
 }
 
-func (r *PostgresRepository) Create(j *Joining) error { return createJoining(r.db, j) }
-func (r *PostgresRepository) CreateTx(tx *sql.Tx, j *Joining) error { return createJoining(tx, j) }
+func (r *PostgresRepository) Create(j *Joining) error {
+	return createJoining(r.db, j)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, j *Joining) error {
+	return createJoining(tx, j)
+}
 
-type joiningInserter interface { QueryRow(string, ...interface{}) *sql.Row }
+type joiningInserter interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
 
 func createJoining(q joiningInserter, j *Joining) error {
 	return q.QueryRow(`
@@ -71,8 +77,12 @@ func (r *PostgresRepository) GetByPair(tenantID string, candidateID, requirement
 	))
 }
 
-func (r *PostgresRepository) Update(j *Joining) error { return updateJoining(r.db, j) }
-func (r *PostgresRepository) UpdateTx(tx *sql.Tx, j *Joining) error { return updateJoining(tx, j) }
+func (r *PostgresRepository) Update(j *Joining) error {
+	return updateJoining(r.db, j)
+}
+func (r *PostgresRepository) UpdateTx(tx *sql.Tx, j *Joining) error {
+	return updateJoining(tx, j)
+}
 
 func updateJoining(q joiningInserter, j *Joining) error {
 	return q.QueryRow(`
