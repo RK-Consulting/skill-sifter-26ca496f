@@ -2,7 +2,7 @@
 
 **Release:** v1.0.0  
 **Status:** FINAL POST-AUDIT VERIFICATION PENDING  
-**Date:** 2026-09-30
+**Last audit:** 2026-10-10
 
 This issue is the final release gate for SkillSifter Phase 9.
 
@@ -169,19 +169,19 @@ GO-LIVE
 
 ## Final release decision
 
-- [x] CI = PASS
-- [x] Security = PASS
-- [x] Tenant isolation = PASS
-- [x] RBAC = PASS
-- [x] Subscription = PASS
-- [x] Database migration = PASS
-- [x] UAT = PASS
-- [x] Production smoke = PASS
+- [ ] CI = PASS on the final audit commit
+- [ ] Security = PASS after the final Red gate
+- [x] Tenant isolation — previously verified; revalidate against final commit
+- [x] RBAC — previously verified; revalidate against final commit
+- [x] Subscription lifecycle — previously verified; revalidate against final commit
+- [ ] Schema baseline / provisioning = PASS on the final audit commit
+- [ ] UAT = PASS on the final audit commit
+- [ ] Production smoke = PASS on the final deployed commit
 
 ### GO-LIVE
 
-**v1.0.0 GO-LIVE VERIFIED.**
+**NOT YET CLEARED — DO NOT DECLARE GO-LIVE.**
 
-The prior production deployment and smoke suite passed **4/4 tests in 19.1 seconds**. A final source audit subsequently removed an unsafe public E2E bootstrap route and pinned JWT verification to HS256. This gate must remain pending until backend CI and the post-audit production smoke workflows pass on the exact final commit, and the updated backend is deployed.
+The earlier production deployment and smoke suite passed **4/4 tests in 19.1 seconds**, but that is historical evidence, not validation of this audit branch. The final gate remains pending until Yellow fixes and Red security findings are merged, backend/frontend CI passes on the exact final commit, the updated backend is deployed, and the post-audit production smoke passes.
 
 Post-go-live work is new product work and must not be added to this release gate.
