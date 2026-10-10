@@ -41,6 +41,7 @@ jobs:
       E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
       E2E_RUN_MUTATIONS: 'true'
+      SMOKE_SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
     steps:
       - name: Verify production smoke credentials
@@ -50,10 +51,21 @@ jobs:
           test -n "$E2E_ADMIN_PASSWORD" || { echo "SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."; exit 1; }
           test "$E2E_ADMIN_EMAIL" = "e2e-admin@skillsifter.in" || { echo "Unexpected E2E smoke account."; exit 1; }
 
-      - name: Checkout
+      - name: Checkout exact triggering commit
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ env.SMOKE_SOURCE_SHA }}
+
+      - name: Verify smoke source commit
+        shell: bash
+        run: |
+          checked_out_sha=$(git rev-parse HEAD)
+          echo "Smoke trigger SHA: $SMOKE_SOURCE_SHA"
+          echo "Checked-out SHA:  $checked_out_sha"
+          test "$checked_out_sha" = "$SMOKE_SOURCE_SHA" || {
+            echo "Smoke source SHA mismatch."
+            exit 1
+          }
 
       - name: Setup Node
         uses: actions/setup-node@v4
