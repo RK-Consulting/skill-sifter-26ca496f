@@ -30,15 +30,15 @@ const StatsCard = ({
         <div className="p-2 rounded-lg bg-ats-gray-100/50">
           {React.cloneElement(icon, { className: "w-5 h-5 text-ats-gray-600" })}
         </div>
-        <div className={cn(
+        {trend && <div className={cn(
           "text-sm font-medium px-2 py-1 rounded-full flex items-center gap-1",
-          trendType === 'up' 
-            ? "bg-green-100 text-green-700" 
+          trendType === 'up'
+            ? "bg-green-100 text-green-700"
             : "bg-red-100 text-red-700"
         )}>
           {trendType === 'up' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
           {trend}
-        </div>
+        </div>}
       </div>
       <h3 className={cn(
         "text-2xl font-semibold mb-1",
