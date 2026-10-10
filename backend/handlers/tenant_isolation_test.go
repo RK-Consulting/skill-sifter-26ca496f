@@ -241,5 +241,3 @@ func TestTenantIsolation_Users(t *testing.T) {
 		}
 	})
 }
-
-// TestTenantIsolation_BusinessDev covers the business_dev domain.
