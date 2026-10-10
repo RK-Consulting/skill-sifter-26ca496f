@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("joining record not found")
 
 type Repository interface {
 	Create(*Joining) error
+	CreateTx(*sql.Tx, *Joining) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Joining, error)
 	Update(*Joining) error
 }
