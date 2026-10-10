@@ -25,11 +25,19 @@ async function login(page: import('@playwright/test').Page) {
 }
 
 
-async function resetSmokeTenant(request: import('@playwright/test').APIRequestContext) {
+async function resetSmokeTenant(
+  page: import('@playwright/test').Page,
+  request: import('@playwright/test').APIRequestContext,
+) {
   requireCredentials();
 
+  const token = await page.evaluate(() => localStorage.getItem('token'));
+  if (!token) {
+    throw new Error('Production smoke cleanup requires the authenticated tenant admin session.');
+  }
+
   const response = await request.post(`${apiOrigin}/api/e2e/reset`, {
-    data: { email, password },
+    headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!response.ok()) {
@@ -467,7 +475,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await expect(page.getByText(`SMOKE-${suffix}`, { exact: true })).toBeVisible();
     } finally {
       try {
-        await resetSmokeTenant(request);
+        await resetSmokeTenant(page, request);
       } catch (error) {
         cleanupError = error;
       }
