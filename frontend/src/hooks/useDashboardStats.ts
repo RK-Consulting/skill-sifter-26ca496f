@@ -94,7 +94,7 @@ export const useDashboardStats = (): DashboardStats => {
   
   // Only show error if ALL APIs failed, not just some
   const allFailed = candidatesError && requirementsError && interviewsError;
-  const error = allFailed ? (candidatesError || requirementsError || dailyJobsError || businessError || interviewsError) : null;
+  const error = allFailed ? (candidatesError || requirementsError || interviewsError) : null;
 
   // Log individual errors for debugging without failing the entire dashboard
   if (candidatesError) console.warn('Candidates API failed:', candidatesError.message);
