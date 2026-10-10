@@ -2,8 +2,8 @@ package handlers
 
 import (
 	"database/sql"
-	"errors"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
