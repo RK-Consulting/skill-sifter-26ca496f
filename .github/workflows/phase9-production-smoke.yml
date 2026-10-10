@@ -1,11 +1,6 @@
 name: Phase 9 Production Mutation Smoke
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/phase9-production-smoke.yml'
-      - 'e2e/**'
   workflow_dispatch:
     inputs:
       base_url:
@@ -13,10 +8,6 @@ on:
         required: true
         default: 'https://skillsifter.in'
         type: string
-  workflow_run:
-    workflows: ['Backend CI']
-    types: [completed]
-    branches: [main]
 
 permissions:
   contents: read
@@ -28,11 +19,6 @@ concurrency:
 jobs:
   production-smoke:
     name: Browser Production Mutation Smoke
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'push' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -41,7 +27,7 @@ jobs:
       E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
       E2E_RUN_MUTATIONS: 'true'
-      SMOKE_SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+      SMOKE_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - name: Verify production smoke credentials
@@ -54,7 +40,7 @@ jobs:
       - name: Checkout exact triggering commit
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Verify smoke source commit
         shell: bash
