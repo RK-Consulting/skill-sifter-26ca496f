@@ -127,6 +127,8 @@ rollback_deploy() {
       chown root:root "$APP_DIR/backend/skillsifter"
       chmod 0755 "$APP_DIR/backend/skillsifter"
     fi
+    PREVIOUS_VERSION="$(sed -n 's/^Environment=SKILLSIFTER_VERSION=//p' "$ROLLBACK_DIR/skillsifter.service" | head -n 1)"
+    PREVIOUS_REVISION="$(sed -n 's/^Environment=SKILLSIFTER_REVISION=//p' "$ROLLBACK_DIR/skillsifter.service" | head -n 1)"
     cp "$ROLLBACK_DIR/skillsifter.service" /etc/systemd/system/skillsifter.service
     cp "$ROLLBACK_DIR/api.skillsifter.in" /etc/nginx/sites-available/api.skillsifter.in
     cp "$ROLLBACK_DIR/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
@@ -136,8 +138,8 @@ rollback_deploy() {
     else
       echo "WARNING: restored Nginx configuration failed validation; reload skipped."
     fi
-    if systemctl restart skillsifter && sleep 2 && curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("status") == "OK" else 1)'; then
-      echo "Automatic rollback succeeded; previous service is healthy."
+    if systemctl restart skillsifter && sleep 2 && curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check | python3 -c 'import json,sys; d=json.load(sys.stdin); expected_version,expected_revision=sys.argv[1:3]; sys.exit(0 if d.get("status") == "OK" and d.get("version") == expected_version and d.get("revision") == expected_revision else 1)' "$PREVIOUS_VERSION" "$PREVIOUS_REVISION"; then
+      echo "Automatic rollback succeeded; previous version/revision is healthy ($PREVIOUS_VERSION / $PREVIOUS_REVISION)."
     else
       echo "CRITICAL: automatic rollback attempted, but previous service health could not be confirmed."
     fi
