@@ -124,7 +124,7 @@ echo "==> Health check"
 curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check
 echo ""
 
-echo "==> Production E2E reset route contract check"
+echo "==> Production E2E reset preflight contract check"
 status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/reset" || true)"
 if [ "$status" != "204" ]; then
   echo "DEPLOY FAILED: /api/e2e/reset OPTIONS returned HTTP ${status:-unknown}; expected 204."
