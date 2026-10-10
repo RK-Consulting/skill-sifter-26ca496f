@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -31,7 +32,11 @@ func apiRootHandler(w http.ResponseWriter, r *http.Request) {
 }
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"OK"}`))
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":   "OK",
+		"version":  db.GetEnv("SKILLSIFTER_VERSION", "unknown"),
+		"revision": db.GetEnv("SKILLSIFTER_REVISION", "unknown"),
+	})
 }
 func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
