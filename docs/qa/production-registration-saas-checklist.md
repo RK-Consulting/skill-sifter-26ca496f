@@ -12,7 +12,8 @@
 - [ ] `skillsifter` systemd service is ACTIVE
 - [ ] API health-check returns HTTP 200
 - [ ] Database migrations completed successfully
-- [ ] Migrations 043 and 044 applied
+- [ ] Control-plane and tenant-plane schema baselines applied successfully
+- [ ] `schema_versions` contains checksum-verified baseline definitions
 
 ## B. Fresh Trial Registration
 Use a completely **new email address and new company**.
