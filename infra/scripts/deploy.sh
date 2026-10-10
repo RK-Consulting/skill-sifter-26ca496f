@@ -112,7 +112,7 @@ systemctl reload nginx
 
 echo "==> Syncing systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
-sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /etc/systemd/system/skillsifter.service
+sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" -e "s|__APP_REVISION__|$RELEASE_REVISION|g" /etc/systemd/system/skillsifter.service
 systemctl daemon-reload
 
 echo "==> Restarting service"
