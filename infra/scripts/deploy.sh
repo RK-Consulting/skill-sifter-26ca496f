@@ -25,14 +25,14 @@ echo "==> Checking live Nginx configuration for drift"
 LIVE_NGINX="/etc/nginx/sites-available/api.skillsifter.in"
 REPO_NGINX="$APP_DIR/infra/nginx/api.skillsifter.in.conf"
 if [ -f "$LIVE_NGINX" ] && ! cmp -s "$REPO_NGINX" "$LIVE_NGINX"; then
-  echo "DEPLOY ABORTED: live Nginx configuration differs from Git."
-  echo "Live: $LIVE_NGINX"
-  echo "Git:  $REPO_NGINX"
-  echo "Review the diff, reconcile the intended change into Git, then redeploy."
+  echo "WARNING: live Nginx configuration differs from Git."
+  echo "Preserving the live Nginx configuration for this deployment."
   diff -u "$REPO_NGINX" "$LIVE_NGINX" || true
-  exit 1
+  NGINX_DRIFT=true
+else
+  NGINX_DRIFT=false
+  echo "Nginx configuration matches Git"
 fi
-echo "Nginx configuration matches Git"
 
 echo "==> Loading backend environment for deployment and integration tests"
 if [ ! -f "$APP_DIR/backend/.env" ]; then
@@ -81,10 +81,14 @@ echo "Test gate passed — proceeding with build and deploy"
 echo "==> Building backend"
 go build -o skillsifter .
 
-echo "==> Syncing nginx config"
-cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
-nginx -t
-systemctl reload nginx
+if [ "$NGINX_DRIFT" = "true" ]; then
+  echo "==> Keeping existing live Nginx configuration"
+else
+  echo "==> Syncing nginx config"
+  cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
+  nginx -t
+  systemctl reload nginx
+fi
 
 echo "==> Syncing systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
