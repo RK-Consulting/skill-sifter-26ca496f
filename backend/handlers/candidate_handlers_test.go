@@ -71,7 +71,7 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 	}
 	body, _ := json.Marshal(candidate)
 
-	req := httptest.NewRequest("POST", "/api/candidates", bytes.NewReader(body))
+	req := httptest.NewRequest("POST", "/api/v1/candidates", bytes.NewReader(body))
 	req = withAuthContext(req, "test_company")
 	rec := httptest.NewRecorder()
 
@@ -83,7 +83,7 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 	}
 
 	// Now verify GetCandidates can read it back without erroring
-	getReq := httptest.NewRequest("GET", "/api/candidates", nil)
+	getReq := httptest.NewRequest("GET", "/api/v1/candidates", nil)
 	getReq = withAuthContext(getReq, "test_company")
 	getRec := httptest.NewRecorder()
 
@@ -107,7 +107,7 @@ func TestAddCandidateAndGetCandidates(t *testing.T) {
 // handling doesn't regress.
 func TestDeleteCandidateNonexistentReturnsNotFound(t *testing.T) {
 
-	req := httptest.NewRequest("DELETE", "/api/candidates/999999", nil)
+	req := httptest.NewRequest("DELETE", "/api/v1/candidates/999999", nil)
 	req = withAuthContext(req, "test_company")
 	req = mux.SetURLVars(req, map[string]string{"id": "999999"})
 	rec := httptest.NewRecorder()
