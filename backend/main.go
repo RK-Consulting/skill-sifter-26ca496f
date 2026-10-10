@@ -37,6 +37,8 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"message":"pong"}`))
 }
+// Production CORS deliberately excludes localhost and branch-preview origins.
+// Those origins remain available only in non-production environments.
 func setupCORS() *cors.Cors {
 	allowedOrigins := []string{
 		"https://skillsifter.in",
