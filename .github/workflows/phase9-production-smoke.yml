@@ -82,20 +82,24 @@ jobs:
           echo "Frontend did not become reachable within 5 minutes."
           exit 1
 
-      - name: Wait for deployed backend and reset preflight contract
+      - name: Verify deployed revision and reset preflight contract
         shell: bash
         run: |
+          expected_version="$(cat VERSION)"
           for attempt in {1..20}; do
-            health_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' "$E2E_API_BASE_URL/api/health-check" || true)
+            health_payload="$(curl --fail --silent --show-error --max-time 10 "$E2E_API_BASE_URL/api/health-check" 2>/dev/null || true)"
+            health_status="$(printf '%s' "$health_payload" | jq -r '.status // empty' 2>/dev/null || true)"
+            health_version="$(printf '%s' "$health_payload" | jq -r '.version // empty' 2>/dev/null || true)"
+            deployed_revision="$(printf '%s' "$health_payload" | jq -r '.revision // empty' 2>/dev/null || true)"
             reset_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/reset" || true)
-            if [[ "$health_status" == "200" && "$reset_status" == "204" ]]; then
-              echo "Production backend and reset preflight contract are reachable; POST cleanup is JWT/admin protected."
+            if [[ "$health_status" == "OK" && "$health_version" == "$expected_version" && "$deployed_revision" == "$SMOKE_SOURCE_SHA" && "$reset_status" == "204" ]]; then
+              echo "Deployed version $health_version and revision $deployed_revision match the checked-out smoke source; reset preflight is healthy."
               exit 0
             fi
-            echo "Backend not ready (attempt $attempt/20; health=$health_status reset=$reset_status); waiting 15 seconds..."
+            echo "Deployment not ready (attempt $attempt/20; status=$health_status version=$health_version revision=$deployed_revision expected=$SMOKE_SOURCE_SHA reset=$reset_status); waiting 15 seconds..."
             sleep 15
           done
-          echo "Production backend did not become ready within 5 minutes."
+          echo "Production backend revision did not match the smoke source within 5 minutes. No mutation tests were run."
           exit 1
 
       - name: Verify production E2E smoke account credentials
