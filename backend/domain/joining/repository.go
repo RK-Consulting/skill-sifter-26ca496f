@@ -12,6 +12,7 @@ type Repository interface {
 	CreateTx(*sql.Tx, *Joining) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Joining, error)
 	Update(*Joining) error
+	UpdateTx(*sql.Tx, *Joining) error
 }
 
 type PostgresRepository struct {
