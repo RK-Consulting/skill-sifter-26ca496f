@@ -51,13 +51,9 @@ const mocks = vi.hoisted(() => {
     candidateRecruitmentService: service(),
     clientService: service(),
     requirementService: service(),
-    dailyJobService: service(),
     interviewService: service(),
     reportService: service(),
     resumeAIService: service(),
-    businessDevService: service(),
-    companyService: service(),
-    roleService: service(),
     userService: service(),
     subscriptionService: service(),
     toast: {
@@ -77,8 +73,6 @@ import Index from '@/pages/Index';
 import Candidates from '@/pages/Candidates';
 import AddCandidate from '@/pages/AddCandidate';
 import CandidateProfile from '@/pages/CandidateProfile';
-import DailyJobs from '@/pages/DailyJobs';
-import AddDailyJob from '@/pages/AddDailyJob';
 import Interviews from '@/pages/Interviews';
 import InterviewDetails from '@/pages/InterviewDetails';
 import ScheduleInterview from '@/pages/ScheduleInterview';
@@ -137,8 +131,6 @@ describe('frontend UI smoke coverage', () => {
     ['Candidates', <Candidates />, 'Candidates'],
     ['Add Candidate', <AddCandidate />, 'Add New Candidate'],
     ['Candidate Profile', <CandidateProfile />, 'Resume AI source', '/candidates/1'],
-    ['Daily Tasks', <DailyJobs />, 'Daily Job Assignments'],
-    ['Add Daily Task', <AddDailyJob />, 'Add Daily Job Assignment'],
     ['Interviews', <Interviews />, 'Interviews'],
     ['Interview Details', <InterviewDetails />, 'Interview Details', '/interviews/1'],
     ['Schedule Interview', <ScheduleInterview />, 'Schedule Interview'],
