@@ -178,13 +178,6 @@ type Billing struct {
 	LastModified     time.Time `json:"lastModified" db:"last_modified"`
 }
 
-// Company model
-type Company struct {
-	ID        string    `json:"id" db:"id,primarykey"`
-	Name      string    `json:"name" db:"name,notnull,unique"`
-	CreatedAt time.Time `json:"createdAt" db:"created_at,default:CURRENT_TIMESTAMP"`
-}
-
 // Role model
 type Role struct {
 	ID          int       `json:"id" db:"id,primarykey,autoincrement"`
@@ -273,10 +266,7 @@ type SourceReportResponse struct {
 	Data    []SourceReportEntry `json:"data"`
 }
 
-// ActivityEntry represents a single real event for the Dashboard's Recent
-// Activity feed. Built from real timestamps across candidates, requirements,
-// business_dev, daily_jobs, and interviews — replaces the hardcoded mock
-// data that previously lived in Dashboard.tsx.
+// ActivityEntry represents a real tenant audit event shown in the Dashboard.
 type ActivityEntry struct {
 	Type        string    `json:"type"`
 	Title       string    `json:"title"`
