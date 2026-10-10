@@ -58,7 +58,7 @@ const Dashboard = ({ username }: DashboardProps) => {
     {
       title: "Total Candidates",
       value: isLoading ? "..." : totalCandidates.toString(),
-      trend: "+12",
+      trend: "",
       icon: <Users />,
       trendType: "up" as const,
       link: "/candidates"
@@ -66,7 +66,7 @@ const Dashboard = ({ username }: DashboardProps) => {
     {
       title: "Open Requirements",
       value: isLoading ? "..." : activeRequirements.toString(),
-      trend: "+2",
+      trend: "",
       icon: <Briefcase />,
       trendType: "up" as const,
       link: "/requirements"
