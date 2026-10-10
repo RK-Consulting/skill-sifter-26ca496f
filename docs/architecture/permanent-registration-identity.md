@@ -2,7 +2,7 @@
 
 **Status:** Implemented and frozen for v1.0.0  
 **Scope:** SaaS registration, permanent registration identity, trial lifecycle, tenant provisioning, login recovery, and paid subscription activation  
-**Related migrations:** 043, 044  
+**Related schema:** `backend/database/control-plane/001_baseline.sql`  
 **Last updated:** 2026-10-07
 
 ## 1. Purpose
@@ -367,8 +367,7 @@ A scheduled lifecycle/integration test should verify this behavior outside the n
 
 ## 13. Related implementation
 
-- Migration 043: registration email uniqueness while pending/active.
-- Migration 044: permanent registration identity.
+- Control-plane baseline: registration email uniqueness while pending/active and permanent registration identity.
 - Registration verification handler: creates the tenant before tenant-bound user records.
 - Provisioning access path: allows administrator recovery when provisioning is not READY.
 - Trial cleanup: deletes disposable tenant data without touching the permanent registration registry.
