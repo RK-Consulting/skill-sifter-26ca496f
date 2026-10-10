@@ -19,7 +19,6 @@ type PeriodReportRow struct {
 	Requirements   int    `json:"requirements"`
 	Interviews     int    `json:"interviews"`
 	Hires          int    `json:"hires"`
-	BusinessDev    int    `json:"businessDev"`
 }
 type ActivityLogRow struct {
 	ID          int64     `json:"id"`
@@ -72,8 +71,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 		       COUNT(*) FILTER (WHERE kind='resume_search') resume_searches,
 		       COUNT(*) FILTER (WHERE kind='requirement') requirements,
 		       COUNT(*) FILTER (WHERE kind='interview') interviews,
-		       COUNT(*) FILTER (WHERE kind IN ('joining','billing')) hires,
-		       0::bigint business_dev
+		       COUNT(*) FILTER (WHERE kind IN ('joining','billing')) hires
 		FROM activity
 		WHERE created_at >= NOW() - INTERVAL '%s'
 		GROUP BY period
@@ -96,7 +94,7 @@ func GetPeriodicReport(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var p time.Time
 		var x PeriodReportRow
-		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Requirements, &x.Interviews, &x.Hires, &x.BusinessDev); err != nil {
+		if err := rows.Scan(&p, &x.Activities, &x.Candidates, &x.Resumes, &x.ResumeSearches, &x.Requirements, &x.Interviews, &x.Hires); err != nil {
 			respondWithError(w, http.StatusInternalServerError, "Failed to read report")
 			return
 		}
