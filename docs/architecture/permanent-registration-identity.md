@@ -148,7 +148,7 @@ Therefore:
 - a different username cannot bypass the email identity rule;
 - tenant deletion does not release the email address.
 
-Migration 043 protects uniqueness while a registration is pending or active. Migration 044 provides the permanent registration identity.
+The authoritative control-plane baseline protects uniqueness while a registration is pending or active and provides the permanent registration identity.
 
 ## 5. What happens after trial deletion
 
