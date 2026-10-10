@@ -1,7 +1,7 @@
 # SkillSifter Phase 9 — Security / UAT / Go-Live Release Gate
 
 **Release:** v1.0.0  
-**Status:** GO-LIVE VERIFIED  
+**Status:** FINAL POST-AUDIT VERIFICATION PENDING  
 **Date:** 2026-09-30
 
 This issue is the final release gate for SkillSifter Phase 9.
@@ -182,8 +182,6 @@ GO-LIVE
 
 **v1.0.0 GO-LIVE VERIFIED.**
 
-Production deployment completed successfully and the final production smoke suite passed **4/4 tests in 19.1 seconds**. The architecture is frozen for this release.
-
-Post-go-live work is new product work and must not be added to this release gate.
+The prior production deployment and smoke suite passed **4/4 tests in 19.1 seconds**. A final source audit subsequently removed an unsafe public E2E bootstrap route and pinned JWT verification to HS256. This gate must remain pending until backend CI and the post-audit production smoke workflows pass on the exact final commit, and the updated backend is deployed.
 
 Post-go-live work is new product work and must not be added to this release gate.
