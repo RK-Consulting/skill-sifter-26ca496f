@@ -90,7 +90,7 @@ export const useDashboardStats = (): DashboardStats => {
   const completedInterviews = interviewsArray.filter((interview) => interview.status === 'completed').length;
 
   // Determine overall loading state - only if ALL are loading
-  const isLoading = candidatesLoading && requirementsLoading && interviewsLoading;
+  const isLoading = candidatesLoading || requirementsLoading || interviewsLoading;
   
   // Only show error if ALL APIs failed, not just some
   const allFailed = candidatesError && requirementsError && interviewsError;
