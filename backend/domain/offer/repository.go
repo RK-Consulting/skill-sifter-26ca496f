@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("offer not found")
 
 type Repository interface {
 	Create(*Offer) error
+	CreateTx(*sql.Tx, *Offer) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Offer, error)
 	Update(*Offer) error
 }
