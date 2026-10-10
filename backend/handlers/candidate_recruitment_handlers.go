@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/db"
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"github.com/RK-Consulting/skill-sifter/models"
 	"github.com/gorilla/mux"
 	"github.com/lib/pq"
