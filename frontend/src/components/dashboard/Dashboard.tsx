@@ -2,6 +2,8 @@ import React from 'react';
 import { 
   Users, 
   Briefcase, 
+  Calendar,
+  Clock3,
   CheckCircle2, 
   Clock3, 
   XCircle,
@@ -46,6 +48,8 @@ const Dashboard = ({ username }: DashboardProps) => {
   const { 
     totalCandidates, 
     activeRequirements, 
+    totalInterviews,
+    scheduledInterviews,
     isLoading, 
     error 
   } = useDashboardStats();
