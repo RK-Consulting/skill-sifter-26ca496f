@@ -24,6 +24,15 @@ echo "==> Deploying SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION})"
 echo "==> Checking live Nginx configuration for drift"
 LIVE_NGINX="/etc/nginx/sites-available/api.skillsifter.in"
 REPO_NGINX="$APP_DIR/infra/nginx/api.skillsifter.in.conf"
+LIVE_RATE_LIMITS="/etc/nginx/conf.d/skillsifter-rate-limits.conf"
+REPO_RATE_LIMITS="$APP_DIR/infra/nginx/skillsifter-rate-limits.conf"
+if [ -f "$LIVE_RATE_LIMITS" ] && ! cmp -s "$REPO_RATE_LIMITS" "$LIVE_RATE_LIMITS"; then
+  echo "DEPLOY ABORTED: live Nginx rate-limit configuration differs from Git."
+  echo "Live: $LIVE_RATE_LIMITS"
+  echo "Git:  $REPO_RATE_LIMITS"
+  diff -u "$REPO_RATE_LIMITS" "$LIVE_RATE_LIMITS" || true
+  exit 1
+fi
 if [ -f "$LIVE_NGINX" ] && ! cmp -s "$REPO_NGINX" "$LIVE_NGINX"; then
   echo "DEPLOY ABORTED: live Nginx configuration differs from Git."
   echo "Live: $LIVE_NGINX"
@@ -95,7 +104,8 @@ chmod 0640 "$APP_DIR/backend/.env"
 echo "==> Building backend"
 go build -o skillsifter .
 
-echo "==> Syncing nginx config"
+echo "==> Syncing nginx rate-limit policy and site config"
+cp "$APP_DIR/infra/nginx/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 nginx -t
 systemctl reload nginx
