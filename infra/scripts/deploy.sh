@@ -98,6 +98,13 @@ fi
 install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
 chown skillsifter:skillsifter /var/lib/skillsifter /var/lib/skillsifter/resumes
 chmod 0750 /var/lib/skillsifter /var/lib/skillsifter/resumes
+
+LEGACY_RESUME_DIR="$APP_DIR/backend/storage/resumes"
+if [ -d "$LEGACY_RESUME_DIR" ]; then
+  echo "==> Preserving legacy resume paths with read-only service access"
+  find "$LEGACY_RESUME_DIR" -type d -exec chgrp skillsifter {} + -exec chmod 0750 {} +
+  find "$LEGACY_RESUME_DIR" -type f -exec chgrp skillsifter {} + -exec chmod 0640 {} +
+fi
 chown root:skillsifter "$APP_DIR/backend/.env"
 chmod 0640 "$APP_DIR/backend/.env"
 
