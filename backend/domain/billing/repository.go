@@ -50,8 +50,13 @@ func scanBilling(row *sql.Row) (*Billing, error) {
 	return b, nil
 }
 
-func (r *PostgresRepository) Create(b *Billing) error {
-	return r.db.QueryRow(`
+func (r *PostgresRepository) Create(b *Billing) error { return createBilling(r.db, b) }
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, b *Billing) error { return createBilling(tx, b) }
+
+type billingInserter interface { QueryRow(string, ...interface{}) *sql.Row }
+
+func createBilling(q billingInserter, b *Billing) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_billings (
 			tenant_id, candidate_id, requirement_id, client_id, joining_id,
 			billing_date, amount, currency, invoice_reference
