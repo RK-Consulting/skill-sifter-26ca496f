@@ -75,9 +75,10 @@ chmod 0640 "$APP_DIR/backend/.env"
 
 echo "==> Installing systemd unit"
 RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "dev")"
-echo "==> Installing SkillSifter v${RELEASE_VERSION} systemd unit"
+RELEASE_REVISION="$(git -C "$APP_DIR" rev-parse HEAD)"
+echo "==> Installing SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION}) systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
-sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /etc/systemd/system/skillsifter.service
+sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" -e "s|__APP_REVISION__|$RELEASE_REVISION|g" /etc/systemd/system/skillsifter.service
 systemctl daemon-reload
 systemctl enable skillsifter
 
