@@ -463,7 +463,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await page.locator('#billing-currency').fill('INR');
       await page.locator('#invoice-reference').fill(`SMOKE-${suffix}`);
       await page.getByRole('button', { name: 'Create Billing', exact: true }).click();
-      await expect(page.getByText('INR 50000', { exact: true })).toBeVisible();
+      await expect(page.getByText('INR 50000.00', { exact: true })).toBeVisible();
       await expect(page.getByText(`SMOKE-${suffix}`, { exact: true })).toBeVisible();
     } finally {
       try {
