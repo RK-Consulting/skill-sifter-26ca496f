@@ -96,7 +96,7 @@ jobs:
           echo "Frontend did not become reachable within 5 minutes."
           exit 1
 
-      - name: Wait for deployed backend and reset endpoint
+      - name: Wait for deployed backend and reset preflight contract
         shell: bash
         run: |
           for attempt in {1..20}; do
