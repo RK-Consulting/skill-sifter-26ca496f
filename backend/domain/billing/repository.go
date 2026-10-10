@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("billing record not found")
 
 type Repository interface {
 	Create(*Billing) error
+	CreateTx(*sql.Tx, *Billing) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Billing, error)
 	ListWorklist(tenantID string) ([]WorklistItem, error)
 }
