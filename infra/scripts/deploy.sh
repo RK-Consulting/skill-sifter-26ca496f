@@ -131,6 +131,6 @@ if [ "$status" != "204" ]; then
   echo "The service restarted, but production E2E reset prerequisite is not healthy."
   exit 1
 fi
-echo "Production E2E /api/e2e/reset route is available (HTTP $status)"
+echo "Production E2E /api/e2e/reset OPTIONS preflight is healthy (HTTP $status)"
 
 echo "==> Deploy succeeded"
