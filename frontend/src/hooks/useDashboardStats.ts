@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { candidateService, dailyJobService, businessDevService, interviewService, requirementService } from '@/services/api';
+import { candidateService, interviewService, requirementService } from '@/services/api';
 
 interface DashboardStats {
   totalCandidates: number;
   activeRequirements: number;
-  dailyTasks: number;
-  businessContacts: number;
   totalInterviews: number;
   scheduledInterviews: number;
   completedInterviews: number;
@@ -98,8 +96,6 @@ export const useDashboardStats = (): DashboardStats => {
   // Extract data safely
   const candidatesArray = safeGetArray<Record<string, unknown>>(candidatesData);
   const requirementsArray = safeGetArray<{ status?: string }>(requirementsData);
-  const dailyJobsArray = safeGetArray<Record<string, unknown>>(dailyJobsData);
-  const businessArray = safeGetArray<Record<string, unknown>>(businessData);
   const interviewsArray = safeGetArray<InterviewRecord>(interviewsData);
   
   // Calculate totals using the safe arrays
@@ -110,36 +106,26 @@ export const useDashboardStats = (): DashboardStats => {
     (requirement) => requirement.status === 'open'
   ).length;
   
-  // Daily tasks count from backend
-  const dailyTasks = dailyJobsArray.length;
-  
-  // Business contacts count from backend
-  const businessContacts = businessArray.length;
-
   // Interview statistics with correct status matching
   const totalInterviews = interviewsArray.length;
   const scheduledInterviews = interviewsArray.filter((interview) => interview.status === 'scheduled').length;
   const completedInterviews = interviewsArray.filter((interview) => interview.status === 'completed').length;
 
   // Determine overall loading state - only if ALL are loading
-  const isLoading = candidatesLoading && requirementsLoading && dailyJobsLoading && businessLoading && interviewsLoading;
+  const isLoading = candidatesLoading && requirementsLoading && interviewsLoading;
   
   // Only show error if ALL APIs failed, not just some
-  const allFailed = candidatesError && requirementsError && dailyJobsError && businessError && interviewsError;
+  const allFailed = candidatesError && requirementsError && interviewsError;
   const error = allFailed ? (candidatesError || requirementsError || dailyJobsError || businessError || interviewsError) : null;
 
   // Log individual errors for debugging without failing the entire dashboard
   if (candidatesError) console.warn('Candidates API failed:', candidatesError.message);
   if (requirementsError) console.warn('Requirements API failed:', requirementsError.message);
-  if (dailyJobsError) console.warn('Daily Jobs API failed:', dailyJobsError.message);
-  if (businessError) console.warn('Business Dev API failed:', businessError.message);
   if (interviewsError) console.warn('Interviews API failed:', interviewsError.message);
 
   return {
     totalCandidates,
     activeRequirements,
-    dailyTasks,
-    businessContacts,
     totalInterviews,
     scheduledInterviews,
     completedInterviews,
