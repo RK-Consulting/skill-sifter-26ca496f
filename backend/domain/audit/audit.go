@@ -5,7 +5,19 @@ import (
 	"encoding/json"
 )
 
+type execer interface {
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
 func Write(db *sql.DB, tenantID string, actorUserID int, entityType string, entityID int, action string, metadata interface{}) error {
+	return write(db, tenantID, actorUserID, entityType, entityID, action, metadata)
+}
+
+func WriteTx(tx *sql.Tx, tenantID string, actorUserID int, entityType string, entityID int, action string, metadata interface{}) error {
+	return write(tx, tenantID, actorUserID, entityType, entityID, action, metadata)
+}
+
+func write(execer execer, tenantID string, actorUserID int, entityType string, entityID int, action string, metadata interface{}) error {
 	var payload []byte
 	var err error
 	if metadata == nil {
