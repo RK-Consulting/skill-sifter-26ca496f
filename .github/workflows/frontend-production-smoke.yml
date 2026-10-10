@@ -79,16 +79,16 @@ jobs:
           test -n "$E2E_ADMIN_PASSWORD" || { echo "SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."; exit 1; }
           test "$E2E_ADMIN_EMAIL" = "e2e-admin@skillsifter.in" || { echo "Unexpected E2E smoke account."; exit 1; }
 
-      - name: Bootstrap production E2E smoke account
+      - name: Verify production E2E smoke account credentials
         shell: bash
         run: |
           payload=$(jq -n --arg email "$E2E_ADMIN_EMAIL" --arg password "$E2E_ADMIN_PASSWORD" '{email:$email,password:$password}')
-          response=$(curl --fail --silent --show-error --location \
+          response=$(curl --fail --silent --show-error --location --max-time 20 \
             --header 'Content-Type: application/json' \
             --data "$payload" \
-            "$API_BASE_URL/api/e2e/bootstrap")
-          echo "$response" | jq -e '.success == true and .data.status == "READY"' >/dev/null
-          echo "Production E2E smoke account is ready."
+            "$API_BASE_URL/api/auth/login")
+          echo "$response" | jq -e '.success == true and (.data.token | type == "string" and length > 0) and .data.user.role == "admin"' >/dev/null
+          echo "Production E2E smoke account login verified."
 
       - name: Run frontend production smoke
         working-directory: e2e
