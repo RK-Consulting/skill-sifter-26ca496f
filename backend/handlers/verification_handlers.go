@@ -508,7 +508,12 @@ func VerifyPhoneVerificationCode(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "Verification code is invalid or expired")
 		return
 	}
-	if otpHash(strings.TrimSpace(input.Code)) != hash {
+	codeHash, err := otpHash(strings.TrimSpace(input.Code))
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "OTP verification is not configured")
+		return
+	}
+	if codeHash != hash {
 		var attemptsAfterUpdate int
 		err := db.DB.QueryRow(
 			`UPDATE platform_verification_codes
