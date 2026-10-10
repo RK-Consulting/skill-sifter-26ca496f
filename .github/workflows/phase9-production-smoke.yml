@@ -103,7 +103,7 @@ jobs:
             health_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' "$E2E_API_BASE_URL/api/health-check" || true)
             reset_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/reset" || true)
             if [[ "$health_status" == "200" && "$reset_status" == "204" ]]; then
-              echo "Production backend and reset endpoint are reachable."
+              echo "Production backend and reset preflight contract are reachable; POST cleanup is JWT/admin protected."
               exit 0
             fi
             echo "Backend not ready (attempt $attempt/20; health=$health_status reset=$reset_status); waiting 15 seconds..."
