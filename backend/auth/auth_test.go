@@ -82,6 +82,39 @@ func TestGenerateTokenExpiry(t *testing.T) {
 	}
 }
 
+// TestAuthMiddlewareRejectsUnexpectedJWTSigningMethod ensures tokens signed with
+// a different HMAC variant are rejected before control-plane access is attempted.
+func TestAuthMiddlewareRejectsUnexpectedJWTSigningMethod(t *testing.T) {
+	claims := &Claims{
+		UserID: 1, Email: "test@example.com", Role: "admin", TenantID: "tenant_test",
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS384, claims)
+	tokenString, err := token.SignedString(JwtKey)
+	if err != nil {
+		t.Fatalf("could not create test token: %v", err)
+	}
+
+	called := false
+	handler := AuthMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	}))
+	req := httptest.NewRequest(http.MethodGet, "/api/candidates", nil)
+	req.Header.Set("Authorization", "Bearer "+tokenString)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if called {
+		t.Fatal("handler ran for a token signed with an unexpected algorithm")
+	}
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
+	}
+}
+
 // TestRoleMiddlewareAllowsPermittedRole verifies a request with an allowed
 // role reaches the wrapped handler.
 func TestRoleMiddlewareAllowsPermittedRole(t *testing.T) {
