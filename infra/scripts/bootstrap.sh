@@ -14,7 +14,7 @@ echo "==> App directory: $APP_DIR"
 
 echo "==> Ensuring unprivileged SkillSifter runtime account and storage"
 if ! id -u skillsifter >/dev/null 2>&1; then
-  useradd --system --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
+  useradd --system --user-group --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
 fi
 install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
 
