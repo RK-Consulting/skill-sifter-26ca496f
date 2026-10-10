@@ -81,7 +81,8 @@ sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /
 systemctl daemon-reload
 systemctl enable skillsifter
 
-echo "==> Installing nginx site"
+echo "==> Installing nginx rate-limit policy and site"
+cp "$APP_DIR/infra/nginx/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 ln -sf /etc/nginx/sites-available/api.skillsifter.in /etc/nginx/sites-enabled/api.skillsifter.in
 
