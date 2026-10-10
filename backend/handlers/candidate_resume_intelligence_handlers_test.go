@@ -8,7 +8,7 @@ import (
 )
 
 func TestGetCandidateResumeIntelligenceRequiresTenant(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/api/candidates/1/resume-intelligence", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/candidates/1/resume-intelligence", nil)
 	rec := httptest.NewRecorder()
 	GetCandidateResumeIntelligence(rec, req)
 	if rec.Code != http.StatusUnauthorized {
@@ -17,7 +17,7 @@ func TestGetCandidateResumeIntelligenceRequiresTenant(t *testing.T) {
 }
 
 func TestGetCandidateResumeIntelligenceRejectsInvalidID(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/api/candidates/not-an-id/resume-intelligence", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/candidates/not-an-id/resume-intelligence", nil)
 	req = req.WithContext(context.WithValue(context.Background(), "tenantID", "tenant_a"))
 	rec := httptest.NewRecorder()
 	GetCandidateResumeIntelligence(rec, req)
