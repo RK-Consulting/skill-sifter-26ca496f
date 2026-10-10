@@ -40,3 +40,35 @@ func TestRoutesDoNotExposeLegacyCompanyUsersAlias(t *testing.T) {
 		t.Fatal("legacy /api/company-users route must not be registered")
 	}
 }
+
+func TestProductionCORSRejectsDevelopmentAndPreviewOrigins(t *testing.T) {
+	t.Setenv("SKILLSIFTER_ENV", "production")
+	handler := setupCORS().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, origin := range []string{"http://localhost:5173", "https://pr-123.skill-sifter-26ca496f.pages.dev"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+		req.Header.Set("Origin", origin)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
+			t.Errorf("production CORS allowed %q with Access-Control-Allow-Origin %q", origin, got)
+		}
+	}
+}
+
+func TestProductionCORSAllowsCanonicalSite(t *testing.T) {
+	t.Setenv("SKILLSIFTER_ENV", "production")
+	handler := setupCORS().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+	req.Header.Set("Origin", "https://skillsifter.in")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://skillsifter.in" {
+		t.Fatalf("canonical origin allowed header = %q, want %q", got, "https://skillsifter.in")
+	}
+}
