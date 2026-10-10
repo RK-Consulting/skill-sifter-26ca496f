@@ -64,7 +64,7 @@ Payment instruments, accounting, invoices, GST, banking and financial ledger rem
 
 ## 4. UAT checklist
 
-The Phase 9 implementation and final production verification are complete. The final browser smoke suite passed 4/4 tests in 19.1 seconds.
+The Phase 9 implementation and final production verification are complete. The final browser smoke suite previously passed 4/4 tests in 19.1 seconds. Final post-audit verification is required after the E2E endpoint security changes.
 
 Before production launch, verify with a real deployment:
 
