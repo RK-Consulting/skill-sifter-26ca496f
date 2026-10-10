@@ -10,6 +10,7 @@ var ErrNotFound = errors.New("recruitment screening not found")
 
 type Repository interface {
 	Create(*Screening) error
+	CreateTx(*sql.Tx, *Screening) error
 	GetByID(tenantID string, id int) (*Screening, error)
 	ListByCandidateRequirement(tenantID string, candidateID, requirementID int) ([]*Screening, error)
 }
