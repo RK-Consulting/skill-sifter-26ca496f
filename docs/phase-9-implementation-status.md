@@ -111,11 +111,11 @@ Implemented across the protected application surface:
 - Offers
 - Joining
 - Billing
-- Business Development
 - Reports
 - Resume/AI
-- Daily Tasks
 - tenant/user administration
+
+Separate Business Development and Daily Tasks tables/modules were retired from the final tenant schema; partner/contact details are represented on Client records.
 
 No permission builder or arbitrary role model was introduced.
 
@@ -127,7 +127,7 @@ Implemented:
 - tenant-scoped create/read/update/delete paths
 - cross-tenant known-ID negative tests
 - client-supplied tenant identity cannot override authenticated tenant identity
-- reporting and legacy operational isolation checks
+- reporting and tenant isolation checks
 - tenant DB routing with request-scoped access
 
 ### Tenant DB provisioning
@@ -204,16 +204,7 @@ Required production verification includes authentication, fixed-role authorizati
 
 ## 7. Documentation Work Remaining
 
-The following documents must be kept synchronized with implementation:
-
-1. Phase 9 implementation status
-2. V1 privilege/action matrix
-3. Tenant isolation and routing design
-4. Subscription lifecycle and provider boundary
-5. Admin user-management workflow
-6. API contracts for account/user/subscription operations
-7. Go-live/security acceptance checklist
-8. Current architecture baseline
+Documentation was reconciled during the final code audit. Historical ADRs and archived design notes remain historical records; the final control-plane and tenant-plane baselines are authoritative.
 
 Older documents that describe company-name tenancy or the earlier authentication model are historical and must not be treated as the current runtime contract.
 
