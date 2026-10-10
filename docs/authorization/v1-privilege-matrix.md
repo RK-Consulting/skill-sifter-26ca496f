@@ -1,6 +1,6 @@
 # SkillSifter V1 — Privilege Matrix and Authorization Implementation
 
-**Status:** Approved authorization contract; implementation partially enforced  
+**Status:** V1 fixed-role authorization implemented; team/assignment sub-scopes are not modeled as separate security boundaries  
 **Roles:** Admin, Manager, Team Leader, Recruiter  
 **Related ADR:** ADR 0005  
 **Tenant boundary:** ADR 0001 / ADR 0014 / ADR 0015
@@ -80,10 +80,8 @@ Recruiter cannot administer users, roles, or tenant configuration.
 | Offers | Full | Full | Full within team scope | Operational follow-up |
 | Joining | Full | Full | Full within team scope | Operational follow-up |
 | Billing | Full | Full | Read/operational as authorized | No administrative billing access |
-| Business Development | Full | Full | Read/use as authorized | Limited/use assigned |
 | Reports | Full | Full | Team/operational | Operational/assigned |
 | Resume / AI operations | Full | Full | Operational/team scope | Assigned recruitment scope |
-| Daily Tasks | Full | Full | Team scope | Assigned scope |
 | Tenant configuration | Full | Limited | None | None |
 
 **Important:** "Full" never means cross-tenant access.
@@ -99,24 +97,18 @@ Recruiter cannot administer users, roles, or tenant configuration.
 - subscription seat limit on additional users
 - candidate create/update/delete role checks
 - interview create/update role checks
-- recruitment lifecycle mutation role checks on the currently wired V1 routes
+- recruitment lifecycle mutation role checks on the wired V1 routes
 - trusted role resolution from platform access
 - subscription access checked before protected requests
 
-### Still to enforce systematically
+### Scope and enforcement boundary
 
-- complete endpoint-by-endpoint matrix
-- team scope for Team Leader
-- assigned scope for Recruiter
-- Billing read/create separation
-- Business Development
-- Daily Tasks
-- Reports
-- Resume/AI operations
-- Client and Requirement read/write distinctions
-- Selection/Offer/Joining action distinctions
-- tenant configuration
-- cross-module negative authorization tests
+- Fixed V1 role checks are enforced on the protected routes.
+- Tenant isolation is independent of role authorization.
+- Team/assignment-level data scopes are not represented as separate persisted membership policies in V1; the UI must not imply guarantees the domain model cannot enforce.
+- Separate Business Development and Daily Tasks domains are retired from the final tenant schema.
+- Reports and Resume/AI remain tenant-authenticated operational surfaces.
+- The backend is authoritative; frontend navigation is not an authorization boundary.
 
 ## 5. Implementation Convention
 
@@ -136,7 +128,7 @@ tenant scope
 handler/service operation
 ```
 
-The implementation may continue using the existing role middleware while migrating toward a consistent authorization convention.
+The implementation uses the existing role middleware and service-level domain checks; do not add a second authorization framework.
 
 Do not introduce:
 
