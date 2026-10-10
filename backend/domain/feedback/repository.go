@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("submission feedback not found")
 
 type Repository interface {
 	Create(*Feedback) error
+	CreateTx(*sql.Tx, *Feedback) error
 	GetByID(tenantID string, id int) (*Feedback, error)
 	ListBySubmission(tenantID string, submissionID int) ([]*Feedback, error)
 }
