@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/RK-Consulting/skill-sifter/domain/audit"
+	"github.com/lib/pq"
 )
 
 var (
@@ -45,22 +47,6 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Offer, error) {
 		return nil, ErrCandidateRequirementNotFound
 	}
 
-	var selectionID int
-	var decision string
-	if err := s.db.QueryRow(`
-		SELECT id, decision
-		FROM recruitment_selections
-		WHERE tenant_id = $1 AND candidate_id = $2 AND requirement_id = $3
-	`, tenantID, input.CandidateID, input.RequirementID).Scan(&selectionID, &decision); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrSelectionNotFound
-		}
-		return nil, err
-	}
-	if decision != "selected" {
-		return nil, ErrSelectionNotFound
-	}
-
 	if _, err := s.repo.GetByPair(tenantID, input.CandidateID, input.RequirementID); err == nil {
 		return nil, ErrOfferExists
 	} else if !errors.Is(err, ErrNotFound) {
@@ -71,14 +57,34 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Offer, error) {
 		TenantID:      tenantID,
 		CandidateID:   input.CandidateID,
 		RequirementID: input.RequirementID,
-		SelectionID:   selectionID,
 	}
 	tx, err := s.db.Begin()
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	var decision string
+	if err := tx.QueryRow(`
+		SELECT id, decision
+		FROM recruitment_selections
+		WHERE tenant_id = $1 AND candidate_id = $2 AND requirement_id = $3
+		FOR UPDATE
+	`, tenantID, input.CandidateID, input.RequirementID).Scan(&o.SelectionID, &decision); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrSelectionNotFound
+		}
+		return nil, err
+	}
+	if decision != "selected" {
+		return nil, ErrSelectionNotFound
+	}
+
 	if err := s.repo.CreateTx(tx, o); err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, ErrOfferExists
+		}
 		return nil, err
 	}
 	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "offer", o.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
