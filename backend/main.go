@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
@@ -37,7 +38,28 @@ func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"message":"pong"}`))
 }
 func setupCORS() *cors.Cors {
-	return cors.New(cors.Options{AllowedOrigins: []string{"https://skillsifter.in", "https://www.skillsifter.in", "https://api.skillsifter.in", "https://*.skill-sifter-26ca496f.pages.dev", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"}, AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"}, AllowedHeaders: []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"}, ExposedHeaders: []string{"Content-Length", "Content-Type"}, AllowCredentials: true, MaxAge: 86400})
+	allowedOrigins := []string{
+		"https://skillsifter.in",
+		"https://www.skillsifter.in",
+	}
+	if os.Getenv("SKILLSIFTER_ENV") != "production" {
+		allowedOrigins = append(allowedOrigins,
+			"https://api.skillsifter.in",
+			"https://*.skill-sifter-26ca496f.pages.dev",
+			"http://localhost:5173",
+			"http://localhost:3000",
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:3000",
+		)
+	}
+	return cors.New(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           86400,
+	})
 }
 func setupPublicRoutes(r *mux.Router) {
 	// The API is canonical under /api. Keep the site root separate from API routes.
