@@ -120,9 +120,14 @@ systemctl restart skillsifter
 sleep 2
 systemctl status skillsifter --no-pager
 
-echo "==> Health check"
-curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check
-echo ""
+echo "==> Health and deployed revision check"
+health_payload="$(curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check)"
+printf '%s\n' "$health_payload"
+if ! python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("status") == "OK" and d.get("version") == sys.argv[1] and d.get("revision") == sys.argv[2] else 1)' "$RELEASE_VERSION" "$RELEASE_REVISION" <<< "$health_payload"; then
+  echo "DEPLOY FAILED: health endpoint version/revision does not match this deployment."
+  echo "Expected version=$RELEASE_VERSION revision=$RELEASE_REVISION"
+  exit 1
+fi
 
 echo "==> Production E2E reset preflight contract check"
 status="$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "http://localhost:8081/api/e2e/reset" || true)"
