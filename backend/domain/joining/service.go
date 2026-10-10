@@ -82,7 +82,7 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 	if err := s.repo.Create(j); err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, 0, "joining", j.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	if err := audit.Write(s.db, tenantID, input.ActorUserID, "joining", j.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write joining audit event: %w", err)
 	}
 	return j, nil
@@ -105,7 +105,7 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 	if err := s.repo.Update(j); err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, 0, "joining", j.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "joined": input.Joined}); err != nil {
+	if err := audit.Write(s.db, tenantID, input.ActorUserID, "joining", j.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "joined": input.Joined}); err != nil {
 		return nil, fmt.Errorf("write joining audit event: %w", err)
 	}
 	return j, nil

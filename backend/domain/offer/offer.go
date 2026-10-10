@@ -16,8 +16,10 @@ type Offer struct {
 type CreateInput struct {
 	CandidateID   int
 	RequirementID int
+	ActorUserID   int
 }
 
 type UpdateInput struct {
-	Accepted bool
+	Accepted    bool
+	ActorUserID int
 }

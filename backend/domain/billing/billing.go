@@ -41,4 +41,5 @@ type CreateInput struct {
 	Amount           string
 	Currency         string
 	InvoiceReference string
+	ActorUserID      int
 }

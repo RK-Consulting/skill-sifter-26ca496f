@@ -63,9 +63,15 @@ func CreateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	o, err := offerService(r).Create(tenantID, offer.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
+		ActorUserID:   actorUserID,
 	})
 	switch {
 	case errors.Is(err, offer.ErrCandidateRequirementNotFound):
@@ -104,8 +110,14 @@ func UpdateCandidateRequirementOffer(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	o, err := offerService(r).Update(tenantID, candidateID, requirementID, offer.UpdateInput{
-		Accepted: req.Accepted,
+		Accepted:    req.Accepted,
+		ActorUserID: actorUserID,
 	})
 	switch {
 	case errors.Is(err, offer.ErrNotFound):

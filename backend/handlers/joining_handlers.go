@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/db"
@@ -15,8 +16,20 @@ import (
 )
 
 type joiningRequest struct {
-	JoiningDate *time.Time `json:"joiningDate,omitempty"`
-	Joined      bool       `json:"joined"`
+	JoiningDate string `json:"joiningDate,omitempty"`
+	Joined      bool   `json:"joined"`
+}
+
+func parseJoiningDate(value string) (*time.Time, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil, nil
+	}
+	parsed, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return nil, errors.New("joiningDate must be a valid date in YYYY-MM-DD format")
+	}
+	return &parsed, nil
 }
 
 func joiningService(r *http.Request) *joining.Service {
@@ -71,12 +84,24 @@ func CreateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	joiningDate, err := parseJoiningDate(req.JoiningDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	j, err := joiningService(r).Create(tenantID, joining.CreateInput{
 		CandidateID:   candidateID,
 		RequirementID: requirementID,
-		JoiningDate:   req.JoiningDate,
+		JoiningDate:   joiningDate,
 		Joined:        req.Joined,
+		ActorUserID:   actorUserID,
 	})
 	switch {
 	case errors.Is(err, joining.ErrCandidateRequirementNotFound):
@@ -116,10 +141,22 @@ func UpdateCandidateRequirementJoining(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	joiningDate, err := parseJoiningDate(req.JoiningDate)
+	if err != nil {
+		respondWithError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
 	tenantID := r.Context().Value("tenantID").(string)
+	actorUserID, ok := r.Context().Value("userID").(int)
+	if !ok || actorUserID == 0 {
+		respondWithError(w, http.StatusUnauthorized, "Authentication required")
+		return
+	}
 	j, err := joiningService(r).Update(tenantID, candidateID, requirementID, joining.UpdateInput{
-		JoiningDate: req.JoiningDate,
+		JoiningDate: joiningDate,
 		Joined:      req.Joined,
+		ActorUserID: actorUserID,
 	})
 	switch {
 	case errors.Is(err, joining.ErrNotFound):
