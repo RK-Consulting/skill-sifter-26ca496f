@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -70,5 +71,28 @@ func TestProductionCORSAllowsCanonicalSite(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://skillsifter.in" {
 		t.Fatalf("canonical origin allowed header = %q, want %q", got, "https://skillsifter.in")
+	}
+}
+
+func TestHealthCheckExposesDeployedVersionAndRevision(t *testing.T) {
+	t.Setenv("SKILLSIFTER_VERSION", "1.0.0")
+	t.Setenv("SKILLSIFTER_REVISION", "0123456789abcdef")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+	rec := httptest.NewRecorder()
+	healthCheckHandler(rec, req)
+
+	var payload map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if payload["status"] != "OK" {
+		t.Fatalf("health status = %q, want OK", payload["status"])
+	}
+	if payload["version"] != "1.0.0" {
+		t.Fatalf("health version = %q, want 1.0.0", payload["version"])
+	}
+	if payload["revision"] != "0123456789abcdef" {
+		t.Fatalf("health revision = %q, want exact configured SHA", payload["revision"])
 	}
 }
