@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/RK-Consulting/skill-sifter/domain/audit"
+	"github.com/lib/pq"
 )
 
 var (
@@ -49,22 +51,6 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		return nil, ErrCandidateRequirementNotFound
 	}
 
-	var offerID int
-	var accepted bool
-	if err := s.db.QueryRow(`
-		SELECT id, accepted
-		FROM recruitment_offers
-		WHERE tenant_id = $1 AND candidate_id = $2 AND requirement_id = $3
-	`, tenantID, input.CandidateID, input.RequirementID).Scan(&offerID, &accepted); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrOfferNotFound
-		}
-		return nil, err
-	}
-	if !accepted {
-		return nil, ErrOfferNotFound
-	}
-
 	if _, err := s.repo.GetByPair(tenantID, input.CandidateID, input.RequirementID); err == nil {
 		return nil, ErrJoiningExists
 	} else if !errors.Is(err, ErrNotFound) {
@@ -75,7 +61,6 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		TenantID:      tenantID,
 		CandidateID:   input.CandidateID,
 		RequirementID: input.RequirementID,
-		OfferID:       offerID,
 		JoiningDate:   input.JoiningDate,
 		Joined:        input.Joined,
 	}
@@ -84,7 +69,28 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		return nil, err
 	}
 	defer tx.Rollback()
+
+	var accepted bool
+	if err := tx.QueryRow(`
+		SELECT id, accepted
+		FROM recruitment_offers
+		WHERE tenant_id = $1 AND candidate_id = $2 AND requirement_id = $3
+		FOR UPDATE
+	`, tenantID, input.CandidateID, input.RequirementID).Scan(&j.OfferID, &accepted); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrOfferNotFound
+		}
+		return nil, err
+	}
+	if !accepted {
+		return nil, ErrOfferNotFound
+	}
+
 	if err := s.repo.CreateTx(tx, j); err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, ErrJoiningExists
+		}
 		return nil, err
 	}
 	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "joining", j.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
