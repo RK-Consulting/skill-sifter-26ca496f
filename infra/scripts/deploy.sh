@@ -108,8 +108,51 @@ fi
 chown root:skillsifter "$APP_DIR/backend/.env"
 chmod 0640 "$APP_DIR/backend/.env"
 
+# Snapshot the currently deployed binary and service-facing configuration before
+# replacing anything. A failed post-change step restores this exact known-good set.
+ROLLBACK_DIR="$(mktemp -d /var/lib/skillsifter/deploy-rollback.XXXXXX)"
+DEPLOY_CHANGES_STARTED=0
+cp "$APP_DIR/backend/skillsifter" "$ROLLBACK_DIR/skillsifter" 2>/dev/null || true
+cp /etc/systemd/system/skillsifter.service "$ROLLBACK_DIR/skillsifter.service"
+cp /etc/nginx/sites-available/api.skillsifter.in "$ROLLBACK_DIR/api.skillsifter.in"
+cp /etc/nginx/conf.d/skillsifter-rate-limits.conf "$ROLLBACK_DIR/skillsifter-rate-limits.conf"
+
+rollback_deploy() {
+  local rc="$?"
+  trap - EXIT
+  if [ "$rc" -ne 0 ] && [ "$DEPLOY_CHANGES_STARTED" -eq 1 ]; then
+    echo "DEPLOY FAILED after live changes began; restoring previous binary and settings."
+    if [ -f "$ROLLBACK_DIR/skillsifter" ]; then
+      cp "$ROLLBACK_DIR/skillsifter" "$APP_DIR/backend/skillsifter"
+      chown root:root "$APP_DIR/backend/skillsifter"
+      chmod 0755 "$APP_DIR/backend/skillsifter"
+    fi
+    cp "$ROLLBACK_DIR/skillsifter.service" /etc/systemd/system/skillsifter.service
+    cp "$ROLLBACK_DIR/api.skillsifter.in" /etc/nginx/sites-available/api.skillsifter.in
+    cp "$ROLLBACK_DIR/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
+    systemctl daemon-reload || true
+    if nginx -t; then
+      systemctl reload nginx || true
+    else
+      echo "WARNING: restored Nginx configuration failed validation; reload skipped."
+    fi
+    if systemctl restart skillsifter && sleep 2 && curl --fail --silent --show-error --max-time 10 http://localhost:8081/api/health-check | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d.get("status") == "OK" else 1)'; then
+      echo "Automatic rollback succeeded; previous service is healthy."
+    else
+      echo "CRITICAL: automatic rollback attempted, but previous service health could not be confirmed."
+    fi
+  fi
+  rm -rf "$ROLLBACK_DIR"
+  exit "$rc"
+}
+trap rollback_deploy EXIT
+
 echo "==> Building backend"
 go build -o skillsifter .
+
+# From here onward, any failure automatically restores the previous binary and
+# service-facing settings. Preflight/test/build failures leave the live service alone.
+DEPLOY_CHANGES_STARTED=1
 
 echo "==> Syncing nginx rate-limit policy and site config"
 cp "$APP_DIR/infra/nginx/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
@@ -145,4 +188,7 @@ if [ "$status" != "204" ]; then
 fi
 echo "Production E2E /api/e2e/reset OPTIONS preflight is healthy (HTTP $status)"
 
+DEPLOY_CHANGES_STARTED=0
+trap - EXIT
+rm -rf "$ROLLBACK_DIR"
 echo "==> Deploy succeeded"
