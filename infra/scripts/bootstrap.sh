@@ -12,6 +12,17 @@ DB_USER="skillsifter_user"
 
 echo "==> App directory: $APP_DIR"
 
+echo "==> Ensuring unprivileged SkillSifter runtime account and storage"
+if ! getent group skillsifter >/dev/null 2>&1; then
+  groupadd --system skillsifter
+fi
+if ! id -u skillsifter >/dev/null 2>&1; then
+  useradd --system --gid skillsifter --home-dir /var/lib/skillsifter --create-home --shell /usr/sbin/nologin skillsifter
+fi
+install -d -o skillsifter -g skillsifter -m 0750 /var/lib/skillsifter/resumes
+chown skillsifter:skillsifter /var/lib/skillsifter /var/lib/skillsifter/resumes
+chmod 0750 /var/lib/skillsifter /var/lib/skillsifter/resumes
+
 if [ -z "${DB_PASSWORD:-}" ]; then
   echo "ERROR: set DB_PASSWORD env var before running this script, e.g.:"
   echo "  DB_PASSWORD='...' JWT_SECRET='...' bash infra/scripts/bootstrap.sh"
@@ -59,16 +70,20 @@ DB_PASSWORD=${DB_PASSWORD}
 DB_NAME=${DB_NAME}
 JWT_SECRET=${JWT_SECRET}
 EOF
+chown root:skillsifter "$APP_DIR/backend/.env"
+chmod 0640 "$APP_DIR/backend/.env"
 
 echo "==> Installing systemd unit"
 RELEASE_VERSION="$(cat "$APP_DIR/VERSION" 2>/dev/null || echo "dev")"
-echo "==> Installing SkillSifter v${RELEASE_VERSION} systemd unit"
+RELEASE_REVISION="$(git -C "$APP_DIR" rev-parse HEAD)"
+echo "==> Installing SkillSifter v${RELEASE_VERSION} (${RELEASE_REVISION}) systemd unit"
 cp "$APP_DIR/infra/systemd/skillsifter.service" /etc/systemd/system/skillsifter.service
-sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" /etc/systemd/system/skillsifter.service
+sed -i -e "s|__APP_DIR__|$APP_DIR|g" -e "s|__APP_VERSION__|$RELEASE_VERSION|g" -e "s|__APP_REVISION__|$RELEASE_REVISION|g" /etc/systemd/system/skillsifter.service
 systemctl daemon-reload
 systemctl enable skillsifter
 
-echo "==> Installing nginx site"
+echo "==> Installing nginx rate-limit policy and site"
+cp "$APP_DIR/infra/nginx/skillsifter-rate-limits.conf" /etc/nginx/conf.d/skillsifter-rate-limits.conf
 cp "$APP_DIR/infra/nginx/api.skillsifter.in.conf" /etc/nginx/sites-available/api.skillsifter.in
 ln -sf /etc/nginx/sites-available/api.skillsifter.in /etc/nginx/sites-enabled/api.skillsifter.in
 

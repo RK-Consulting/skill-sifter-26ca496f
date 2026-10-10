@@ -4,7 +4,9 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+
 	"github.com/RK-Consulting/skill-sifter/domain/audit"
+	"github.com/lib/pq"
 )
 
 var (
@@ -106,7 +108,26 @@ func (s *Service) Submit(tenantID string, input CreateInput) (*Submission, error
 	}
 	defer tx.Rollback()
 
+	var completedScreeningID int
+	if err := tx.QueryRow(`
+		SELECT id
+		FROM recruitment_screenings
+		WHERE tenant_id=$1 AND candidate_id=$2 AND requirement_id=$3 AND status='completed'
+		ORDER BY screened_at DESC, id DESC
+		LIMIT 1
+		FOR UPDATE
+	`, tenantID, input.CandidateID, input.RequirementID).Scan(&completedScreeningID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, fmt.Errorf("a completed screening is required before submission")
+		}
+		return nil, err
+	}
+
 	if err := s.repo.CreateTx(tx, record); err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, ErrAlreadySubmitted
+		}
 		return nil, err
 	}
 	if err := audit.WriteTx(tx, tenantID, input.SubmittedByUserID, "submission", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {

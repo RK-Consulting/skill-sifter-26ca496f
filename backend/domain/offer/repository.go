@@ -9,8 +9,10 @@ var ErrNotFound = errors.New("offer not found")
 
 type Repository interface {
 	Create(*Offer) error
+	CreateTx(*sql.Tx, *Offer) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Offer, error)
 	Update(*Offer) error
+	UpdateTx(*sql.Tx, *Offer) error
 }
 
 type PostgresRepository struct {
@@ -43,8 +45,19 @@ func scanOffer(row *sql.Row) (*Offer, error) {
 	return o, nil
 }
 
+type offerQueryer interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
+
 func (r *PostgresRepository) Create(o *Offer) error {
-	return r.db.QueryRow(`
+	return createOffer(r.db, o)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, o *Offer) error {
+	return createOffer(tx, o)
+}
+
+func createOffer(q offerQueryer, o *Offer) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_offers (
 			tenant_id, candidate_id, requirement_id, selection_id, accepted
 		) VALUES ($1, $2, $3, $4, $5)
@@ -63,7 +76,14 @@ func (r *PostgresRepository) GetByPair(tenantID string, candidateID, requirement
 }
 
 func (r *PostgresRepository) Update(o *Offer) error {
-	return r.db.QueryRow(`
+	return updateOffer(r.db, o)
+}
+func (r *PostgresRepository) UpdateTx(tx *sql.Tx, o *Offer) error {
+	return updateOffer(tx, o)
+}
+
+func updateOffer(q offerQueryer, o *Offer) error {
+	return q.QueryRow(`
 		UPDATE recruitment_offers
 		SET accepted = $1, last_modified = CURRENT_TIMESTAMP
 		WHERE id = $2 AND tenant_id = $3

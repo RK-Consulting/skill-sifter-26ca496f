@@ -43,6 +43,14 @@ The recruitment lifecycle remains frozen.
 - Tenant-owned operational data is provisioned and routed to the tenant database
 - Request-scoped tenant DB access is used for tenant-owned operations
 - Tenant DB connections are closed with the request lifecycle
+- Public E2E bootstrap is not registered
+- Smoke reset is protected by normal JWT authentication and Admin role and is hard-scoped to `e2e_smoke_tenant`
+- Production CORS excludes localhost and Cloudflare branch previews
+- Login attempts are rate-limited at the Nginx edge
+- `/api/health-check` exposes the deployed version and exact Git revision
+- Production mutation smoke is manual-dispatch-only after deployment and checks the deployed revision against the checked-out `main` SHA before making changes
+- The Go API runs as the unprivileged `skillsifter` service account
+- Runtime resume storage is isolated under `/var/lib/skillsifter/resumes`; the backend environment file is mode `0640`
 
 ## 3. Subscription acceptance
 
@@ -64,7 +72,7 @@ Payment instruments, accounting, invoices, GST, banking and financial ledger rem
 
 ## 4. UAT checklist
 
-The Phase 9 implementation and final production verification are complete. The final browser smoke suite previously passed 4/4 tests in 19.1 seconds. Final post-audit verification is required after the E2E endpoint security changes.
+The Phase 9 implementation and earlier production verification are complete; final post-audit verification remains pending. The final browser smoke suite previously passed 4/4 tests in 19.1 seconds. Final post-audit verification is required after the E2E endpoint security changes.
 
 Before production launch, verify with a real deployment:
 

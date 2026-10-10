@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/RK-Consulting/skill-sifter/auth"
@@ -30,14 +32,42 @@ func apiRootHandler(w http.ResponseWriter, r *http.Request) {
 }
 func healthCheckHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	w.Write([]byte(`{"status":"OK"}`))
+	_ = json.NewEncoder(w).Encode(map[string]string{
+		"status":   "OK",
+		"version":  db.GetEnv("SKILLSIFTER_VERSION", "unknown"),
+		"revision": db.GetEnv("SKILLSIFTER_REVISION", "unknown"),
+	})
 }
 func pingHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Write([]byte(`{"message":"pong"}`))
 }
+
+// Production CORS deliberately excludes localhost and branch-preview origins.
+// Those origins remain available only in non-production environments.
 func setupCORS() *cors.Cors {
-	return cors.New(cors.Options{AllowedOrigins: []string{"https://skillsifter.in", "https://www.skillsifter.in", "https://api.skillsifter.in", "https://*.skill-sifter-26ca496f.pages.dev", "http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173", "http://127.0.0.1:3000"}, AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"}, AllowedHeaders: []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"}, ExposedHeaders: []string{"Content-Length", "Content-Type"}, AllowCredentials: true, MaxAge: 86400})
+	allowedOrigins := []string{
+		"https://skillsifter.in",
+		"https://www.skillsifter.in",
+	}
+	if os.Getenv("SKILLSIFTER_ENV") != "production" {
+		allowedOrigins = append(allowedOrigins,
+			"https://api.skillsifter.in",
+			"https://*.skill-sifter-26ca496f.pages.dev",
+			"http://localhost:5173",
+			"http://localhost:3000",
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:3000",
+		)
+	}
+	return cors.New(cors.Options{
+		AllowedOrigins:   allowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD", "PATCH"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization", "Origin", "Accept", "X-Requested-With", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Content-Length", "Content-Type"},
+		AllowCredentials: true,
+		MaxAge:           86400,
+	})
 }
 func setupPublicRoutes(r *mux.Router) {
 	// The API is canonical under /api. Keep the site root separate from API routes.
@@ -47,7 +77,7 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/ping", pingHandler).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register", handlers.StartRegistration).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/auth/login", handlers.LoginUser).Methods("POST", "OPTIONS")
-	r.HandleFunc("/api/e2e/reset", handlers.ResetE2ESmokeTenantData).Methods("POST", "OPTIONS")
+	r.HandleFunc("/api/e2e/reset", func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(http.StatusNoContent) }).Methods("OPTIONS")
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
@@ -74,6 +104,7 @@ func setupProtectedRoutes(r *mux.Router) {
 	manager := api.PathPrefix("/manager").Subrouter()
 	manager.Use(auth.RoleMiddleware("manager", "admin"))
 	manager.HandleFunc("/users", handlers.GetUsers).Methods("GET", "OPTIONS")
+	api.HandleFunc("/e2e/reset", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.ResetE2ESmokeTenantData)).ServeHTTP).Methods("POST")
 	api.HandleFunc("/account", handlers.GetCurrentAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription", handlers.GetSubscriptionAccount).Methods("GET", "OPTIONS")
 	api.HandleFunc("/account/subscription/phone/send", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.SendPhoneVerificationCode)).ServeHTTP).Methods("POST", "OPTIONS")

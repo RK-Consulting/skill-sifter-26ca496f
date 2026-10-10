@@ -172,14 +172,14 @@ func CreateCandidateRequirementSelection(w http.ResponseWriter, r *http.Request)
 
 	// Rejection does not mutate Candidate master state. Selection is scoped to
 	// Candidate × Requirement; the decision is the durable recruitment state.
+	actorID, _ := r.Context().Value("userID").(int)
+	if err := audit.WriteTx(tx, tenantID, actorID, "selection", selection.ID, "created", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "decision": req.Decision}); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error recording selection audit event")
+		return
+	}
 
 	if err := tx.Commit(); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error committing selection")
-		return
-	}
-	actorID, _ := r.Context().Value("userID").(int)
-	if err := audit.Write(db.RequestDB(r), tenantID, actorID, "selection", selection.ID, "created", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "decision": req.Decision}); err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error recording selection audit event")
 		return
 	}
 	respondWithJSON(w, http.StatusCreated, models.ApiResponse{

@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("submission feedback not found")
 
 type Repository interface {
 	Create(*Feedback) error
+	CreateTx(*sql.Tx, *Feedback) error
 	GetByID(tenantID string, id int) (*Feedback, error)
 	ListBySubmission(tenantID string, submissionID int) ([]*Feedback, error)
 }
@@ -50,7 +51,18 @@ func scanFeedback(row *sql.Row) (*Feedback, error) {
 }
 
 func (r *PostgresRepository) Create(f *Feedback) error {
-	return r.db.QueryRow(`
+	return createFeedback(r.db, f)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, f *Feedback) error {
+	return createFeedback(tx, f)
+}
+
+type feedbackInserter interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
+
+func createFeedback(q feedbackInserter, f *Feedback) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_submission_feedback (
 			tenant_id, submission_id, feedback_by_user_id, outcome,
 			reason_code, comments, next_action

@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"github.com/RK-Consulting/skill-sifter/domain/audit"
 	"regexp"
 	"strings"
+
+	"github.com/RK-Consulting/skill-sifter/domain/audit"
+	"github.com/lib/pq"
 )
 
 var (
@@ -109,11 +111,44 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Billing, error) {
 		Currency:         input.Currency,
 		InvoiceReference: strings.TrimSpace(input.InvoiceReference),
 	}
-	if err := s.repo.Create(b); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+
+	var lockedJoiningID int
+	var lockedJoiningDate sql.NullTime
+	var lockedJoined bool
+	if err := tx.QueryRow(`
+		SELECT id, joining_date, joined
+		FROM recruitment_joinings
+		WHERE tenant_id=$1 AND candidate_id=$2 AND requirement_id=$3
+		FOR UPDATE
+	`, tenantID, input.CandidateID, input.RequirementID).Scan(&lockedJoiningID, &lockedJoiningDate, &lockedJoined); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ErrJoiningNotFound
+		}
+		return nil, err
+	}
+	if !lockedJoined || !lockedJoiningDate.Valid {
+		return nil, ErrJoiningNotFound
+	}
+	b.JoiningID = lockedJoiningID
+	b.BillingDate = lockedJoiningDate.Time
+
+	if err := s.repo.CreateTx(tx, b); err != nil {
+		var pqErr *pq.Error
+		if errors.As(err, &pqErr) && pqErr.Code == "23505" {
+			return nil, ErrBillingExists
+		}
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "billing", b.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write billing audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return b, nil
 }

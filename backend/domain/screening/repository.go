@@ -10,6 +10,7 @@ var ErrNotFound = errors.New("recruitment screening not found")
 
 type Repository interface {
 	Create(*Screening) error
+	CreateTx(*sql.Tx, *Screening) error
 	GetByID(tenantID string, id int) (*Screening, error)
 	ListByCandidateRequirement(tenantID string, candidateID, requirementID int) ([]*Screening, error)
 }
@@ -59,7 +60,18 @@ func scanScreening(row *sql.Row) (*Screening, error) {
 }
 
 func (r *PostgresRepository) Create(s *Screening) error {
-	return r.db.QueryRow(`
+	return createScreening(r.db, s)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, s *Screening) error {
+	return createScreening(tx, s)
+}
+
+type screeningInserter interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
+
+func createScreening(q screeningInserter, s *Screening) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_screenings (
 			tenant_id, candidate_id, requirement_id, recruiter_user_id,
 			current_ctc, expected_ctc, notice_period, last_working_day,

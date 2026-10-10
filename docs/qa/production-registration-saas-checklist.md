@@ -11,8 +11,8 @@
 - [ ] `infra/scripts/deploy.sh` completed successfully
 - [ ] `skillsifter` systemd service is ACTIVE
 - [ ] API health-check returns HTTP 200
-- [ ] Database migrations completed successfully
-- [ ] Migrations 043 and 044 applied
+- [ ] Control-plane and tenant-plane schema baselines applied successfully
+- [ ] `schema_versions` contains checksum-verified baseline definitions
 
 ## B. Fresh Trial Registration
 Use a completely **new email address and new company**.
@@ -37,7 +37,7 @@ Use a completely **new email address and new company**.
 - [ ] Platform user account created
 - [ ] Permanent registration registry record created
 - [ ] Tenant database created
-- [ ] Tenant migrations completed
+- [ ] Tenant-plane schema initialization completed successfully
 - [ ] Tenant provisioning status = `READY`
 
 ## D. Login / Dashboard

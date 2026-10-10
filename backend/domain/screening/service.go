@@ -59,11 +59,19 @@ func (s *Service) CreateScreening(tenantID string, input CreateInput) (*Screenin
 		RelevantExperience: input.RelevantExperience, RecruiterAssessment: input.RecruiterAssessment,
 		Notes: input.Notes,
 	}
-	if err := s.repo.Create(record); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.RecruiterUserID, "screening", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.CreateTx(tx, record); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.RecruiterUserID, "screening", record.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write screening audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return record, nil
 }

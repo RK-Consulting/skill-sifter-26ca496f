@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,5 +39,60 @@ func TestRoutesDoNotExposeLegacyCompanyUsersAlias(t *testing.T) {
 	}
 	if found {
 		t.Fatal("legacy /api/company-users route must not be registered")
+	}
+}
+
+func TestProductionCORSRejectsDevelopmentAndPreviewOrigins(t *testing.T) {
+	t.Setenv("SKILLSIFTER_ENV", "production")
+	handler := setupCORS().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	for _, origin := range []string{"http://localhost:5173", "https://pr-123.skill-sifter-26ca496f.pages.dev"} {
+		req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+		req.Header.Set("Origin", origin)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+		if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "" {
+			t.Errorf("production CORS allowed %q with Access-Control-Allow-Origin %q", origin, got)
+		}
+	}
+}
+
+func TestProductionCORSAllowsCanonicalSite(t *testing.T) {
+	t.Setenv("SKILLSIFTER_ENV", "production")
+	handler := setupCORS().Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+	req.Header.Set("Origin", "https://skillsifter.in")
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if got := rec.Header().Get("Access-Control-Allow-Origin"); got != "https://skillsifter.in" {
+		t.Fatalf("canonical origin allowed header = %q, want %q", got, "https://skillsifter.in")
+	}
+}
+
+func TestHealthCheckExposesDeployedVersionAndRevision(t *testing.T) {
+	t.Setenv("SKILLSIFTER_VERSION", "1.0.0")
+	t.Setenv("SKILLSIFTER_REVISION", "0123456789abcdef")
+
+	req := httptest.NewRequest(http.MethodGet, "/api/health-check", nil)
+	rec := httptest.NewRecorder()
+	healthCheckHandler(rec, req)
+
+	var payload map[string]string
+	if err := json.NewDecoder(rec.Body).Decode(&payload); err != nil {
+		t.Fatalf("decode health response: %v", err)
+	}
+	if payload["status"] != "OK" {
+		t.Fatalf("health status = %q, want OK", payload["status"])
+	}
+	if payload["version"] != "1.0.0" {
+		t.Fatalf("health version = %q, want 1.0.0", payload["version"])
+	}
+	if payload["revision"] != "0123456789abcdef" {
+		t.Fatalf("health revision = %q, want exact configured SHA", payload["revision"])
 	}
 }

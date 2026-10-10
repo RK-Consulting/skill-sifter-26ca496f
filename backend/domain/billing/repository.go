@@ -9,6 +9,7 @@ var ErrNotFound = errors.New("billing record not found")
 
 type Repository interface {
 	Create(*Billing) error
+	CreateTx(*sql.Tx, *Billing) error
 	GetByPair(tenantID string, candidateID, requirementID int) (*Billing, error)
 	ListWorklist(tenantID string) ([]WorklistItem, error)
 }
@@ -51,7 +52,18 @@ func scanBilling(row *sql.Row) (*Billing, error) {
 }
 
 func (r *PostgresRepository) Create(b *Billing) error {
-	return r.db.QueryRow(`
+	return createBilling(r.db, b)
+}
+func (r *PostgresRepository) CreateTx(tx *sql.Tx, b *Billing) error {
+	return createBilling(tx, b)
+}
+
+type billingInserter interface {
+	QueryRow(string, ...interface{}) *sql.Row
+}
+
+func createBilling(q billingInserter, b *Billing) error {
+	return q.QueryRow(`
 		INSERT INTO recruitment_billings (
 			tenant_id, candidate_id, requirement_id, client_id, joining_id,
 			billing_date, amount, currency, invoice_reference
