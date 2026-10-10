@@ -9,6 +9,7 @@ WorkingDirectory=__APP_DIR__/backend
 EnvironmentFile=__APP_DIR__/backend/.env
 Environment=SKILLSIFTER_ENV=production
 Environment=SKILLSIFTER_VERSION=__APP_VERSION__
+Environment=SKILLSIFTER_REVISION=__APP_REVISION__
 ExecStart=__APP_DIR__/backend/skillsifter
 Restart=on-failure
 RestartSec=5
