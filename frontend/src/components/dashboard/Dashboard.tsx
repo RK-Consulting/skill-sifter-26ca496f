@@ -72,6 +72,22 @@ const Dashboard = ({ username }: DashboardProps) => {
       trendType: "up" as const,
       link: "/requirements"
     },
+    {
+      title: "Total Interviews",
+      value: isLoading ? "..." : totalInterviews.toString(),
+      trend: "",
+      icon: <Calendar />,
+      trendType: "up" as const,
+      link: "/interviews"
+    },
+    {
+      title: "Scheduled Interviews",
+      value: isLoading ? "..." : scheduledInterviews.toString(),
+      trend: "",
+      icon: <Clock3 />,
+      trendType: "up" as const,
+      link: "/interviews"
+    },
   ];
 
   const { data: pipelineReport = [], isLoading: pipelineLoading } = useQuery({
