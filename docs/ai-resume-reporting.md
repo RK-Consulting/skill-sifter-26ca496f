@@ -18,7 +18,7 @@ Optional environment variables:
 
 ## Resume ingestion
 
-`POST /api/resume-ai/upload` accepts the `files` multipart field. PDF, DOCX and plain text files are supported. The backend hashes every file, prevents duplicate uploads per company, extracts text, sends only the extracted text to Ollama, and stores structured name/email/phone/skills in PostgreSQL.
+`POST /api/resume-ai/upload` accepts the `files` multipart field. PDF, DOCX and plain text files are supported. The backend hashes every file, prevents duplicate uploads per tenant, extracts text, sends only the extracted text to Ollama, and stores structured name/email/phone/skills in PostgreSQL.
 
 Each parsed resume is linked to a candidate. Technical skills are persisted in the authoritative `candidate_expertise` table with category `resume_import` and proficiency `unspecified`. The retired `skills` and `candidate_skills` tables are no longer used by Resume AI.
 
@@ -26,11 +26,11 @@ Scanned/image PDFs without an embedded text layer are marked `failed` with a cle
 
 ## AI search
 
-`GET /api/resume-ai/search?q=Java%20Spring%20AWS` searches candidate name, email, phone, skills and normalized skills. Search activity is recorded in `resume_search_logs` and `activity_logs`.
+`GET /api/resume-ai/search?q=Java%20Spring%20AWS` searches candidate name, email, phone, skills and normalized skills. Search activity is recorded in the tenant-scoped `resume_search_logs` table.
 
 ## Reporting
 
-The reporting subsystem uses `activity_logs`, populated by database triggers for candidate, daily-task, interview, business-development and resume changes. Legacy Jobs activity behavior is removed by a forward migration because Jobs were replaced by Requirements. Available period reports are:
+Reporting reads tenant-owned recruitment/resume records and the application-owned `audit_events` table. Recruitment mutations write explicit audit events in Go; business workflow meaning is not delegated to database triggers. Legacy Jobs, daily-jobs, business-development, and `activity_logs` trigger infrastructure are not part of the authoritative tenant-plane baseline. Available period reports are:
 
 - daily — last 30 days
 - monthly — last 12 months
@@ -46,6 +46,6 @@ The initial PDF extractor intentionally uses the Go standard library only. Text-
 
 ## Tenant isolation
 
-Resume records carry the authoritative `tenant_id` from the authenticated request context. Duplicate detection, repository listing and candidate/expertise joins are tenant-scoped. `company_name` remains compatibility/display data and is not the tenant isolation boundary.
+Resume records carry the authoritative `tenant_id` from the authenticated request context. Duplicate detection, repository listing and candidate/expertise joins are tenant-scoped. `company_name` is control-plane descriptive data and is not used as the tenant isolation boundary.
 
-Migration `021_resume_ai_tenant_isolation.sql` backfills existing resume rows, enforces `tenant_id`, replaces the legacy company/hash uniqueness boundary with tenant/hash uniqueness, and removes the obsolete Jobs activity trigger without modifying historical migrations.
+The authoritative tenant baseline requires `resumes.tenant_id` and uses tenant/hash uniqueness. The clean baseline is initialized from `backend/database/tenant-plane/001_baseline.sql`; historical migration files are retained only as historical evidence and are not replayed to create new tenant databases.
