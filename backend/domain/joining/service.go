@@ -79,11 +79,19 @@ func (s *Service) Create(tenantID string, input CreateInput) (*Joining, error) {
 		JoiningDate:   input.JoiningDate,
 		Joined:        input.Joined,
 	}
-	if err := s.repo.Create(j); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "joining", j.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.CreateTx(tx, j); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "joining", j.ID, "created", map[string]interface{}{"candidateId": input.CandidateID, "requirementId": input.RequirementID}); err != nil {
 		return nil, fmt.Errorf("write joining audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return j, nil
 }
@@ -102,11 +110,19 @@ func (s *Service) Update(tenantID string, candidateID, requirementID int, input 
 	}
 	j.JoiningDate = input.JoiningDate
 	j.Joined = input.Joined
-	if err := s.repo.Update(j); err != nil {
+	tx, err := s.db.Begin()
+	if err != nil {
 		return nil, err
 	}
-	if err := audit.Write(s.db, tenantID, input.ActorUserID, "joining", j.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "joined": input.Joined}); err != nil {
+	defer tx.Rollback()
+	if err := s.repo.UpdateTx(tx, j); err != nil {
+		return nil, err
+	}
+	if err := audit.WriteTx(tx, tenantID, input.ActorUserID, "joining", j.ID, "updated", map[string]interface{}{"candidateId": candidateID, "requirementId": requirementID, "joined": input.Joined}); err != nil {
 		return nil, fmt.Errorf("write joining audit event: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
 	}
 	return j, nil
 }
