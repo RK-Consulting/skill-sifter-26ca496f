@@ -2,8 +2,6 @@ import React from 'react';
 import { 
   Users, 
   Briefcase, 
-  Calendar, 
-  Store,
   CheckCircle2, 
   Clock3, 
   XCircle,
@@ -51,8 +49,6 @@ const Dashboard = ({ username }: DashboardProps) => {
   const { 
     totalCandidates, 
     activeRequirements, 
-    dailyTasks, 
-    businessContacts, 
     isLoading, 
     error 
   } = useDashboardStats();
@@ -75,22 +71,6 @@ const Dashboard = ({ username }: DashboardProps) => {
       trendType: "up" as const,
       link: "/requirements"
     },
-    {
-      title: "Daily Tasks",
-      value: isLoading ? "..." : dailyTasks.toString(),
-      trend: "+3",
-      icon: <Calendar />,
-      trendType: "up" as const,
-      link: "/daily-jobs"
-    },
-    {
-      title: "Business Contacts",
-      value: isLoading ? "..." : businessContacts.toString(),
-      trend: "+4",
-      icon: <Store />,
-      trendType: "up" as const,
-      link: "/business-dev"
-    }
   ];
 
   const { data: pipelineReport = [], isLoading: pipelineLoading } = useQuery({
