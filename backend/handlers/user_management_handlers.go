@@ -135,7 +135,7 @@ func CreateUser(w http.ResponseWriter, r *http.Request) {
 		ON CONFLICT (tenant_id,user_id) DO UPDATE
 		SET email=EXCLUDED.email, role=EXCLUDED.role, updated_at=NOW()
 	`, tenantID, userID, input.Email, input.Role); err != nil {
-		_, _ = tenantDB.Exec("DELETE FROM users WHERE id=$1", userID)
+		_, _ = tenantDB.Exec("DELETE FROM users WHERE id=$1 AND tenant_id=$2", userID, tenantID)
 		respondWithError(w, http.StatusInternalServerError, "Could not create platform account")
 		return
 	}
