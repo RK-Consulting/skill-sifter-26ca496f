@@ -21,7 +21,7 @@ vi.mock('axios', () => ({
 }));
 
 describe('candidateService.createCandidate', () => {
-  it('POSTs to /candidates with the exact payload it was given (no silent field renaming/dropping)', async () => {
+  it('POSTs to /api/v1/candidates with the exact payload it was given (no silent field renaming/dropping)', async () => {
     const { candidateService } = await import('@/services/api');
 
     // Matches backend/models/models.go's Candidate struct JSON tags after the
@@ -46,12 +46,12 @@ describe('candidateService.createCandidate', () => {
 
     await candidateService.createCandidate(payload);
 
-    expect(mockPost).toHaveBeenCalledWith('/candidates', payload);
+    expect(mockPost).toHaveBeenCalledWith('/api/v1/candidates', payload);
   });
 
-  it('getAllCandidates GETs /candidates', async () => {
+  it('getAllCandidates GETs /api/v1/candidates', async () => {
     const { candidateService } = await import('@/services/api');
     await candidateService.getAllCandidates();
-    expect(mockGet).toHaveBeenCalledWith('/candidates');
+    expect(mockGet).toHaveBeenCalledWith('/api/v1/candidates');
   });
 });
