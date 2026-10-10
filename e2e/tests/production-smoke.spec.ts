@@ -283,7 +283,7 @@ test.describe('SkillSifter Phase 9 production smoke', () => {
       await page.getByLabel('Skills').fill('Go, PostgreSQL, TypeScript');
 
       const candidateResponsePromise = page.waitForResponse(
-        response => response.url().includes('/api/candidates') && response.request().method() === 'POST',
+        response => response.url().includes('/api/v1/candidates') && response.request().method() === 'POST',
       );
       await page.getByRole('main').getByRole('button', { name: 'Add Candidate', exact: true }).click();
       const candidateResponse = await candidateResponsePromise;

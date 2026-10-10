@@ -77,7 +77,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	}
 
 	t.Run("cross-tenant read by known ID returns 404, not the record", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_a")
+		req := isoCtx(httptest.NewRequest("GET", "/api/v1/candidates/x", nil), "tenant_a")
 		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
@@ -87,7 +87,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	})
 
 	t.Run("cross-tenant list never includes another tenant's rows", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("GET", "/api/candidates", nil), "tenant_a")
+		req := isoCtx(httptest.NewRequest("GET", "/api/v1/candidates", nil), "tenant_a")
 		rec := httptest.NewRecorder()
 		GetCandidates(rec, req)
 		if rec.Code != http.StatusOK {
@@ -100,7 +100,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 
 	t.Run("cross-tenant update affects zero rows and returns 404", func(t *testing.T) {
 		body, _ := json.Marshal(map[string]string{"name": "Hijacked", "email": "hijacked@test.com"})
-		req := isoCtx(httptest.NewRequest("PUT", "/api/candidates/x", bytes.NewReader(body)), "tenant_a")
+		req := isoCtx(httptest.NewRequest("PUT", "/api/v1/candidates/x", bytes.NewReader(body)), "tenant_a")
 		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		UpdateCandidate(rec, req)
@@ -116,7 +116,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	})
 
 	t.Run("cross-tenant delete affects zero rows and returns 404", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("DELETE", "/api/candidates/x", nil), "tenant_a")
+		req := isoCtx(httptest.NewRequest("DELETE", "/api/v1/candidates/x", nil), "tenant_a")
 		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		DeleteCandidate(rec, req)
@@ -132,7 +132,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 	})
 
 	t.Run("own-tenant read succeeds", func(t *testing.T) {
-		req := isoCtx(httptest.NewRequest("GET", "/api/candidates/x", nil), "tenant_b")
+		req := isoCtx(httptest.NewRequest("GET", "/api/v1/candidates/x", nil), "tenant_b")
 		req = mux.SetURLVars(req, map[string]string{"id": strconv.Itoa(tenantBCandidateID)})
 		rec := httptest.NewRecorder()
 		GetCandidateByID(rec, req)
@@ -146,7 +146,7 @@ func TestTenantIsolation_Candidates(t *testing.T) {
 			"name": "New Candidate", "email": "new@test.com",
 			"tenantId": "tenant_b", "companyName": "tenant_b", // attempted override
 		})
-		req := isoCtx(httptest.NewRequest("POST", "/api/candidates", bytes.NewReader(body)), "tenant_a")
+		req := isoCtx(httptest.NewRequest("POST", "/api/v1/candidates", bytes.NewReader(body)), "tenant_a")
 		rec := httptest.NewRecorder()
 		AddCandidate(rec, req)
 		if rec.Code != http.StatusCreated {

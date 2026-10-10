@@ -81,13 +81,6 @@ func setupPublicRoutes(r *mux.Router) {
 	r.HandleFunc("/api/account/plans", handlers.GetSubscriptionPlans).Methods("GET", "OPTIONS")
 	r.HandleFunc("/api/auth/register/verify-email", handlers.VerifyRegistrationEmail).Methods("POST", "OPTIONS")
 }
-func setupResourceRoutes(router *mux.Router, path string, getAll, create, getOne, update, del http.HandlerFunc) {
-	router.HandleFunc(path, getAll).Methods("GET", "OPTIONS")
-	router.HandleFunc(path, create).Methods("POST", "OPTIONS")
-	router.HandleFunc(path+"/{id}", getOne).Methods("GET", "OPTIONS")
-	router.HandleFunc(path+"/{id}", update).Methods("PUT", "OPTIONS")
-	router.HandleFunc(path+"/{id}", del).Methods("DELETE", "OPTIONS")
-}
 func managerOnly(h http.HandlerFunc) http.HandlerFunc {
 	return auth.RoleMiddleware("admin", "manager")(h).ServeHTTP
 }
@@ -113,28 +106,22 @@ func setupProtectedRoutes(r *mux.Router) {
 	api.HandleFunc("/account/subscription/cancel", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.CancelSubscription)).ServeHTTP).Methods("POST", "OPTIONS")
 	r.HandleFunc("/api/subscriptions/webhook/razorpay", handlers.RazorpaySubscriptionWebhook).Methods("POST", "OPTIONS")
 	api.HandleFunc("/admin/tenant/provision", auth.RoleMiddleware("admin")(http.HandlerFunc(handlers.ProvisionCurrentTenant)).ServeHTTP).Methods("POST", "OPTIONS")
-	api.HandleFunc("/candidates", handlers.GetCandidates).Methods("GET", "OPTIONS")
-	api.HandleFunc("/candidates", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidate)).ServeHTTP).Methods("POST", "OPTIONS")
-	api.HandleFunc("/candidates/{id}", handlers.GetCandidateByID).Methods("GET", "OPTIONS")
-	api.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidate)).ServeHTTP).Methods("PUT", "OPTIONS")
-	api.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager")(http.HandlerFunc(handlers.DeleteCandidate)).ServeHTTP).Methods("DELETE", "OPTIONS")
-	api.HandleFunc("/candidates/{id}/resume", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UploadCandidateResume)).ServeHTTP).Methods("POST", "OPTIONS")
-	api.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
-
 	// Client and Requirement are the authoritative V1 recruitment-demand domain.
 	// Requirements replace the legacy Jobs resource.
 	apiV1 := r.PathPrefix("/api/v1").Subrouter()
 	apiV1.Use(auth.AuthMiddleware)
 	apiV1.Use(auth.TenantDBMiddleware)
 
-	// Phase 5: agency-first interview workflow. Interview history is preserved;
-	// deletion is intentionally not exposed as a core workflow operation.
-	// Keep the legacy routes for existing UI compatibility while exposing the
-	// authoritative V1 API under /api/v1.
-	api.HandleFunc("/interviews", handlers.GetInterviews).Methods("GET", "OPTIONS")
-	api.HandleFunc("/interviews", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.ScheduleInterview)).ServeHTTP).Methods("POST", "OPTIONS")
-	api.HandleFunc("/interviews/{id}", handlers.GetInterviewByID).Methods("GET", "OPTIONS")
-	api.HandleFunc("/interviews/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateInterview)).ServeHTTP).Methods("PUT", "OPTIONS")
+	// V1 recruitment API. Candidate CRUD, interviews, and lifecycle resources
+	// are intentionally exposed only under the canonical /api/v1 namespace.
+	apiV1.HandleFunc("/candidates", handlers.GetCandidates).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.AddCandidate)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}", handlers.GetCandidateByID).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UpdateCandidate)).ServeHTTP).Methods("PUT", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}", auth.RoleMiddleware("admin", "manager")(http.HandlerFunc(handlers.DeleteCandidate)).ServeHTTP).Methods("DELETE", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}/resume", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.UploadCandidateResume)).ServeHTTP).Methods("POST", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}/resume", handlers.GetCandidateResume).Methods("GET", "OPTIONS")
+	apiV1.HandleFunc("/candidates/{id}/resume-intelligence", handlers.GetCandidateResumeIntelligence).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/interviews", handlers.GetInterviews).Methods("GET", "OPTIONS")
 	apiV1.HandleFunc("/interviews", auth.RoleMiddleware("admin", "manager", "recruiter", "team_leader")(http.HandlerFunc(handlers.ScheduleInterview)).ServeHTTP).Methods("POST", "OPTIONS")
 	apiV1.HandleFunc("/interviews/{id}", handlers.GetInterviewByID).Methods("GET", "OPTIONS")

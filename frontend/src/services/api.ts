@@ -8,15 +8,6 @@ const api = axios.create({
   },
 });
 
-// Function to set the JWT token in the request headers
-const setAuthToken = (token: string | null) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
-
 // Add a request interceptor to include the JWT token
 api.interceptors.request.use(
   (config) => {
@@ -100,27 +91,27 @@ export const authService = {
 export const candidateService = {
   // Get all candidates
   getAllCandidates: async () => {
-    return api.get('/candidates');
+    return api.get('/api/v1/candidates');
   },
 
   // Get a candidate by ID
   getCandidateById: async (id: number) => {
-    return api.get(`/candidates/${id}`);
+    return api.get(`/api/v1/candidates/${id}`);
   },
 
   // Create a new candidate
   createCandidate: async (candidate: Record<string, unknown>) => {
-    return api.post('/candidates', candidate);
+    return api.post('/api/v1/candidates', candidate);
   },
 
   // Update a candidate
   updateCandidate: async (id: number, candidate: Record<string, unknown>) => {
-    return api.put(`/candidates/${id}`, candidate);
+    return api.put(`/api/v1/candidates/${id}`, candidate);
   },
 
   // Delete a candidate
   deleteCandidate: async (id: number) => {
-    return api.delete(`/candidates/${id}`);
+    return api.delete(`/api/v1/candidates/${id}`);
   },
 
   // Upload a resume file for a specific candidate. Deterministic — the
@@ -130,18 +121,18 @@ export const candidateService = {
   uploadResume: async (id: number, file: File) => {
     const form = new FormData();
     form.append('file', file, file.name);
-    return api.post(`/candidates/${id}/resume`, form, {
+    return api.post(`/api/v1/candidates/${id}/resume`, form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
 
   // Get the most recently uploaded resume for a candidate, if any.
   getResume: async (id: number) => {
-    return api.get(`/candidates/${id}/resume`);
+    return api.get(`/api/v1/candidates/${id}/resume`);
   },
 
   getResumeIntelligence: async (id: number) => {
-    return api.get(`/candidates/${id}/resume-intelligence`);
+    return api.get(`/api/v1/candidates/${id}/resume-intelligence`);
   },
 };
 

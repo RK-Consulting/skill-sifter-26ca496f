@@ -6,9 +6,7 @@
 
 ## Context
 
-SkillSifter currently exposes a mixture of canonical `/api/...` routes and compatibility routes registered at the root. The backend also uses a legacy response envelope (`success`, `message`, optional `data`) and tenant filtering based on the authenticated company context. V1 needs deterministic conventions that can be applied consistently without introducing an immediate public API break.
-
-Issue #24 is architecture/documentation scope only. No existing public endpoint is removed or renamed by this decision.
+SkillSifter uses `/api/v1` as the canonical namespace for recruitment-domain APIs. Platform/account/authentication, webhook, reporting, and resume-AI operational endpoints remain under `/api` where they are not duplicate V1 recruitment resources. The backend uses the established response envelope (`success`, `message`, optional `data`) and tenant filtering based on authenticated tenant context.
 
 ## Decision
 
@@ -18,8 +16,8 @@ SkillSifter V1 adopts the following API and domain conventions.
 
 - The **canonical V1 API namespace is `/api/v1`**.
 - New V1 endpoints must be introduced under `/api/v1/...`.
-- Existing `/api/...` endpoints remain supported during the compatibility period and are not removed as part of this ADR.
-- Existing root-level compatibility routes may remain temporarily where already deployed, but new endpoints must not be added there.
+- Recruitment-domain `/api/...` compatibility routes are not retained for the green-field launch.
+- `/api` remains valid for platform/account/authentication and other explicitly non-V1 operational endpoints.
 - A future major API version uses a new explicit version namespace rather than silently changing the contract of an existing version.
 
 Example:
@@ -137,15 +135,13 @@ An endpoint must not require a client to send a tenant selector merely to access
 
 ### 7. Compatibility policy
 
-Compatibility is a deliberate V1 constraint.
+SkillSifter is a green-field V1 product, so the launch contract is the intended contract rather than a migration compatibility layer.
 
-- No public endpoint is removed as part of this ADR.
-- Existing `/api/...` contracts remain supported while consumers migrate to `/api/v1/...`.
-- Existing JSON field names and response envelope fields are preserved unless a separately approved compatibility decision is made.
-- Breaking changes require a new API version or an explicit migration decision.
-- Additive response fields are preferred over replacement fields.
-- Deprecation must be documented before an existing public contract is retired.
-- Internal implementation refactoring is allowed provided the externally observable contract remains compatible.
+- Recruitment-domain APIs use `/api/v1/...` only.
+- Unrelated platform/operational endpoints may remain under `/api/...` when they are not duplicate recruitment APIs.
+- Existing JSON field names and response envelope fields remain part of the V1 contract unless a separately approved decision changes them.
+- Breaking changes after launch require a new API version or an explicit migration decision.
+- Internal implementation refactoring is allowed provided the V1 contract remains compatible.
 
 ### 8. Domain boundary
 
@@ -169,14 +165,14 @@ Handlers should remain thin. Business rules, state transitions, tenant enforceme
 
 The current repository already has a shared JSON response helper using `success`, `message`, and optional `data`, so this ADR formalizes that compatibility contract rather than replacing it. fileciteturn99file0
 
-The current routing exposes `/api` routes and some compatibility routes at the root. This ADR makes `/api/v1` the canonical namespace for new V1 work without requiring a public break now. The existing tenant architecture already establishes immutable tenant identity as the target security boundary and prohibits client-supplied tenant overrides. fileciteturn80file0 fileciteturn106file0
+The current routing exposes `/api` platform/operational endpoints and `/api/v1` recruitment-domain endpoints. Candidate CRUD and interview routes are now V1-only; duplicate recruitment compatibility routes are intentionally removed for the green-field launch. The existing tenant architecture establishes immutable tenant identity as the security boundary and prohibits client-supplied tenant overrides. fileciteturn80file0 fileciteturn106file0
 
 ## Testing requirements
 
 Subsequent implementation work must verify at minimum:
 
 - canonical `/api/v1` routing;
-- compatibility of existing `/api` routes;
+- canonical `/api/v1` recruitment routing and intentional non-V1 `/api` operational routing;
 - consistent JSON naming;
 - standard success/error envelopes;
 - correct HTTP status codes;
@@ -188,7 +184,7 @@ Subsequent implementation work must verify at minimum:
 
 ## Implementation boundary
 
-This ADR defines conventions only. It does not authorize broad route migration, schema redesign, tenant migration, or public API removal. Those changes require separately scoped implementation issues.
+This ADR defines the API contract for the green-field V1 launch. Recruitment-domain compatibility routes under `/api` are intentionally removed; this does not authorize schema redesign, tenant migration, or unrelated API changes.
 
 ## Consequences
 
@@ -202,6 +198,5 @@ This ADR defines conventions only. It does not authorize broad route migration, 
 
 ### Trade-offs
 
-- `/api` compatibility must be maintained while consumers migrate to `/api/v1`.
-- Some existing endpoints will temporarily coexist with the canonical V1 namespace.
-- Future implementation work must gradually consolidate legacy route registration without breaking deployed clients.
+- Recruitment-domain APIs have one canonical namespace, reducing duplicate routing and frontend drift.
+- `/api` remains available only where an endpoint is intentionally platform/operational rather than a duplicate recruitment resource.
