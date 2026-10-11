@@ -50,7 +50,16 @@ const Login = () => {
     const token = localStorage.getItem('token');
     const user = localStorage.getItem('user');
     if (token && user) {
-      navigate(data.subscriptionStatus === 'EXPIRED' ? '/account' : '/dashboard', { replace: true });
+      try {
+        const parsedUser = JSON.parse(user) as LoginResponse['user'] & {
+          subscriptionStatus?: string;
+        };
+        navigate(parsedUser.subscriptionStatus === 'EXPIRED' ? '/account' : '/dashboard', { replace: true });
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        setIsInitialized(true);
+      }
     } else {
       setIsInitialized(true);
     }
@@ -82,7 +91,7 @@ const Login = () => {
       }));
 
       toast.success('Login successful');
-      navigate('/', { replace: true });
+      navigate(data.subscriptionStatus === 'EXPIRED' ? '/account' : '/dashboard', { replace: true });
     } catch (error: unknown) {
       const message = getErrorMessage(error, 'Invalid credentials or inactive subscription.');
       setLoginError(message);
