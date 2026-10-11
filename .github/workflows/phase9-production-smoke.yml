@@ -27,7 +27,6 @@ jobs:
       E2E_ADMIN_EMAIL: ${{ secrets.SKILLSIFTER_E2E_ADMIN_EMAIL }}
       E2E_ADMIN_PASSWORD: ${{ secrets.SKILLSIFTER_E2E_ADMIN_PASSWORD }}
       E2E_RUN_MUTATIONS: 'true'
-      SMOKE_SOURCE_SHA: ${{ github.sha }}
 
     steps:
       - name: Verify production smoke credentials
@@ -37,21 +36,17 @@ jobs:
           test -n "$E2E_ADMIN_PASSWORD" || { echo "SKILLSIFTER_E2E_ADMIN_PASSWORD is not configured."; exit 1; }
           test "$E2E_ADMIN_EMAIL" = "e2e-admin@skillsifter.in" || { echo "Unexpected E2E smoke account."; exit 1; }
 
-      - name: Checkout exact triggering commit
+      - name: Checkout current main
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: main
 
       - name: Verify smoke source commit
         shell: bash
         run: |
-          checked_out_sha=$(git rev-parse HEAD)
-          echo "Smoke trigger SHA: $SMOKE_SOURCE_SHA"
-          echo "Checked-out SHA:  $checked_out_sha"
-          test "$checked_out_sha" = "$SMOKE_SOURCE_SHA" || {
-            echo "Smoke source SHA mismatch."
-            exit 1
-          }
+          SMOKE_SOURCE_SHA="$(git rev-parse HEAD)"
+          echo "Smoke source SHA: $SMOKE_SOURCE_SHA"
+          echo "SMOKE_SOURCE_SHA=$SMOKE_SOURCE_SHA" >> "$GITHUB_ENV"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -93,13 +88,13 @@ jobs:
             deployed_revision="$(printf '%s' "$health_payload" | jq -r '.revision // empty' 2>/dev/null || true)"
             reset_status=$(curl --max-time 10 -sS -o /dev/null -w '%{http_code}' -X OPTIONS "$E2E_API_BASE_URL/api/e2e/reset" || true)
             if [[ "$health_status" == "OK" && "$health_version" == "$expected_version" && "$deployed_revision" == "$SMOKE_SOURCE_SHA" && "$reset_status" == "204" ]]; then
-              echo "Deployed version $health_version and revision $deployed_revision match the checked-out smoke source; reset preflight is healthy."
+              echo "Deployed version $health_version and revision $deployed_revision match current main; reset preflight is healthy."
               exit 0
             fi
             echo "Deployment not ready (attempt $attempt/20; status=$health_status version=$health_version revision=$deployed_revision expected=$SMOKE_SOURCE_SHA reset=$reset_status); waiting 15 seconds..."
             sleep 15
           done
-          echo "Production backend revision did not match the smoke source within 5 minutes. No mutation tests were run."
+          echo "Production backend revision did not match current main within 5 minutes. No mutation tests were run."
           exit 1
 
       - name: Verify production E2E smoke account credentials
