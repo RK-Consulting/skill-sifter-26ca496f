@@ -40,13 +40,21 @@ api.interceptors.response.use(
       console.error('Status:', error.response.status, 'URL:', error.config?.url);
       console.error('Response data:', error.response.data);
       
-      // If unauthorized, handle authentication errors
-      if (error.response.status === 401) {
-        console.log('Unauthorized access, redirecting to login');
-        // We'll just log it but not immediately redirect to prevent disrupting user experience
-        // localStorage.removeItem('token');
-        // localStorage.removeItem('user');
-        // window.location.href = '/login';
+      // A 401 on a protected API means the stored session is no longer usable.
+      // Keep login failures visible on the login form; clear stale sessions elsewhere.
+      if (error.response.status === 401 && !error.config?.url?.includes('/auth/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new Event('skillsifter-auth-changed'));
+        if (window.location.pathname !== '/login') {
+          window.location.replace('/login');
+        }
+      }
+
+      // Expired trials can still sign in to manage/renew their subscription,
+      // but must not remain on protected application pages.
+      if (error.response.status === 402 && window.location.pathname !== '/account') {
+        window.location.replace('/account');
       }
     }
     return Promise.reject(error);
