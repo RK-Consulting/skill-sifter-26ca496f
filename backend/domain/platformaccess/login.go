@@ -21,13 +21,22 @@ func resolveAccess(dbConn *sql.DB, userID int, tenantID string, requireReady boo
 			pua.tenant_id,
 			pt.provisioning_status,
 			pt.account_status,
-			COALESCE(active_sub.status, ''),
+			COALESCE(
+				CASE
+					WHEN active_sub.status IN ('TRIAL', 'ACTIVE')
+					 AND active_sub.ends_at IS NOT NULL
+					 AND active_sub.ends_at < NOW()
+					THEN 'EXPIRED'
+					ELSE active_sub.status
+				END,
+				''
+			),
 			COALESCE(active_sub.plan_code, ''),
 			pua.role
 		FROM platform_user_accounts pua
 		JOIN platform_tenants pt ON pt.tenant_id = pua.tenant_id
 		LEFT JOIN LATERAL (
-			SELECT status, plan_code
+			SELECT status, plan_code, ends_at
 			FROM platform_subscriptions
 			WHERE tenant_id = pua.tenant_id
 			  AND status IN ('TRIAL', 'ACTIVE', 'EXPIRED', 'PAST_DUE')
