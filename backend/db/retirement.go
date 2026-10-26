@@ -253,8 +253,11 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 			       WHEN EXCLUDED.username=EXCLUDED.email THEN platform_retired_users.username
 			       ELSE EXCLUDED.username
 			     END,
+			     retired_at=CASE
+			       WHEN platform_retired_users.status IS DISTINCT FROM EXCLUDED.status THEN NOW()
+			       ELSE platform_retired_users.retired_at
+			     END,
 			     status=EXCLUDED.status,
-			     retired_at=NOW(),
 			     updated_at=NOW()`,
 			tenantID, userID, user.username, user.email, status)
 		if err != nil {
