@@ -20,6 +20,21 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	var retiredStatus string
+	retiredErr := db.DB.QueryRow(
+		`SELECT status FROM platform_retired_users WHERE LOWER(email)=LOWER($1) LIMIT 1`,
+		creds.Email,
+	).Scan(&retiredStatus)
+	if retiredErr == nil {
+		// Do not disclose account-state details on an unauthenticated endpoint.
+		respondWithError(w, http.StatusForbidden, "This account is no longer active. Contact support for assistance.")
+		return
+	}
+	if retiredErr != sql.ErrNoRows {
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
 	var user models.User
 	var hashedPassword string
 	var tenantUserID int
