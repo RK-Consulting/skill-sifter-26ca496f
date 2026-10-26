@@ -3,6 +3,7 @@ package handlers
 import (
 	"bytes"
 	"crypto/hmac"
+	"log"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
@@ -406,6 +407,10 @@ func ExpireDueSubscriptions() {
 
 func CleanupExpiredTrials() {
 	ExpireDueSubscriptions()
+	if err := db.RecordExpiredTrialUsers(db.DB); err != nil {
+		log.Printf("could not record expired trial users: %v", err)
+		return
+	}
 	rows, err := db.DB.Query("SELECT tenant_id FROM platform_tenants WHERE data_deletion_at IS NOT NULL AND data_deletion_at<=NOW() AND NOT EXISTS (SELECT 1 FROM platform_subscriptions WHERE tenant_id=platform_tenants.tenant_id AND status IN ('ACTIVE','PAST_DUE'))")
 	if err != nil {
 		return
