@@ -333,6 +333,22 @@ func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 		return fmt.Errorf("tenant retention window has not expired")
 	}
 	retirementState := retirementStatus(accountStatus, latestSubscriptionStatus, latestSubscriptionProvider, trialExpiresAt, time.Now())
+	if accountStatus == "TERMINATED" {
+		// A previous cleanup attempt may already have archived the original
+		// reason before DROP DATABASE failed. Preserve that status on retry.
+		var recordedStatus string
+		err := tx.QueryRow(
+			`SELECT status FROM platform_retired_users
+			 WHERE tenant_id=$1
+			 ORDER BY updated_at DESC
+			 LIMIT 1`, tenantID,
+		).Scan(&recordedStatus)
+		if err == nil {
+			retirementState = recordedStatus
+		} else if err != sql.ErrNoRows {
+			return fmt.Errorf("read prior retired-user status: %w", err)
+		}
+	}
 
 	if accountStatus != "TERMINATED" {
 		if _, err = tx.Exec(
