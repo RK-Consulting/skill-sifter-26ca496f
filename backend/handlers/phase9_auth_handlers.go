@@ -25,6 +25,7 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 		`SELECT ru.status
 		 FROM platform_retired_users ru
 		 WHERE LOWER(ru.email)=LOWER($1)
+		   AND ru.status IN ('ACCOUNT_DELETED', 'DISCONTINUED', 'LEGACY_UNKNOWN')
 		   AND NOT EXISTS (
 		     SELECT 1
 		     FROM platform_user_accounts pua
