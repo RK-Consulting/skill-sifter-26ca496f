@@ -108,12 +108,13 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 	usersByEmail := make(map[string]retiredUser)
 
 	addUser := func(user retiredUser) {
-		user.email = strings.TrimSpace(user.email)
+		originalEmail := strings.TrimSpace(user.email)
+		user.email = strings.ToLower(originalEmail)
 		user.username = strings.TrimSpace(user.username)
 		if user.email == "" {
 			return
 		}
-		if user.username == "" {
+		if user.username == "" || strings.EqualFold(user.username, originalEmail) {
 			user.username = user.email
 		}
 		key := strings.ToLower(user.email)
@@ -202,12 +203,22 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 		if err != nil {
 			return fmt.Errorf("open tenant database before retirement: %w", err)
 		}
-		tenantRows, queryErr := tenantDB.Query(`SELECT id, username, email FROM users`)
-		if queryErr != nil {
+		var usersTableExists bool
+		if err := tenantDB.QueryRow(`
+			SELECT EXISTS (
+				SELECT 1 FROM information_schema.tables
+				WHERE table_schema='public' AND table_name='users'
+			)`).Scan(&usersTableExists); err != nil {
 			tenantDB.Close()
-			return fmt.Errorf("read tenant users before retirement: %w", queryErr)
+			return fmt.Errorf("check tenant users table before retirement: %w", err)
 		}
-		for tenantRows.Next() {
+		if usersTableExists {
+			tenantRows, queryErr := tenantDB.Query(`SELECT id, username, email FROM users`)
+			if queryErr != nil {
+				tenantDB.Close()
+				return fmt.Errorf("read tenant users before retirement: %w", queryErr)
+			}
+			for tenantRows.Next() {
 			var id int64
 			var username, email string
 			if err := tenantRows.Scan(&id, &username, &email); err != nil {
@@ -217,12 +228,13 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 			}
 			addUser(retiredUser{userID: sql.NullInt64{Int64: id, Valid: true}, username: username, email: email})
 		}
-		if err := tenantRows.Err(); err != nil {
+			if err := tenantRows.Err(); err != nil {
+				tenantRows.Close()
+				tenantDB.Close()
+				return fmt.Errorf("read tenant user rows before retirement: %w", err)
+			}
 			tenantRows.Close()
-			tenantDB.Close()
-			return fmt.Errorf("read tenant user rows before retirement: %w", err)
 		}
-		tenantRows.Close()
 		if err := tenantDB.Close(); err != nil {
 			return fmt.Errorf("close tenant database after retirement scan: %w", err)
 		}
