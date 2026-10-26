@@ -17,12 +17,12 @@ func retirementStatus(accountStatus, latestSubscriptionStatus, latestSubscriptio
 	switch {
 	case strings.EqualFold(latestSubscriptionStatus, "CANCELLED"):
 		return "DISCONTINUED"
+	case strings.EqualFold(accountStatus, "TERMINATED"):
+		return "ACCOUNT_DELETED"
 	case strings.TrimSpace(latestSubscriptionProvider) == "" &&
 		(strings.EqualFold(latestSubscriptionStatus, "EXPIRED") ||
 			trialExpiresAt.Valid && !trialExpiresAt.Time.After(now)):
 		return "TRIAL_EXPIRED"
-	case strings.EqualFold(accountStatus, "TERMINATED"):
-		return "ACCOUNT_DELETED"
 	default:
 		return "ACCOUNT_DELETED"
 	}
