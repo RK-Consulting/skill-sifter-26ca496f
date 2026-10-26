@@ -3,12 +3,12 @@ package handlers
 import (
 	"bytes"
 	"crypto/hmac"
-	"log"
 	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"time"
