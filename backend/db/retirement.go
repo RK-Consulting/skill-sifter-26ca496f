@@ -13,13 +13,13 @@ type retiredUser struct {
 	email    string
 }
 
-func retirementStatus(accountStatus, latestSubscriptionStatus string, trialExpiresAt sql.NullTime, now time.Time) string {
+func retirementStatus(accountStatus, latestSubscriptionStatus, latestSubscriptionProvider string, trialExpiresAt sql.NullTime, now time.Time) string {
 	switch {
 	case strings.EqualFold(latestSubscriptionStatus, "CANCELLED"):
 		return "DISCONTINUED"
-	case strings.EqualFold(latestSubscriptionStatus, "EXPIRED"),
-		strings.EqualFold(accountStatus, "EXPIRED"),
-		trialExpiresAt.Valid && !trialExpiresAt.Time.After(now):
+	case strings.TrimSpace(latestSubscriptionProvider) == "" &&
+		(strings.EqualFold(latestSubscriptionStatus, "EXPIRED") ||
+			trialExpiresAt.Valid && !trialExpiresAt.Time.After(now)):
 		return "TRIAL_EXPIRED"
 	case strings.EqualFold(accountStatus, "TERMINATED"):
 		return "ACCOUNT_DELETED"
