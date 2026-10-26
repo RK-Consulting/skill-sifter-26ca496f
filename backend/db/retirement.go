@@ -219,15 +219,15 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 				return fmt.Errorf("read tenant users before retirement: %w", queryErr)
 			}
 			for tenantRows.Next() {
-			var id int64
-			var username, email string
-			if err := tenantRows.Scan(&id, &username, &email); err != nil {
-				tenantRows.Close()
-				tenantDB.Close()
-				return fmt.Errorf("scan tenant user before retirement: %w", err)
+				var id int64
+				var username, email string
+				if err := tenantRows.Scan(&id, &username, &email); err != nil {
+					tenantRows.Close()
+					tenantDB.Close()
+					return fmt.Errorf("scan tenant user before retirement: %w", err)
+				}
+				addUser(retiredUser{userID: sql.NullInt64{Int64: id, Valid: true}, username: username, email: email})
 			}
-			addUser(retiredUser{userID: sql.NullInt64{Int64: id, Valid: true}, username: username, email: email})
-		}
 			if err := tenantRows.Err(); err != nil {
 				tenantRows.Close()
 				tenantDB.Close()
