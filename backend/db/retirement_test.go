@@ -21,7 +21,7 @@ func TestRetirementStatus(t *testing.T) {
 		{name: "expired paid subscription is not mislabeled as trial", accountStatus: "EXPIRED", subscriptionStatus: "EXPIRED", subscriptionProvider: "razorpay", trialExpiresAt: expired, want: "ACCOUNT_DELETED"},
 		{name: "past trial expiry is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "TRIAL", subscriptionProvider: "", trialExpiresAt: expired, want: "TRIAL_EXPIRED"},
 		{name: "terminated trial is trial expired", accountStatus: "EXPIRED", subscriptionStatus: "EXPIRED", subscriptionProvider: "", trialExpiresAt: expired, want: "TRIAL_EXPIRED"},
-		{name: "terminated account is deleted", accountStatus: "TERMINATED", subscriptionStatus: "", subscriptionProvider: "", trialExpiresAt: future, want: "ACCOUNT_DELETED"},
+		{name: "terminated account is deleted even if trial date is old", accountStatus: "TERMINATED", subscriptionStatus: "", subscriptionProvider: "", trialExpiresAt: expired, want: "ACCOUNT_DELETED"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
