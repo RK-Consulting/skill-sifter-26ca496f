@@ -301,18 +301,25 @@ func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 	}
 	defer tx.Rollback()
 
-	var accountStatus, provisioningStatus, databaseName string
+	var accountStatus, provisioningStatus, databaseName, latestSubscriptionStatus, latestSubscriptionProvider string
 	var deletionAt *time.Time
+	var trialExpiresAt sql.NullTime
 	var hasActiveSubscription bool
 	err = tx.QueryRow(
-		`SELECT account_status, provisioning_status, COALESCE(tenant_database,''), data_deletion_at,
+		`SELECT account_status, provisioning_status, COALESCE(tenant_database,''), data_deletion_at, trial_expires_at,
+				COALESCE((SELECT s.status FROM platform_subscriptions s
+					WHERE s.tenant_id=platform_tenants.tenant_id
+					ORDER BY s.starts_at DESC, s.id DESC LIMIT 1), ''),
+				COALESCE((SELECT s.provider FROM platform_subscriptions s
+					WHERE s.tenant_id=platform_tenants.tenant_id
+					ORDER BY s.starts_at DESC, s.id DESC LIMIT 1), ''),
 				EXISTS(SELECT 1 FROM platform_subscriptions s
 					WHERE s.tenant_id=platform_tenants.tenant_id
 					  AND s.status IN ('ACTIVE','PAST_DUE'))
 		 FROM platform_tenants
 		 WHERE tenant_id=$1
 		 FOR UPDATE`, tenantID,
-	).Scan(&accountStatus, &provisioningStatus, &databaseName, &deletionAt, &hasActiveSubscription)
+	).Scan(&accountStatus, &provisioningStatus, &databaseName, &deletionAt, &trialExpiresAt, &latestSubscriptionStatus, &latestSubscriptionProvider, &hasActiveSubscription)
 	if err == sql.ErrNoRows {
 		return nil
 	}
@@ -324,6 +331,23 @@ func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 	}
 	if deletionAt != nil && deletionAt.After(time.Now()) {
 		return fmt.Errorf("tenant retention window has not expired")
+	}
+	retirementState := retirementStatus(accountStatus, latestSubscriptionStatus, latestSubscriptionProvider, trialExpiresAt, time.Now())
+	if accountStatus == "TERMINATED" {
+		// A previous cleanup attempt may already have archived the original
+		// reason before DROP DATABASE failed. Preserve that status on retry.
+		var recordedStatus string
+		err := tx.QueryRow(
+			`SELECT status FROM platform_retired_users
+			 WHERE tenant_id=$1
+			 ORDER BY updated_at DESC
+			 LIMIT 1`, tenantID,
+		).Scan(&recordedStatus)
+		if err == nil {
+			retirementState = recordedStatus
+		} else if err != sql.ErrNoRows {
+			return fmt.Errorf("read prior retired-user status: %w", err)
+		}
 	}
 
 	if accountStatus != "TERMINATED" {
@@ -358,6 +382,16 @@ func DeleteTenantDatabase(controlDB *sql.DB, tenantID string) error {
 		return fmt.Errorf("open control database for tenant deletion: %w", err)
 	}
 	defer adminDB.Close()
+
+	var tenantDatabaseExists bool
+	if err := adminDB.QueryRow(
+		`SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)`, databaseName,
+	).Scan(&tenantDatabaseExists); err != nil {
+		return fmt.Errorf("check tenant database before retirement: %w", err)
+	}
+	if err := archiveTenantUsers(controlDB, tenantID, databaseName, retirementState, tenantDatabaseExists); err != nil {
+		return fmt.Errorf("archive tenant users before retirement: %w", err)
+	}
 
 	if _, err = adminDB.Exec("DROP DATABASE IF EXISTS " + databaseName + " WITH (FORCE)"); err != nil {
 		_, _ = controlDB.Exec(

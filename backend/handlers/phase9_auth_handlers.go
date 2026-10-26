@@ -20,6 +20,33 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
+	var retiredStatus string
+	retiredErr := db.DB.QueryRow(
+		`SELECT ru.status
+		 FROM platform_retired_users ru
+		 WHERE LOWER(ru.email)=LOWER($1)
+		   AND ru.status IN ('ACCOUNT_DELETED', 'DISCONTINUED', 'LEGACY_UNKNOWN')
+		   AND NOT EXISTS (
+		     SELECT 1
+		     FROM platform_user_accounts pua
+		     JOIN platform_subscriptions s ON s.tenant_id=pua.tenant_id
+		     WHERE LOWER(pua.email)=LOWER($1)
+		       AND s.status IN ('ACTIVE', 'PAST_DUE')
+		       AND (s.ends_at IS NULL OR s.ends_at >= NOW())
+		   )
+		 LIMIT 1`,
+		creds.Email,
+	).Scan(&retiredStatus)
+	if retiredErr == nil {
+		// Do not disclose account-state details on an unauthenticated endpoint.
+		respondWithError(w, http.StatusForbidden, "This account is no longer active. Contact support for assistance.")
+		return
+	}
+	if retiredErr != sql.ErrNoRows {
+		respondWithError(w, http.StatusInternalServerError, "Database error")
+		return
+	}
+
 	var user models.User
 	var hashedPassword string
 	var tenantUserID int
