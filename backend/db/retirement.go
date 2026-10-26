@@ -45,12 +45,22 @@ func archiveTenantUsers(controlDB *sql.DB, tenantID, databaseName, status string
 		}
 		key := strings.ToLower(user.email)
 		existing, found := usersByEmail[key]
-		// Prefer tenant-local identity data (real username and user ID) over
-		// control-plane fallbacks where email is used as the display name.
-		if !found || (existing.username == existing.email && user.username != user.email) ||
-			(!existing.userID.Valid && user.userID.Valid) {
+		if !found {
 			usersByEmail[key] = user
+			return
 		}
+		// Merge fields independently so an exact username from a pending
+		// registration cannot erase an ID already known by the control plane.
+		if (existing.username == "" || existing.username == existing.email) && user.username != user.email {
+			existing.username = user.username
+		}
+		if !existing.userID.Valid && user.userID.Valid {
+			existing.userID = user.userID
+		}
+		if existing.email == "" {
+			existing.email = user.email
+		}
+		usersByEmail[key] = existing
 	}
 
 	accountRows, err := controlDB.Query(
