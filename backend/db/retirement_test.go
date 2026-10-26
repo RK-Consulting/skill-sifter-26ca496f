@@ -18,7 +18,6 @@ func TestRetirementStatus(t *testing.T) {
 		subscriptionProvider string
 		trialExpiresAt       sql.NullTime
 		want                 string
-
 	}{
 		{name: "cancelled subscription is discontinued", accountStatus: "ACTIVE", subscriptionStatus: "CANCELLED", subscriptionProvider: "razorpay", trialExpiresAt: future, want: "DISCONTINUED"},
 		{name: "expired trial subscription is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "EXPIRED", subscriptionProvider: "", trialExpiresAt: future, want: "TRIAL_EXPIRED"},
