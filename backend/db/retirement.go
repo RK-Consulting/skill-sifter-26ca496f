@@ -28,6 +28,79 @@ func retirementStatus(accountStatus, latestSubscriptionStatus string, trialExpir
 	}
 }
 
+type expiredTrialTenant struct {
+	tenantID     string
+	databaseName string
+}
+
+// RecordExpiredTrialUsers snapshots tenant-local identities as soon as a trial
+// expires. Tenant data remains available for its configured retention window;
+// this ledger records the lifecycle status and prevents expired accounts from
+// authenticating during that period.
+func RecordExpiredTrialUsers(controlDB *sql.DB) error {
+	rows, err := controlDB.Query(`
+		SELECT t.tenant_id, COALESCE(t.tenant_database, '')
+		FROM platform_tenants t
+		JOIN LATERAL (
+			SELECT status, provider
+			FROM platform_subscriptions
+			WHERE tenant_id=t.tenant_id
+			ORDER BY starts_at DESC, id DESC
+			LIMIT 1
+		) latest ON TRUE
+		WHERE latest.status='EXPIRED'
+		  AND latest.provider IS NULL
+		  AND NOT EXISTS (
+			SELECT 1 FROM platform_subscriptions s
+			WHERE s.tenant_id=t.tenant_id
+			  AND s.status IN ('ACTIVE', 'PAST_DUE')
+		  )`)
+	if err != nil {
+		return fmt.Errorf("find expired trial tenants: %w", err)
+	}
+
+	var tenants []expiredTrialTenant
+	for rows.Next() {
+		var tenant expiredTrialTenant
+		if err := rows.Scan(&tenant.tenantID, &tenant.databaseName); err != nil {
+			rows.Close()
+			return fmt.Errorf("scan expired trial tenant: %w", err)
+		}
+		if tenant.databaseName == "" {
+			tenant.databaseName = TenantDatabaseName(tenant.tenantID)
+		}
+		tenants = append(tenants, tenant)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return fmt.Errorf("read expired trial tenants: %w", err)
+	}
+	rows.Close()
+
+	if len(tenants) == 0 {
+		return nil
+	}
+
+	adminDB, err := OpenDatabase(GetEnv("DB_NAME", "postgres"))
+	if err != nil {
+		return fmt.Errorf("open database to record expired trials: %w", err)
+	}
+	defer adminDB.Close()
+
+	for _, tenant := range tenants {
+		var databaseExists bool
+		if err := adminDB.QueryRow(
+			`SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname=$1)`, tenant.databaseName,
+		).Scan(&databaseExists); err != nil {
+			return fmt.Errorf("check expired trial database %q: %w", tenant.databaseName, err)
+		}
+		if err := archiveTenantUsers(controlDB, tenant.tenantID, tenant.databaseName, "TRIAL_EXPIRED", databaseExists); err != nil {
+			return fmt.Errorf("record expired trial tenant %q: %w", tenant.tenantID, err)
+		}
+	}
+	return nil
+}
+
 // archiveTenantUsers writes a durable identity/status record before the tenant
 // database and its control-plane routing records are removed. Password hashes
 // and other credentials are intentionally never copied to the retirement ledger.
