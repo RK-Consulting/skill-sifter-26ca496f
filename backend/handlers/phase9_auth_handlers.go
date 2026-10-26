@@ -22,7 +22,18 @@ func LoginUser(w http.ResponseWriter, r *http.Request) {
 
 	var retiredStatus string
 	retiredErr := db.DB.QueryRow(
-		`SELECT status FROM platform_retired_users WHERE LOWER(email)=LOWER($1) LIMIT 1`,
+		`SELECT ru.status
+		 FROM platform_retired_users ru
+		 WHERE LOWER(ru.email)=LOWER($1)
+		   AND NOT EXISTS (
+		     SELECT 1
+		     FROM platform_user_accounts pua
+		     JOIN platform_subscriptions s ON s.tenant_id=pua.tenant_id
+		     WHERE LOWER(pua.email)=LOWER($1)
+		       AND s.status IN ('ACTIVE', 'PAST_DUE')
+		       AND (s.ends_at IS NULL OR s.ends_at >= NOW())
+		   )
+		 LIMIT 1`,
 		creds.Email,
 	).Scan(&retiredStatus)
 	if retiredErr == nil {
