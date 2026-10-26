@@ -12,19 +12,20 @@ func TestRetirementStatus(t *testing.T) {
 	future := sql.NullTime{Time: now.Add(24 * time.Hour), Valid: true}
 
 	tests := []struct {
-		name, accountStatus, subscriptionStatus string
-		trialExpiresAt                          sql.NullTime
-		want                                    string
+		name, accountStatus, subscriptionStatus, subscriptionProvider string
+		trialExpiresAt                                                   sql.NullTime
+		want                                                             string
 	}{
-		{name: "cancelled subscription is discontinued", accountStatus: "ACTIVE", subscriptionStatus: "CANCELLED", trialExpiresAt: future, want: "DISCONTINUED"},
-		{name: "expired subscription is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "EXPIRED", trialExpiresAt: future, want: "TRIAL_EXPIRED"},
-		{name: "past trial expiry is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "TRIAL", trialExpiresAt: expired, want: "TRIAL_EXPIRED"},
-		{name: "expired account is trial expired", accountStatus: "EXPIRED", subscriptionStatus: "", want: "TRIAL_EXPIRED"},
-		{name: "terminated account is deleted", accountStatus: "TERMINATED", subscriptionStatus: "", trialExpiresAt: future, want: "ACCOUNT_DELETED"},
+		{name: "cancelled subscription is discontinued", accountStatus: "ACTIVE", subscriptionStatus: "CANCELLED", subscriptionProvider: "razorpay", trialExpiresAt: future, want: "DISCONTINUED"},
+		{name: "expired trial subscription is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "EXPIRED", subscriptionProvider: "", trialExpiresAt: future, want: "TRIAL_EXPIRED"},
+		{name: "expired paid subscription is not mislabeled as trial", accountStatus: "EXPIRED", subscriptionStatus: "EXPIRED", subscriptionProvider: "razorpay", trialExpiresAt: expired, want: "ACCOUNT_DELETED"},
+		{name: "past trial expiry is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "TRIAL", subscriptionProvider: "", trialExpiresAt: expired, want: "TRIAL_EXPIRED"},
+		{name: "terminated trial is trial expired", accountStatus: "EXPIRED", subscriptionStatus: "EXPIRED", subscriptionProvider: "", trialExpiresAt: expired, want: "TRIAL_EXPIRED"},
+		{name: "terminated account is deleted", accountStatus: "TERMINATED", subscriptionStatus: "", subscriptionProvider: "", trialExpiresAt: future, want: "ACCOUNT_DELETED"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := retirementStatus(tt.accountStatus, tt.subscriptionStatus, tt.trialExpiresAt, now)
+			got := retirementStatus(tt.accountStatus, tt.subscriptionStatus, tt.subscriptionProvider, tt.trialExpiresAt, now)
 			if got != tt.want {
 				t.Fatalf("retirementStatus() = %q, want %q", got, tt.want)
 			}
