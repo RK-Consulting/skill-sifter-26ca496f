@@ -12,9 +12,12 @@ func TestRetirementStatus(t *testing.T) {
 	future := sql.NullTime{Time: now.Add(24 * time.Hour), Valid: true}
 
 	tests := []struct {
-		name, accountStatus, subscriptionStatus, subscriptionProvider string
-		trialExpiresAt                                                   sql.NullTime
-		want                                                             string
+		name                   string
+		accountStatus          string
+		subscriptionStatus     string
+		subscriptionProvider   string
+		trialExpiresAt         sql.NullTime
+		want                   string
 	}{
 		{name: "cancelled subscription is discontinued", accountStatus: "ACTIVE", subscriptionStatus: "CANCELLED", subscriptionProvider: "razorpay", trialExpiresAt: future, want: "DISCONTINUED"},
 		{name: "expired trial subscription is trial expired", accountStatus: "ACTIVE", subscriptionStatus: "EXPIRED", subscriptionProvider: "", trialExpiresAt: future, want: "TRIAL_EXPIRED"},
