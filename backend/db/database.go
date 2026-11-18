@@ -62,6 +62,14 @@ func TenantDB(controlDB *sql.DB, tenantID string) (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("open tenant database: %w", err)
 	}
+	// Apply pending tenant-plane migrations when an existing tenant database
+	// is first opened by this process. ProvisionTenantDatabase already does
+	// this for new tenants; this also upgrades tenants created before a new
+	// forward migration was deployed.
+	if err := InitializeTenantSchema(conn); err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("initialize tenant database schema: %w", err)
+	}
 	actual, loaded := tenantDBs.LoadOrStore(tenantID, conn)
 	if loaded {
 		conn.Close()
