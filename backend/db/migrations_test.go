@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -331,5 +332,27 @@ func TestFinalPlaneBaselines_ArePhysicallySeparated(t *testing.T) {
 	}
 	if crossPlaneFKCount != 0 {
 		t.Errorf("tenant baseline contains %d cross-plane platform foreign keys", crossPlaneFKCount)
+	}
+
+	var jobDescriptionType string
+	if err := tenantDB.QueryRow(`
+		SELECT data_type
+		FROM information_schema.columns
+		WHERE table_schema = 'public'
+		  AND table_name = 'candidates'
+		  AND column_name = 'jobdescription'
+	`).Scan(&jobDescriptionType); err != nil {
+		t.Fatalf("could not inspect candidate job description type: %v", err)
+	}
+	if jobDescriptionType != "text" {
+		t.Fatalf("candidates.jobdescription type = %q, want text", jobDescriptionType)
+	}
+
+	longDescription := strings.Repeat("A", 1200)
+	if _, err := tenantDB.Exec(`
+		INSERT INTO candidates (tenant_id, name, email, jobdescription)
+		VALUES ('migration-test-tenant', 'Long JD Candidate', 'long-jd@example.test', $1)
+	`, longDescription); err != nil {
+		t.Fatalf("candidate job description longer than 500 characters was rejected: %v", err)
 	}
 }
